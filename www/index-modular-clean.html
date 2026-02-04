@@ -1,0 +1,3188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>FightCraft - Geolocation RPG</title>
+    
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; background: #1a1a2e; }
+        .rpg-font { font-family: 'Press Start 2P', cursive; }
+        #map { width: 100vw; height: 100vh; z-index: 1; }
+        
+        .fog-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none; z-index: 400;
+            background: radial-gradient(circle at var(--player-x, 50%) var(--player-y, 50%), 
+                transparent 0%, transparent var(--fog-radius-inner, 80px), 
+                rgba(0,0,0,0.4) var(--fog-radius-mid, 120px),
+                rgba(0,0,0,0.7) var(--fog-radius-outer, 180px), 
+                rgba(0,0,0,0.95) var(--fog-radius-max, 250px));
+            transition: background 0.1s ease-out;
+        }
+        
+        .monster-marker { width: 60px !important; height: 70px !important; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 32px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); animation: float 2s ease-in-out infinite; cursor: pointer; }
+        .monster-marker .monster-icon { font-size: 32px; }
+        .monster-marker .monster-level { font-size: 10px; font-weight: bold; background: rgba(0,0,0,0.7); 
+            padding: 1px 4px; border-radius: 4px; margin-top: 2px; color: white; }
+        .monster-marker.champion { filter: drop-shadow(0 0 10px #3b82f6); }
+        .monster-marker.champion .monster-level { background: #3b82f6; }
+        .monster-marker.unique { filter: drop-shadow(0 0 15px #f59e0b); }
+        .monster-marker.unique .monster-level { background: #f59e0b; color: black; }
+        .monster-marker.super-unique { filter: drop-shadow(0 0 20px #f97316); animation: float 2s ease-in-out infinite, pulse-boss 1s ease-in-out infinite; }
+        .monster-marker.super-unique .monster-level { background: #f97316; }
+        .monster-marker.dangerous::after { content: '💀'; position: absolute; top: -10px; right: -10px; font-size: 16px; }
+        .monster-marker.inactive { opacity: 0.3; filter: grayscale(100%) brightness(0.5); pointer-events: none; }
+        .monster-marker.inactive .monster-icon { color: #9ca3af !important; }
+        .monster-marker.inactive .monster-level { background: #6b7280 !important; color: #e5e7eb !important; }
+        .monster-marker.inactive::before { content: '⏳'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 14px; }
+        
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes pulse-boss { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes damage-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; filter: brightness(2); } }
+        .shake { animation: shake 0.3s ease-in-out; }
+        .damage-flash { animation: damage-flash 0.2s ease-in-out; }
+        
+        .stat-bar { height: 100%; transition: width 0.3s ease; border-radius: 4px; }
+        .hp-bar { background: linear-gradient(to right, #dc2626, #ef4444); }
+        .xp-bar { background: linear-gradient(to right, #ca8a04, #eab308); }
+        .regen-indicator { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font-size: 10px; }
+        
+        .item-slot { width: 56px; height: 56px; background: linear-gradient(145deg, #2a2a4a, #1a1a2e);
+            border: 2px solid #4a4a6a; border-radius: 8px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 22px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .item-slot:hover { border-color: #8b5cf6; transform: scale(1.05); box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); }
+        .item-slot.equipped { border-color: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.5); }
+        .item-slot.empty { opacity: 0.5; background: linear-gradient(145deg, #374151, #1f2937); }
+        .item-slot .slot-label { font-size: 7px; color: #888; margin-top: 2px; }
+        .equip-slot { background: linear-gradient(145deg, #2a2a4a, #1a1a2e); border: 2px solid #4a4a6a; 
+            border-radius: 10px; display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; transition: all 0.2s; }
+        .equip-slot:hover { border-color: #8b5cf6; transform: scale(1.08); box-shadow: 0 0 15px rgba(139, 92, 246, 0.5); }
+        .equip-slot.equipped { border-color: #22c55e; box-shadow: 0 0 12px rgba(34, 197, 94, 0.6); }
+        .equip-slot.empty { opacity: 0.5; }
+        
+        .rarity-common { border-color: #9ca3af !important; }
+        .rarity-uncommon { border-color: #22c55e !important; }
+        .rarity-rare { border-color: #3b82f6 !important; }
+        .rarity-epic { border-color: #a855f7 !important; }
+        .rarity-legendary { border-color: #f59e0b !important; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+        
+        .menu-panel { background: linear-gradient(180deg, rgba(26,26,46,0.98) 0%, rgba(20,20,40,0.98) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.3); backdrop-filter: blur(10px); }
+        .btn-action { background: linear-gradient(145deg, #7c3aed, #5b21b6); transition: all 0.2s; }
+        .btn-action:hover { background: linear-gradient(145deg, #8b5cf6, #6d28d9); transform: translateY(-2px); }
+        
+        .notification { animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        
+        .player-marker { width: 40px; height: 40px; background: linear-gradient(145deg, #8b5cf6, #6d28d9);
+            border: 3px solid white; border-radius: 50%; box-shadow: 0 0 20px rgba(139, 92, 246, 0.7);
+            display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        
+        .player-range { stroke: #8b5cf6; stroke-width: 3px; fill: rgba(139, 92, 246, 0.1); stroke-dasharray: 10, 10; }
+        
+        .leaflet-tile-pane { filter: saturate(1.2) contrast(1.1); }
+        
+        .debug-badge { position: absolute; top: 100px; left: 10px; z-index: 1001;
+            background: linear-gradient(145deg, #dc2626, #991b1b); padding: 4px 10px;
+            border-radius: 6px; font-size: 11px; font-weight: bold; }
+        
+        .debug-panel { position: absolute; top: 130px; left: 10px; z-index: 1001;
+            background: rgba(0,0,0,0.85); padding: 8px; border-radius: 8px;
+            font-size: 10px; font-family: monospace; width: 140px; }
+        .debug-panel input, .debug-panel select { background: #1f2937; border: 1px solid #4b5563; color: white;
+            padding: 3px 6px; border-radius: 4px; width: 100%; font-size: 10px; }
+        .debug-panel button { background: #7c3aed; padding: 3px 6px; border-radius: 4px;
+            font-size: 10px; margin-top: 3px; width: 100%; }
+        .debug-panel button:hover { background: #6d28d9; }
+        
+        .speed-control { position: absolute; bottom: 230px; left: 20px; z-index: 1001; }
+        .speed-btn { padding: 6px 10px; background: #374151; border-radius: 4px; font-size: 11px; }
+        .speed-btn.active { background: #7c3aed; }
+        
+        .joystick-container { position: absolute; bottom: 100px; left: 20px; z-index: 1001;
+            width: 120px; height: 120px; background: rgba(139, 92, 246, 0.2);
+            border: 2px solid rgba(139, 92, 246, 0.5); border-radius: 50%; touch-action: none; }
+        .joystick-knob { position: absolute; width: 50px; height: 50px;
+            background: linear-gradient(145deg, #8b5cf6, #6d28d9); border: 3px solid white;
+            border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); cursor: grab; }
+        
+        .combat-zone { padding: 6px 8px; border: 2px solid #4a4a6a; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 11px; }
+        .combat-zone:hover { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2); transform: scale(1.02); }
+        .combat-zone.selected-attack { border-color: #ef4444; background: rgba(239, 68, 68, 0.3); box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+        .combat-zone.selected-defense { border-color: #22c55e; background: rgba(34, 197, 94, 0.3); box-shadow: 0 0 10px rgba(34, 197, 94, 0.5); }
+        
+        .combat-equip-slot { width: 28px; height: 28px; background: #374151; border: 1px solid #4b5563; border-radius: 4px; 
+            display: flex; align-items: center; justify-content: center; font-size: 14px; opacity: 0.4; }
+        .combat-equip-slot.equipped { border-color: #22c55e; background: #1f2937; opacity: 1; }
+        
+        .affix-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin: 2px; }
+        .affix-stone-skin { background: #6b7280; }
+        .affix-extra-strong { background: #dc2626; }
+        .affix-teleport { background: #8b5cf6; }
+        .affix-cursed { background: #581c87; }
+        .affix-mana-burn { background: #0891b2; }
+        
+        .toggle-btn { width: 44px; height: 24px; border-radius: 12px; position: relative; cursor: pointer; transition: all 0.2s; }
+        .toggle-btn .knob { position: absolute; top: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: all 0.2s; }
+        .toggle-btn.off { background: #4b5563; }
+        .toggle-btn.off .knob { left: 2px; }
+        .toggle-btn.on { background: #8b5cf6; }
+        .toggle-btn.on .knob { left: 22px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Main Map Screen -->
+    <div id="game-container" class="relative w-screen h-screen">
+        <div id="map"></div>
+        <div class="fog-overlay" id="fog"></div>
+        
+        <!-- Top HUD -->
+        <div class="absolute top-0 left-0 right-0 z-[1000] p-3">
+            <div class="menu-panel rounded-xl p-3 max-w-md mx-auto">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center text-lg font-bold border-2 border-purple-400">
+                        <span id="player-level">1</span>
+                    </div>
+                    <div class="flex-1 space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-red-400 w-8">HP</span>
+                            <div class="flex-1 h-4 bg-gray-800 rounded overflow-hidden relative">
+                                <div class="hp-bar stat-bar" id="hp-bar" style="width: 100%"></div>
+                                <span class="regen-indicator text-green-400" id="regen-indicator">+</span>
+                            </div>
+                            <span class="text-xs w-20 text-right" id="hp-text">100/100</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-yellow-400 w-8">XP</span>
+                            <div class="flex-1 h-2 bg-gray-800 rounded overflow-hidden">
+                                <div class="xp-bar stat-bar" id="xp-bar" style="width: 0%"></div>
+                            </div>
+                            <span class="text-xs w-20 text-right" id="xp-text">0/500</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Menu Bar -->
+        <div class="absolute bottom-0 left-0 right-0 z-[1000] p-3">
+            <div class="menu-panel rounded-xl p-2 max-w-md mx-auto">
+                <div class="flex justify-around">
+                    <button onclick="openMenu('character')" class="flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition">
+                        <span class="text-2xl">👤</span>
+                        <span class="text-xs mt-1">Hero</span>
+                    </button>
+                    <button onclick="openMenu('inventory')" class="flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition">
+                        <span class="text-2xl">🎒</span>
+                        <span class="text-xs mt-1">Inventory</span>
+                    </button>
+                    <button onclick="centerOnPlayer()" class="flex flex-col items-center p-3 bg-purple-600 hover:bg-purple-500 rounded-full -mt-6 shadow-lg transition">
+                        <span class="text-2xl">📍</span>
+                    </button>
+                    <button onclick="openMenu('quests')" class="flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition">
+                        <span class="text-2xl">📜</span>
+                        <span class="text-xs mt-1">Quests</span>
+                    </button>
+                    <button onclick="openMenu('settings')" class="flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition">
+                        <span class="text-2xl">⚙️</span>
+                        <span class="text-xs mt-1">Menu</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Event Log Button -->
+        <button onclick="toggleEventLog()" id="event-log-btn" class="absolute bottom-24 right-3 z-[1001] p-3 bg-purple-600 hover:bg-purple-500 rounded-full shadow-lg">
+            <span class="text-2xl">📋</span>
+        </button>
+        
+        <!-- Event Log Panel -->
+        <div id="event-log-panel" class="absolute bottom-24 right-3 z-[1002] hidden w-80 max-h-96 menu-panel rounded-xl overflow-hidden flex flex-col">
+            <div class="p-3 border-b border-purple-900/50 flex justify-between items-center">
+                <h3 class="font-bold text-purple-300">📋 Event Log</h3>
+                <div class="flex gap-2">
+                    <button onclick="clearEventLog()" class="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Clear</button>
+                    <button onclick="toggleEventLog()" class="text-lg hover:text-purple-400">✕</button>
+                </div>
+            </div>
+            <div id="event-log-content" class="flex-1 overflow-y-auto p-3 space-y-1 text-sm"></div>
+        </div>
+        
+        <!-- Notifications -->
+        <div id="notifications" class="absolute top-24 right-3 z-[1001] space-y-2 max-w-xs"></div>
+        
+        <!-- Debug Elements -->
+        <div id="debug-badge" class="debug-badge hidden text-white">🔧 DEBUG</div>
+        
+        <!-- Debug Panel with Coordinates -->
+        <div id="debug-panel" class="debug-panel hidden">
+            <div class="mb-1">
+                <span class="text-gray-500">lat:</span>
+                <span id="debug-lat" class="text-green-400">50.4501</span>
+            </div>
+            <div class="mb-1">
+                <span class="text-gray-500">lng:</span>
+                <span id="debug-lng" class="text-green-400">30.5234</span>
+            </div>
+            <div class="mb-1">
+                <span class="text-gray-500">🏙️</span>
+                <span id="debug-city" class="text-cyan-400">-</span>
+            </div>
+            <div class="mb-2">
+                <span class="text-gray-500">🏃</span>
+                <span id="debug-speed" class="text-yellow-400">1x</span>
+            </div>
+            <hr class="border-gray-600 my-2">
+            <input type="text" id="teleport-lat" placeholder="lat" class="mb-1">
+            <input type="text" id="teleport-lng" placeholder="lng" class="mb-1">
+            <button onclick="teleportToCoords()">📍 Teleport</button>
+        </div>
+        
+        <!-- Speed Control -->
+        <div id="speed-control" class="speed-control hidden">
+            <div class="flex gap-1">
+                <button onclick="setMoveSpeed(0.5)" class="speed-btn" data-speed="0.5">0.5x</button>
+                <button onclick="setMoveSpeed(1)" class="speed-btn active" data-speed="1">1x</button>
+                <button onclick="setMoveSpeed(2)" class="speed-btn" data-speed="2">2x</button>
+                <button onclick="setMoveSpeed(5)" class="speed-btn" data-speed="5">5x</button>
+            </div>
+        </div>
+        
+        <div id="joystick-container" class="joystick-container hidden">
+            <div id="joystick-knob" class="joystick-knob"></div>
+        </div>
+    </div>
+    
+    <!-- Character Panel -->
+    <div id="character-panel" class="fixed inset-0 z-[2000] hidden">
+        <div class="absolute inset-0 bg-black/70" onclick="closeMenu()"></div>
+        <div class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
+            <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Character</h2>
+                <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center text-3xl border-2 border-purple-400">🧙</div>
+                    <div>
+                        <h3 class="text-lg font-bold">Wanderer</h3>
+                        <p class="text-purple-400">Level <span id="char-level">1</span></p>
+                        <p class="text-xs text-gray-400">XP: <span id="char-xp">0</span> / <span id="char-xp-next">500</span></p>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-800/50 rounded-lg p-3">
+                    <h4 class="text-sm text-gray-400 mb-2">Base Stats <span id="points-hint" class="text-yellow-400 hidden">(+<span id="points-inline">0</span> points)</span></h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="flex justify-between items-center">
+                            <span>💪 Strength:</span>
+                            <div class="flex items-center gap-1">
+                                <span id="stat-str" class="text-orange-400">5</span>
+                                <button onclick="allocateStat('strength')" class="stat-plus-btn hidden w-5 h-5 bg-orange-600 hover:bg-orange-500 rounded text-xs font-bold">+</button>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>🏃 Agility:</span>
+                            <div class="flex items-center gap-1">
+                                <span id="stat-agi" class="text-green-400">5</span>
+                                <button onclick="allocateStat('agility')" class="stat-plus-btn hidden w-5 h-5 bg-green-600 hover:bg-green-500 rounded text-xs font-bold">+</button>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>👁️ Intuition:</span>
+                            <div class="flex items-center gap-1">
+                                <span id="stat-int" class="text-yellow-400">5</span>
+                                <button onclick="allocateStat('intuition')" class="stat-plus-btn hidden w-5 h-5 bg-yellow-600 hover:bg-yellow-500 rounded text-xs font-bold">+</button>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>❤️ Vitality:</span>
+                            <div class="flex items-center gap-1">
+                                <span id="stat-vit" class="text-red-400">5</span>
+                                <button onclick="allocateStat('vitality')" class="stat-plus-btn hidden w-5 h-5 bg-red-600 hover:bg-red-500 rounded text-xs font-bold">+</button>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>🧠 Intellect:</span>
+                            <div class="flex items-center gap-1">
+                                <span id="stat-intl" class="text-blue-400">5</span>
+                                <button onclick="allocateStat('intellect')" class="stat-plus-btn hidden w-5 h-5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold">+</button>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>📖 Wisdom:</span>
+                            <div class="flex items-center gap-1">
+                                <span id="stat-wis" class="text-purple-400">5</span>
+                                <button onclick="allocateStat('wisdom')" class="stat-plus-btn hidden w-5 h-5 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-800/50 rounded-lg p-3">
+                    <h4 class="text-sm text-gray-400 mb-2">Derived Stats</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="flex justify-between"><span>❤️ Health:</span><span id="stat-hp" class="text-red-400">100</span></div>
+                        <div class="flex justify-between"><span>⚔️ Damage:</span><span id="stat-dmg" class="text-orange-400">5</span></div>
+                        <div class="flex justify-between"><span>🛡️ Defense:</span><span id="stat-def" class="text-blue-400">0</span></div>
+                        <div class="flex justify-between"><span>🎯 Hit Chance:</span><span id="stat-hit" class="text-green-400">75%</span></div>
+                        <div class="flex justify-between"><span>💫 Crit:</span><span id="stat-crit" class="text-yellow-400">10%</span></div>
+                        <div class="flex justify-between"><span>💚 Regen:</span><span id="stat-regen" class="text-green-400">0</span></div>
+                    </div>
+                </div>
+                
+
+            </div>
+        </div>
+    </div>
+    
+    <!-- Inventory Panel (Combined with Equipment) -->
+    <div id="inventory-panel" class="fixed inset-0 z-[2000] hidden">
+        <div class="absolute inset-0 bg-black/70" onclick="closeMenu()"></div>
+        <div class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
+            <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Equipment</h2>
+                <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
+            </div>
+            
+            <!-- Equipment Section with Character -->
+            <div class="p-4 border-b border-purple-900/50 bg-gradient-to-b from-gray-800/50 to-gray-900/50">
+                <div class="flex justify-center gap-3">
+                    <!-- Left Equipment Column -->
+                    <div class="flex flex-col gap-2">
+                        <div class="item-slot empty" style="width: 50px; height: 50px;" data-slot="sword" onclick="handleEquipSlot('sword')">
+                            <span id="equip-sword-icon" class="text-xl">⚔️</span>
+                        </div>
+                        <div class="item-slot empty" style="width: 50px; height: 50px;" data-slot="belt" onclick="handleEquipSlot('belt')">
+                            <span id="equip-belt-icon" class="text-xl">🥋</span>
+                        </div>
+                        <div class="item-slot empty" style="width: 50px; height: 50px;" data-slot="armor" onclick="handleEquipSlot('armor')">
+                            <span id="equip-armor-icon" class="text-xl">🦺</span>
+                        </div>
+                        <div class="item-slot empty" style="width: 50px; height: 50px;" data-slot="gloves" onclick="handleEquipSlot('gloves')">
+                            <span id="equip-gloves-icon" class="text-xl">🧤</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Character Image -->
+                    <div class="flex flex-col gap-2">
+                        <div class="item-slot empty" style="width: 50px; height: 50px;" data-slot="helmet" onclick="handleEquipSlot('helmet')">
+                            <span id="equip-helmet-icon" class="text-xl">🪖</span>
+                        </div>
+                        <div class="w-24 h-32 bg-gradient-to-br from-purple-900 to-indigo-900 rounded-lg border-2 border-purple-500 flex items-center justify-center">
+                            <span class="text-5xl">🧙</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Equipment Column -->
+                    <div class="flex flex-col gap-2">
+                        <div class="item-slot empty" style="width: 50px; height: 50px;" data-slot="shield" onclick="handleEquipSlot('shield')">
+                            <span id="equip-shield-icon" class="text-xl">🛡️</span>
+                        </div>
+                        <div class="item-slot empty" style="width: 50px; height: 50px;" data-slot="boots" onclick="handleEquipSlot('boots')">
+                            <span id="equip-boots-icon" class="text-xl">👢</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Derived Stats Column -->
+                    <div class="flex flex-col gap-1 text-xs ml-2">
+                        <div class="text-gray-400 font-bold mb-1">Stats:</div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-300">❤️ Health:</span>
+                            <span id="stats-hp" class="text-red-400 font-bold">100</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-300">⚔️ Damage:</span>
+                            <span id="stats-dmg" class="text-orange-400 font-bold">5</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-300">🛡️ Defense:</span>
+                            <span id="stats-def" class="text-blue-400 font-bold">0</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-300">🎯 Hit:</span>
+                            <span id="stats-hit" class="text-green-400 font-bold">75%</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-300">💫 Crit:</span>
+                            <span id="stats-crit" class="text-yellow-400 font-bold">10%</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-300">💚 Regen:</span>
+                            <span id="stats-regen" class="text-green-400 font-bold">0</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-300">👁️ Vision:</span>
+                            <span id="stats-vision" class="text-purple-400 font-bold">140m</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Inventory Filters -->
+            <div class="flex gap-2 p-2 border-b border-purple-900/50 overflow-x-auto">
+                <button onclick="filterInventory('all')" class="px-3 py-1 bg-purple-700 rounded text-sm inv-filter" data-filter="all">All</button>
+                <button onclick="filterInventory('weapon')" class="px-3 py-1 bg-gray-700 rounded text-sm inv-filter" data-filter="weapon">Weapons</button>
+                <button onclick="filterInventory('armor')" class="px-3 py-1 bg-gray-700 rounded text-sm inv-filter" data-filter="armor">Armor</button>
+                <button onclick="filterInventory('consumable')" class="px-3 py-1 bg-gray-700 rounded text-sm inv-filter" data-filter="consumable">Resources</button>
+            </div>
+            
+            <!-- Inventory Grid -->
+            <div class="flex-1 overflow-y-auto p-3">
+                <div class="grid grid-cols-6 gap-2" id="inventory-grid"></div>
+            </div>
+            
+            <!-- Gold -->
+            <div class="p-3 border-t border-purple-900/50 text-sm text-gray-400">
+                💰 Gold: <span id="gold-amount" class="text-yellow-400 font-bold">0</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Item Modal -->
+    <div id="item-modal" class="fixed inset-0 z-[3000] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80" onclick="closeItemModal()"></div>
+        <div class="menu-panel rounded-2xl p-4 w-full max-w-sm relative">
+            <div class="text-center">
+                <div class="text-5xl mb-2" id="modal-item-icon">⚔️</div>
+                <h3 class="text-lg font-bold" id="modal-item-name">Item</h3>
+                <p class="text-sm" id="modal-item-rarity">Common</p>
+            </div>
+            <div class="mt-3 text-sm space-y-1" id="modal-item-stats"></div>
+            <div class="mt-2 text-sm" id="modal-item-requirements"></div>
+            <p class="mt-3 text-sm text-gray-400 italic" id="modal-item-desc"></p>
+            <div class="mt-4 flex gap-2" id="modal-actions"></div>
+        </div>
+    </div>
+    
+    <!-- Encounter Dialog (Player vs Player) -->
+    <div id="encounter-dialog" class="fixed inset-0 z-[4000] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80"></div>
+        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm relative text-center">
+            <div class="text-5xl mb-4">⚔️</div>
+            <h2 class="text-xl font-bold mb-2">Encounter!</h2>
+            <p class="text-gray-400 mb-4" id="encounter-text">You encountered another player</p>
+            <div class="flex gap-3">
+                <button onclick="startEncounterFight()" class="flex-1 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold">
+                    ⚔️ Fight
+                </button>
+                <button onclick="closeEncounter()" class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold">
+                    🏃 Retreat
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Combat Screen -->
+    <div id="combat-screen" class="fixed inset-0 z-[4000] hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-gray-900 via-purple-950 to-gray-900"></div>
+        <div class="relative h-full flex flex-col p-2 max-w-lg mx-auto overflow-hidden">
+            
+            <!-- Fighters Section (Player VS Enemy) -->
+            <div class="flex items-stretch gap-2 mb-2">
+                <!-- Player Card -->
+                <div class="flex-1 menu-panel rounded-lg p-2">
+                    <div class="text-center mb-1">
+                        <span class="text-xs text-purple-400">Lv.<span id="combat-player-level">1</span></span>
+                        <h4 class="text-sm font-bold text-purple-300">Wanderer</h4>
+                    </div>
+                    <!-- Player Equipment & Avatar - Same layout as inventory -->
+                    <div class="flex gap-1 justify-center mb-1">
+                        <!-- Left equipment: sword, armor, belt, boots -->
+                        <div class="flex flex-col gap-1">
+                            <div class="combat-equip-slot" id="combat-player-sword">⚔️</div>
+                            <div class="combat-equip-slot" id="combat-player-armor">🦺</div>
+                            <div class="combat-equip-slot" id="combat-player-belt">🥋</div>
+                            <div class="combat-equip-slot" id="combat-player-boots">👢</div>
+                        </div>
+                        <!-- Center: helmet + avatar -->
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="combat-equip-slot" id="combat-player-helmet">🪖</div>
+                            <div class="w-16 h-20 bg-gradient-to-br from-purple-800 to-indigo-900 rounded-lg flex items-center justify-center text-4xl border-2 border-purple-500">🧙</div>
+                        </div>
+                        <!-- Right equipment: shield, gloves -->
+                        <div class="flex flex-col gap-1">
+                            <div class="combat-equip-slot" id="combat-player-shield">🛡️</div>
+                            <div class="combat-equip-slot" id="combat-player-gloves">🧤</div>
+                        </div>
+                    </div>
+                    <!-- Player HP Bar -->
+                    <div class="mb-1">
+                        <div class="h-3 bg-gray-800 rounded overflow-hidden">
+                            <div class="hp-bar stat-bar" id="combat-player-hp" style="width: 100%"></div>
+                        </div>
+                        <div class="text-xs text-center" id="combat-player-hp-text">100/100</div>
+                    </div>
+                    <!-- Player Stats with names -->
+                    <div class="text-xs space-y-0.5">
+                        <div class="flex justify-between"><span class="text-gray-400">⚔️ Damage:</span><span id="combat-player-dmg" class="text-orange-400">5</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">🛡️ Defense:</span><span id="combat-player-def" class="text-blue-400">0</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">🎯 Hit:</span><span id="combat-player-hit" class="text-green-400">75%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">💫 Crit:</span><span id="combat-player-crit" class="text-yellow-400">10%</span></div>
+                    </div>
+                </div>
+                
+                <!-- VS Badge -->
+                <div class="flex items-center justify-center">
+                    <div class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center font-bold text-base shadow-lg shadow-red-600/50 animate-pulse">
+                        VS
+                    </div>
+                </div>
+                
+                <!-- Enemy Card -->
+                <div class="flex-1 menu-panel rounded-lg p-2">
+                    <div class="text-center mb-1">
+                        <span class="text-xs px-1 rounded" id="combat-enemy-class">Normal</span>
+                        <span class="text-xs text-gray-400 ml-1">Lv.<span id="combat-enemy-level">1</span></span>
+                        <h4 class="text-sm font-bold text-red-300" id="combat-enemy-name">Enemy</h4>
+                    </div>
+                    <!-- Enemy Avatar - 2x size -->
+                    <div class="flex justify-center mb-1">
+                        <div class="w-20 h-24 bg-gradient-to-br from-red-900 to-orange-900 rounded-lg flex items-center justify-center text-5xl enemy-sprite border-2 border-red-500" id="combat-enemy-icon">👹</div>
+                    </div>
+                    <!-- Enemy Affixes -->
+                    <div id="combat-enemy-affixes" class="flex flex-wrap justify-center gap-1 mb-1 min-h-[16px]"></div>
+                    <!-- Enemy HP Bar -->
+                    <div class="mb-1">
+                        <div class="h-3 bg-gray-800 rounded overflow-hidden">
+                            <div class="hp-bar stat-bar" id="enemy-hp-bar" style="width: 100%"></div>
+                        </div>
+                        <div class="text-xs text-center" id="enemy-hp-text">100/100</div>
+                    </div>
+                    <!-- Enemy Stats with names -->
+                    <div class="text-xs space-y-0.5">
+                        <div class="flex justify-between"><span class="text-gray-400">⚔️ Damage:</span><span id="combat-enemy-dmg" class="text-orange-400">5</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">🛡️ Defense:</span><span id="combat-enemy-def" class="text-blue-400">0</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">❤️ Health:</span><span id="combat-enemy-hp-stat" class="text-red-400">100</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">⚡ Type:</span><span id="combat-enemy-type-icon" class="text-purple-400">🐺</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Combat Log -->
+            <div class="h-24 menu-panel rounded-lg p-2 mb-2 overflow-y-auto text-xs" id="combat-log">
+                <p class="text-yellow-400">⚔️ Combat started!</p>
+            </div>
+            
+            <!-- Attack & Defense Selection -->
+            <div class="flex gap-2 mb-2">
+                <!-- Attack Column -->
+                <div class="flex-1 menu-panel rounded-lg p-2">
+                    <p class="text-xs text-red-400 font-bold mb-2 text-center">⚔️ ATTACK</p>
+                    <div class="flex flex-col gap-1">
+                        <button onclick="selectAttackZone('head')" class="combat-zone enemy-zone text-xs py-2" data-zone="head">
+                            🎯 Head
+                        </button>
+                        <button onclick="selectAttackZone('body')" class="combat-zone enemy-zone text-xs py-2" data-zone="body">
+                            🎯 Body
+                        </button>
+                        <button onclick="selectAttackZone('belt')" class="combat-zone enemy-zone text-xs py-2" data-zone="belt">
+                            🎯 Belt
+                        </button>
+                        <button onclick="selectAttackZone('legs')" class="combat-zone enemy-zone text-xs py-2" data-zone="legs">
+                            🎯 Legs
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Defense Column -->
+                <div class="flex-1 menu-panel rounded-lg p-2">
+                    <p class="text-xs text-green-400 font-bold mb-2 text-center">🛡️ DEFENSE</p>
+                    <div class="flex flex-col gap-1">
+                        <button onclick="selectDefense('head-body')" class="defense-btn combat-zone text-xs py-2" data-defense="head-body">
+                            Head + Body
+                        </button>
+                        <button onclick="selectDefense('body-belt')" class="defense-btn combat-zone text-xs py-2" data-defense="body-belt">
+                            Body + Belt
+                        </button>
+                        <button onclick="selectDefense('belt-legs')" class="defense-btn combat-zone text-xs py-2" data-defense="belt-legs">
+                            Belt + Legs
+                        </button>
+                        <button onclick="selectDefense('head-legs')" class="defense-btn combat-zone text-xs py-2" data-defense="head-legs">
+                            Head + Legs
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+                <button onclick="executeAttack()" id="attack-btn" class="flex-1 py-3 bg-red-700 hover:bg-red-600 rounded-lg font-bold disabled:opacity-50 transition-all" disabled>
+                    ⚔️ ATTACK
+                </button>
+                <button onclick="fleeCombat()" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all">
+                    🏃 Flee
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Victory Screen -->
+    <div id="victory-screen" class="fixed inset-0 z-[5000] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80"></div>
+        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm relative text-center">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 class="text-2xl font-bold rpg-font text-yellow-400 mb-4">VICTORY!</h2>
+            <div class="space-y-2 text-left mb-4">
+                <p class="text-green-400">+<span id="reward-xp">0</span> XP</p>
+                <p class="text-yellow-400">+<span id="reward-gold">0</span> gold</p>
+                <div id="reward-items" class="space-y-1"></div>
+            </div>
+            <div id="level-up-notice" class="hidden bg-yellow-600/30 rounded-lg p-3 mb-4 border border-yellow-500">
+                <p class="text-yellow-300 font-bold">🎉 LEVEL UP!</p>
+            </div>
+            <button onclick="closeVictory()" class="w-full py-3 btn-action rounded-lg font-bold">Continue</button>
+        </div>
+    </div>
+    
+    <!-- Defeat Screen -->
+    <div id="defeat-screen" class="fixed inset-0 z-[5000] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80"></div>
+        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm relative text-center">
+            <div class="text-6xl mb-4">💀</div>
+            <h2 class="text-2xl font-bold rpg-font text-red-400 mb-4">DEFEAT</h2>
+            <p class="text-gray-400 mb-4">You were defeated.</p>
+            <button onclick="closeDefeat()" class="w-full py-3 btn-action rounded-lg font-bold">Revive</button>
+        </div>
+    </div>
+    
+    <!-- Quests Panel -->
+    <div id="quests-panel" class="fixed inset-0 z-[2000] hidden">
+        <div class="absolute inset-0 bg-black/70" onclick="closeMenu()"></div>
+        <div class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
+            <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Quests</h2>
+                <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3" id="quests-list">
+                <div class="bg-gray-800/50 rounded-lg p-3 border-l-4 border-yellow-500">
+                    <h4 class="font-bold">🗡️ First Steps</h4>
+                    <p class="text-sm text-gray-400 mt-1">Defeat 5 monsters</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        <div class="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
+                            <div class="bg-yellow-500 h-full" id="quest-progress-1" style="width: 0%"></div>
+                        </div>
+                        <span class="text-xs" id="quest-count-1">0/5</span>
+                    </div>
+                    <p class="text-xs text-yellow-400 mt-2">🎁 Reward: 500 XP, 100 gold</p>
+                </div>
+                <div class="bg-gray-800/50 rounded-lg p-3 border-l-4 border-blue-500">
+                    <h4 class="font-bold">📦 Collector</h4>
+                    <p class="text-sm text-gray-400 mt-1">Collect 10 items</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        <div class="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
+                            <div class="bg-blue-500 h-full" id="quest-progress-2" style="width: 0%"></div>
+                        </div>
+                        <span class="text-xs" id="quest-count-2">0/10</span>
+                    </div>
+                    <p class="text-xs text-blue-400 mt-2">🎁 Reward: Iron Sword</p>
+                </div>
+                <div class="bg-gray-800/50 rounded-lg p-3 border-l-4 border-purple-500">
+                    <h4 class="font-bold">👑 Boss Slayer</h4>
+                    <p class="text-sm text-gray-400 mt-1">Defeat 3 Unique monsters</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        <div class="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
+                            <div class="bg-purple-500 h-full" id="quest-progress-3" style="width: 0%"></div>
+                        </div>
+                        <span class="text-xs" id="quest-count-3">0/3</span>
+                    </div>
+                    <p class="text-xs text-purple-400 mt-2">🎁 Reward: 2000 XP, Epic Potion</p>
+                </div>
+                <div class="bg-gray-800/50 rounded-lg p-3 border-l-4 border-green-500">
+                    <h4 class="font-bold">🌍 Traveler</h4>
+                    <p class="text-sm text-gray-400 mt-1">Walk 1000 meters</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        <div class="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
+                            <div class="bg-green-500 h-full" id="quest-progress-4" style="width: 0%"></div>
+                        </div>
+                        <span class="text-xs" id="quest-count-4">0/1000m</span>
+                    </div>
+                    <p class="text-xs text-green-400 mt-2">🎁 Reward: Leather Boots</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div id="settings-panel" class="fixed inset-0 z-[2000] hidden">
+        <div class="absolute inset-0 bg-black/70" onclick="closeMenu()"></div>
+        <div class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
+            <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Settings</h2>
+                <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- Sound -->
+                <div class="flex justify-between items-center">
+                    <span>🔊 Sound</span>
+                    <div onclick="toggleSetting('sound')" id="sound-toggle" class="toggle-btn on"><div class="knob"></div></div>
+                </div>
+                
+                <!-- Notifications -->
+                <div class="flex justify-between items-center">
+                    <span>🔔 Notifications</span>
+                    <div onclick="toggleSetting('notifications')" id="notifications-toggle" class="toggle-btn on"><div class="knob"></div></div>
+                </div>
+                
+                <!-- Fog of War -->
+                <div class="flex justify-between items-center">
+                    <span>🌫️ Fog of War</span>
+                    <div onclick="toggleSetting('fog')" id="fog-toggle" class="toggle-btn on"><div class="knob"></div></div>
+                </div>
+                
+                <!-- Vibration -->
+                <div class="flex justify-between items-center">
+                    <span>📳 Vibration</span>
+                    <div onclick="toggleSetting('vibration')" id="vibration-toggle" class="toggle-btn on"><div class="knob"></div></div>
+                </div>
+                
+                <hr class="border-gray-700">
+                
+                <!-- Debug Mode -->
+                <div class="flex justify-between items-center">
+                    <span>🔧 Debug Mode</span>
+                    <div onclick="toggleDebugMode()" id="debug-toggle" class="toggle-btn off"><div class="knob"></div></div>
+                </div>
+                
+                <div id="debug-options" class="hidden space-y-3 p-3 bg-gray-800/50 rounded-lg border border-red-900/50">
+                    <p class="text-xs text-yellow-400">⚠️ Testing tools</p>
+                    <button onclick="spawnTestMonsters()" class="w-full py-2 bg-green-700 hover:bg-green-600 rounded-lg text-sm">
+                        🧪 Regenerate monsters
+                    </button>
+                    <button onclick="healPlayer()" class="w-full py-2 bg-red-700 hover:bg-red-600 rounded-lg text-sm">
+                        ❤️ Full heal
+                    </button>
+                    <button onclick="giveTestItems()" class="w-full py-2 bg-purple-700 hover:bg-purple-600 rounded-lg text-sm">
+                        🎁 Give test items
+                    </button>
+                    <button onclick="addTestXP()" class="w-full py-2 bg-yellow-700 hover:bg-yellow-600 rounded-lg text-sm">
+                        ⭐ +1000 XP
+                    </button>
+                    <button onclick="addTestGold()" class="w-full py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm">
+                        💰 +500 gold
+                    </button>
+                </div>
+                
+                <hr class="border-gray-700">
+                
+                <button onclick="resetGame()" class="w-full py-2 bg-red-700 hover:bg-red-600 rounded-lg">
+                    🔄 Reset progress
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 z-[9999] bg-gray-900 flex flex-col items-center justify-center">
+        <div class="text-6xl mb-4 animate-bounce">⚔️</div>
+        <h1 class="text-3xl font-bold rpg-font text-purple-400 mb-4">FightCraft</h1>
+        <p class="text-gray-400" id="loading-status">Loading...</p>
+        <div class="w-48 h-2 bg-gray-800 rounded mt-4 overflow-hidden">
+            <div class="h-full bg-purple-600" id="loading-bar" style="width: 0%"></div>
+        </div>
+    </div>
+
+<script>
+// ==================== GAME DATA ====================
+const MONSTER_TYPES = [
+    { id: 'fallen', name: 'Demon', icon: '👿', behavior: 'fallen' },
+    { id: 'scavenger', name: 'Beast', icon: '🐺', behavior: 'scavenger' },
+    { id: 'wraith', name: 'Wraith', icon: '👻', behavior: 'wraith' },
+    { id: 'golem', name: 'Golem', icon: '🗿', behavior: 'golem' },
+    { id: 'skeleton', name: 'Skeleton', icon: '💀', behavior: 'normal' },
+    { id: 'goblin', name: 'Goblin', icon: '👺', behavior: 'normal' },
+    { id: 'orc', name: 'Orc', icon: '👹', behavior: 'normal' },
+];
+
+const MONSTER_LIBRARY = [
+    { templateId: 'wolf', name: 'Wolf Pack', icon: '🐺', class: 'normal', level: 5, hp: 90, damage: 12, defense: 3, xpReward: 60, goldReward: 20, type: 'scavenger', affixes: [] },
+    { templateId: 'boar', name: 'Rabid Boar', icon: '🐗', class: 'normal', level: 7, hp: 120, damage: 15, defense: 4, xpReward: 75, goldReward: 28, type: 'scavenger', affixes: [] },
+    { templateId: 'goblin', name: 'Goblin Bandit', icon: '👺', class: 'normal', level: 9, hp: 150, damage: 18, defense: 6, xpReward: 95, goldReward: 40, type: 'goblin', affixes: [] },
+    { templateId: 'skeleton', name: 'Bone Sentinel', icon: '💀', class: 'champion', level: 12, hp: 220, damage: 22, defense: 12, xpReward: 180, goldReward: 65, type: 'skeleton', affixes: ['stoneSkin'] },
+    { templateId: 'orc', name: 'Orc Berserker', icon: '👹', class: 'champion', level: 15, hp: 320, damage: 30, defense: 15, xpReward: 260, goldReward: 90, type: 'orc', affixes: ['extraStrong'] },
+    { templateId: 'wraith', name: 'Spectral Guardian', icon: '👻', class: 'unique', level: 18, hp: 420, damage: 36, defense: 18, xpReward: 450, goldReward: 130, type: 'wraith', affixes: ['teleport'] },
+    { templateId: 'golem', name: 'Crystal Golem', icon: '🗿', class: 'unique', level: 22, hp: 600, damage: 44, defense: 28, xpReward: 620, goldReward: 180, type: 'golem', affixes: ['stoneSkin', 'extraStrong'] },
+    { templateId: 'fallen', name: 'Cursed Demon', icon: '👿', class: 'unique', level: 25, hp: 680, damage: 55, defense: 30, xpReward: 820, goldReward: 210, type: 'fallen', affixes: ['cursed', 'manaBurn'] },
+    { templateId: 'dragonling', name: 'Young Dragon', icon: '🐉', class: 'superUnique', level: 30, hp: 950, damage: 70, defense: 40, xpReward: 1400, goldReward: 320, type: 'dragon', affixes: ['extraStrong', 'stoneSkin', 'teleport'] },
+    { templateId: 'mage', name: 'Dark Mage', icon: '🧙‍♂️', class: 'champion', level: 20, hp: 380, damage: 48, defense: 14, xpReward: 500, goldReward: 150, type: 'fallen', affixes: ['manaBurn'] },
+    { templateId: 'hunter', name: 'Ettin Hunter', icon: '🥷', class: 'champion', level: 17, hp: 300, damage: 35, defense: 18, xpReward: 320, goldReward: 120, type: 'orc', affixes: ['teleport'] },
+    { templateId: 'spirit', name: 'Forest Spirit', icon: '🌿', class: 'normal', level: 8, hp: 140, damage: 16, defense: 5, xpReward: 85, goldReward: 34, type: 'wraith', affixes: [] },
+];
+
+const GRID_SETTINGS = {
+    spacingMeters: 500,
+    radius: 5,
+    respawnMs: 5 * 60 * 1000
+};
+
+const MAX_MONSTERS_PER_CITY = 800;
+
+const DISTRICT_LAYER_STYLE = {
+    color: '#8b5cf6',
+    weight: 2,
+    fillColor: 'rgba(139,92,246,0.08)',
+    fillOpacity: 0.3
+};
+
+const CITY_ANCHORS = [
+    { id: 'berlin', name: 'Berlin', lat: 52.52, lng: 13.405 },
+    { id: 'kyiv', name: 'Kyiv', lat: 50.4501, lng: 30.5234 },
+    { id: 'lviv', name: 'Lviv', lat: 49.8397, lng: 24.0297 },
+    { id: 'warsaw', name: 'Warsaw', lat: 52.2297, lng: 21.0122 },
+    { id: 'prague', name: 'Prague', lat: 50.0755, lng: 14.4378 },
+    { id: 'vienna', name: 'Vienna', lat: 48.2082, lng: 16.3738 },
+    { id: 'krakow', name: 'Krakow', lat: 50.0647, lng: 19.945 },
+    { id: 'budapest', name: 'Budapest', lat: 47.4979, lng: 19.0402 },
+    { id: 'vilnius', name: 'Vilnius', lat: 54.6872, lng: 25.2797 },
+    { id: 'bucharest', name: 'Bucharest', lat: 44.4268, lng: 26.1025 },
+    { id: 'paris', name: 'Paris', lat: 48.8566, lng: 2.3522 },
+    { id: 'madrid', name: 'Madrid', lat: 40.4168, lng: -3.7038 },
+    { id: 'rome', name: 'Rome', lat: 41.9028, lng: 12.4964 },
+    { id: 'london', name: 'London', lat: 51.5074, lng: -0.1278 },
+    { id: 'oslo', name: 'Oslo', lat: 59.9139, lng: 10.7522 },
+    { id: 'helsinki', name: 'Helsinki', lat: 60.1699, lng: 24.9384 },
+    { id: 'hamburg', name: 'Hamburg', lat: 53.5511, lng: 9.9937 }
+];
+
+const LANDMARKS = [
+    { id: 'brandenburg_gate', name: 'Brandenburg Gate', lat: 52.516275, lng: 13.377704, type: 'historic' },
+    { id: 'tiergarten', name: 'Tiergarten Park', lat: 52.51453, lng: 13.35012, type: 'park' },
+    { id: 'museumsinsel', name: 'Museum Island', lat: 52.516934, lng: 13.401067, type: 'cultural' },
+    { id: 'alexanderplatz', name: 'Alexanderplatz', lat: 52.521918, lng: 13.413215, type: 'pedestrian' },
+    { id: 'checkpoint_charlie', name: 'Checkpoint Charlie', lat: 52.507507, lng: 13.390373, type: 'historic' },
+    { id: 'reichstag', name: 'Reichstag Dome', lat: 52.518623, lng: 13.376198, type: 'historic' },
+    { id: 'st_michaels_kiev', name: "St. Michael's Golden-Domed Monastery", lat: 50.4547, lng: 30.5281, type: 'spiritual' },
+    { id: 'khreshchatyk', name: 'Khreshchatyk (Pedestrian)', lat: 50.4473, lng: 30.5226, type: 'pedestrian' },
+    { id: 'mariyinsky', name: 'Mariinsky Park', lat: 50.4465, lng: 30.5404, type: 'park' },
+    { id: 'lviv_ratusha', name: 'Lviv City Hall', lat: 49.8419, lng: 24.0315, type: 'historic' },
+    { id: 'lviv_armenia', name: 'Armenian Quarter (Lviv)', lat: 49.8425, lng: 24.0336, type: 'pedestrian' },
+    { id: 'wawel_castle', name: 'Wawel Castle', lat: 50.0540, lng: 19.9354, type: 'historic' },
+    { id: 'warsaw_old_town', name: 'Warsaw Old Town', lat: 52.2470, lng: 21.0130, type: 'historic' },
+    { id: 'charles_bridge', name: 'Charles Bridge', lat: 50.0865, lng: 14.4114, type: 'pedestrian' },
+    { id: 'prague_castle', name: 'Prague Castle', lat: 50.0900, lng: 14.4010, type: 'historic' },
+    { id: 'vienna_rathaus', name: 'Vienna Rathausplatz', lat: 48.2100, lng: 16.3578, type: 'cultural' },
+    { id: 'hofburg', name: 'Hofburg', lat: 48.2065, lng: 16.3658, type: 'historic' },
+    { id: 'budapest_chain_bridge', name: 'Chain Bridge', lat: 47.4980, lng: 19.0400, type: 'pedestrian' },
+    { id: 'budapest_baths', name: 'Széchenyi Baths', lat: 47.5188, lng: 19.0811, type: 'park' },
+    { id: 'vilnius_old_town', name: 'Vilnius Old Town', lat: 54.6780, lng: 25.2870, type: 'historic' },
+    { id: 'bucharest_old', name: 'Bucharest Old Center', lat: 44.4304, lng: 26.0979, type: 'pedestrian' },
+    { id: 'paris_louvre', name: 'Louvre', lat: 48.8606, lng: 2.3376, type: 'cultural' },
+    { id: 'paris_notre_dame', name: 'Notre-Dame', lat: 48.8529, lng: 2.3500, type: 'spiritual' },
+    { id: 'paris_tuileries', name: 'Tuileries Garden', lat: 48.8635, lng: 2.3270, type: 'park' },
+    { id: 'london_tower', name: 'Tower of London', lat: 51.5081, lng: -0.0759, type: 'historic' },
+    { id: 'london_hyde', name: 'Hyde Park', lat: 51.5073, lng: -0.1657, type: 'park' },
+    { id: 'london_canal', name: 'Regent’s Canal Walk', lat: 51.5363, lng: -0.1372, type: 'waterfront' },
+    { id: 'rome_colosseum', name: 'Colosseum', lat: 41.8902, lng: 12.4922, type: 'historic' },
+    { id: 'rome_vatican', name: 'Vatican Square', lat: 41.9022, lng: 12.4539, type: 'spiritual' },
+    { id: 'madrid_retreat', name: 'El Retiro Park', lat: 40.4153, lng: -3.6844, type: 'park' },
+    { id: 'madrid_granvia', name: 'Gran Vía', lat: 40.4203, lng: -3.7058, type: 'pedestrian' },
+    { id: 'barcelona_lasramblas', name: 'La Rambla', lat: 41.3809, lng: 2.1730, type: 'pedestrian' },
+    { id: 'barcelona_parkguell', name: 'Park Güell', lat: 41.4145, lng: 2.1527, type: 'park' },
+    { id: 'oslo_opera', name: 'Oslo Opera House', lat: 59.9075, lng: 10.7523, type: 'waterfront' },
+    { id: 'helsinki_market', name: 'Helsinki Market Square', lat: 60.1675, lng: 24.9522, type: 'waterfront' },
+    { id: 'stockholm_gamla', name: 'Gamla Stan', lat: 59.3250, lng: 18.0700, type: 'historic' },
+    { id: 'copenhagen_nyhavn', name: 'Nyhavn', lat: 55.6796, lng: 12.5907, type: 'waterfront' },
+    { id: 'amsterdam_dam', name: 'Dam Square', lat: 52.3731, lng: 4.8922, type: 'pedestrian' },
+    { id: 'brussels_grand', name: 'Grand Place', lat: 50.8467, lng: 4.3525, type: 'cultural' },
+    { id: 'zurich_lake', name: 'Lake Promenade', lat: 47.3649, lng: 8.5460, type: 'waterfront' },
+    { id: 'geneva_jet', name: 'Jet d’Eau', lat: 46.2074, lng: 6.1552, type: 'waterfront' },
+    { id: 'lisbon_alfama', name: 'Alfama', lat: 38.7139, lng: -9.1309, type: 'historic' },
+    { id: 'porto_ribeira', name: 'Porto Ribeira', lat: 41.1400, lng: -8.6110, type: 'waterfront' }
+];
+
+const BERLIN_BOUNDS = {
+    minLat: 52.33,
+    maxLat: 52.67,
+    minLng: 13.10,
+    maxLng: 13.75
+};
+
+const BERLIN_DISTRICTS = [
+    {
+        id: 'mitte',
+        name: 'Mitte',
+        color: '#f97316',
+        fill: 'rgba(249,115,22,0.08)',
+        borderOpacity: 0.6,
+        minLevel: 70,
+        maxLevel: 99,
+        radius: 3500,
+        center: { lat: 52.5208, lng: 13.4095 },
+        polygon: [
+            [52.545, 13.350],
+            [52.545, 13.455],
+            [52.522, 13.475],
+            [52.500, 13.440],
+            [52.500, 13.350],
+            [52.515, 13.325]
+        ]
+    },
+    {
+        id: 'fk',
+        name: 'Friedrichshain-Kreuzberg',
+        color: '#ec4899',
+        fill: 'rgba(236,72,153,0.08)',
+        borderOpacity: 0.6,
+        minLevel: 30,
+        maxLevel: 90,
+        radius: 3200,
+        center: { lat: 52.5031, lng: 13.4259 },
+        polygon: [
+            [52.520, 13.360],
+            [52.525, 13.455],
+            [52.505, 13.495],
+            [52.480, 13.465],
+            [52.475, 13.385],
+            [52.490, 13.350]
+        ]
+    },
+    {
+        id: 'pankow',
+        name: 'Pankow',
+        color: '#10b981',
+        fill: 'rgba(16,185,129,0.08)',
+        borderOpacity: 0.5,
+        minLevel: 20,
+        maxLevel: 70,
+        radius: 5000,
+        center: { lat: 52.5697, lng: 13.4010 },
+        polygon: [
+            [52.620, 13.320],
+            [52.630, 13.460],
+            [52.585, 13.520],
+            [52.540, 13.470],
+            [52.525, 13.380],
+            [52.540, 13.310]
+        ]
+    },
+    {
+        id: 'charlottenburg',
+        name: 'Charlottenburg-Wilmersdorf',
+        color: '#60a5fa',
+        fill: 'rgba(96,165,250,0.08)',
+        borderOpacity: 0.5,
+        minLevel: 18,
+        maxLevel: 32,
+        radius: 4500,
+        center: { lat: 52.5076, lng: 13.2910 },
+        polygon: [
+            [52.540, 13.190],
+            [52.550, 13.340],
+            [52.510, 13.360],
+            [52.470, 13.320],
+            [52.460, 13.220],
+            [52.485, 13.190]
+        ]
+    },
+    {
+        id: 'neukoelln',
+        name: 'Neukölln',
+        color: '#facc15',
+        fill: 'rgba(250,204,21,0.08)',
+        borderOpacity: 0.5,
+        minLevel: 10,
+        maxLevel: 24,
+        radius: 3500,
+        center: { lat: 52.4666, lng: 13.4446 },
+        polygon: [
+            [52.500, 13.395],
+            [52.505, 13.515],
+            [52.450, 13.540],
+            [52.420, 13.470],
+            [52.425, 13.380],
+            [52.455, 13.360]
+        ]
+    },
+    {
+        id: 'spandau',
+        name: 'Spandau',
+        color: '#34d399',
+        fill: 'rgba(52,211,153,0.08)',
+        borderOpacity: 0.5,
+        minLevel: 8,
+        maxLevel: 20,
+        radius: 4000,
+        center: { lat: 52.5384, lng: 13.1992 },
+        polygon: [
+            [52.580, 13.110],
+            [52.600, 13.250],
+            [52.540, 13.300],
+            [52.500, 13.260],
+            [52.495, 13.150],
+            [52.520, 13.090]
+        ]
+    }
+];
+
+const CITY_REGIONS = CITY_ANCHORS.map((anchor, idx) => {
+    const tier = idx % 4;
+    const radiusKm = anchor.id === 'berlin' ? 25 : anchor.id === 'london' || anchor.id === 'paris' || anchor.id === 'rome' ? 24 : 20;
+    const minLevel = tier === 0 ? 1 : tier === 1 ? 10 : tier === 2 ? 25 : 45;
+    let maxLevel = Math.min(99, minLevel + 40 + tier * 5);
+    if (anchor.id === 'berlin') maxLevel = 99;
+    if (anchor.id === 'kyiv') maxLevel = Math.max(maxLevel, 85);
+    if (anchor.id === 'london' || anchor.id === 'paris' || anchor.id === 'rome') maxLevel = Math.max(maxLevel, 95);
+    return {
+        id: anchor.id,
+        name: anchor.name,
+        lat: anchor.lat,
+        lng: anchor.lng,
+        radiusKm,
+        minLevel,
+        maxLevel,
+        districts: anchor.id === 'berlin' ? BERLIN_DISTRICTS : null
+    };
+});
+
+const LAT_STEP_DEG = GRID_SETTINGS.spacingMeters / 111320; // ~500 м по широті
+
+const AFFIXES = {
+    stoneSkin: { name: 'Stone Skin', effect: { defenseBonus: 0.5 }, class: 'affix-stone-skin' },
+    extraStrong: { name: 'Extra Strong', effect: { damageBonus: 1.0 }, class: 'affix-extra-strong' },
+    teleport: { name: 'Teleport', effect: { teleportChance: 0.2 }, class: 'affix-teleport' },
+    cursed: { name: 'Cursed', effect: { curseDebuff: 0.2 }, class: 'affix-cursed' },
+    manaBurn: { name: 'Mana Burn', effect: { manaBurn: 10 }, class: 'affix-mana-burn' },
+};
+
+const ITEMS_DB = {
+    // Weapons
+    rustySword: { name: 'Rusty Sword', icon: '🗡️', type: 'sword', rarity: 'common', 
+        stats: { attackBonus: 3 }, requirements: { strength: 3 }, desc: 'An old sword, but still sharp' },
+    ironSword: { name: 'Iron Sword', icon: '⚔️', type: 'sword', rarity: 'uncommon',
+        stats: { attackBonus: 8, strength: 2 }, requirements: { strength: 8 }, desc: 'A reliable sword made of sturdy iron' },
+    flameSword: { name: 'Flaming Sword', icon: '🔥', type: 'sword', rarity: 'epic',
+        stats: { attackBonus: 15, intuition: 3 }, requirements: { strength: 15, agility: 10 }, desc: 'Burns with eternal fire' },
+    
+    // Helmets
+    leatherCap: { name: 'Leather Cap', icon: '🧢', type: 'helmet', rarity: 'common',
+        stats: { defense: 2 }, requirements: {}, desc: 'Light head protection' },
+    ironHelmet: { name: 'Iron Helmet', icon: '🪖', type: 'helmet', rarity: 'uncommon',
+        stats: { defense: 5, wisdom: 1 }, requirements: { vitality: 5 }, desc: 'A sturdy warrior helmet' },
+    
+    // Armor
+    leatherArmor: { name: 'Leather Armor', icon: '🦺', type: 'armor', rarity: 'common',
+        stats: { defense: 5, vitality: 1 }, requirements: {}, desc: 'Light leather armor' },
+    chainMail: { name: 'Chain Mail', icon: '⛓️', type: 'armor', rarity: 'uncommon',
+        stats: { defense: 12, vitality: 3 }, requirements: { strength: 8 }, desc: 'Reliable chain protection' },
+    plateArmor: { name: 'Plate Armor', icon: '🛡️', type: 'armor', rarity: 'rare',
+        stats: { defense: 25, vitality: 5 }, requirements: { strength: 15, vitality: 10 }, desc: 'Heavy plate armor' },
+    
+    // Shields
+    woodenShield: { name: 'Wooden Shield', icon: '🪵', type: 'shield', rarity: 'common',
+        stats: { defense: 4 }, requirements: {}, desc: 'A simple wooden shield' },
+    ironShield: { name: 'Iron Shield', icon: '🛡️', type: 'shield', rarity: 'uncommon',
+        stats: { defense: 10, vitality: 2 }, requirements: { strength: 6 }, desc: 'A sturdy iron shield' },
+    
+    // Gloves
+    leatherGloves: { name: 'Leather Gloves', icon: '🧤', type: 'gloves', rarity: 'common',
+        stats: { agility: 2 }, requirements: {}, desc: 'Comfortable leather gloves' },
+    ironGauntlets: { name: 'Iron Gauntlets', icon: '🥊', type: 'gloves', rarity: 'uncommon',
+        stats: { attackBonus: 3, agility: 1 }, requirements: { strength: 5 }, desc: 'Combat iron gauntlets' },
+    
+    // Boots
+    leatherBoots: { name: 'Leather Boots', icon: '👢', type: 'boots', rarity: 'common',
+        stats: { agility: 2, intuition: 1 }, requirements: {}, desc: 'Light leather boots' },
+    ironBoots: { name: 'Iron Boots', icon: '🥾', type: 'boots', rarity: 'uncommon',
+        stats: { defense: 3, agility: 1 }, requirements: { strength: 4 }, desc: 'Heavy iron boots' },
+    
+    // Belts
+    leatherBelt: { name: 'Leather Belt', icon: '🥋', type: 'belt', rarity: 'common',
+        stats: { vitality: 1, strength: 1 }, requirements: {}, desc: 'A simple leather belt' },
+    ironBelt: { name: 'Iron Belt', icon: '⛓️', type: 'belt', rarity: 'uncommon',
+        stats: { defense: 4, vitality: 2 }, requirements: { strength: 6 }, desc: 'A reinforced belt with metal plates' },
+    
+    // Consumables
+    healthPotion: { name: 'Health Potion', icon: '🧪', type: 'consumable', rarity: 'common',
+        stats: {}, effect: { healPercent: 30 }, requirements: {}, desc: 'Restores 30% HP' },
+    largeHealthPotion: { name: 'Greater Health Potion', icon: '⚗️', type: 'consumable', rarity: 'rare',
+        stats: {}, effect: { healPercent: 70 }, requirements: {}, desc: 'Restores 70% HP' },
+};
+
+// ==================== GAME STATE ====================
+let gameState = {
+    player: {
+        level: 1,
+        xp: BigInt(0),
+        xpToNext: BigInt(500),
+        gold: 100,
+        hp: 100,
+        maxHp: 100,
+        statPoints: 5,
+        strength: 5, agility: 5, intuition: 5,
+        vitality: 5, intellect: 5, wisdom: 5,
+        regenRate: 0, lastDamageTime: 0,
+        position: { lat: 52.484512, lng: 13.449876 },
+        interactionRadius: 7
+    },
+    equipment: { helmet: null, armor: null, shield: null, sword: null, boots: null, gloves: null, belt: null },
+    inventory: [],
+    monsters: [],
+    quests: { monstersKilled: 0, itemsCollected: 0, uniquesKilled: 0, distanceTraveled: 0 },
+    combat: null,
+    debug: { enabled: false, moveSpeed: 1 },
+    settings: { sound: true, notifications: true, fog: true, vibration: true },
+    inactiveMonsters: {} // {monsterId: cooldownEndTime} - монстри на кулдауні після втечі/поразки
+};
+
+let lastPlayerPos = null;
+let eventLog = [];
+const MAX_LOG_ENTRIES = 100;
+
+// ==================== EVENT LOG SYSTEM ====================
+function addEventLog(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString('en-GB');
+    const icons = { 
+        info: 'ℹ️', 
+        success: '✅', 
+        warning: '⚠️', 
+        error: '❌',
+        move: '🚶',
+        combat: '⚔️',
+        item: '🎒',
+        level: '⭐',
+        gold: '💰'
+    };
+    
+    eventLog.unshift({
+        time: timestamp,
+        message,
+        type,
+        icon: icons[type] || icons.info
+    });
+    
+    if (eventLog.length > MAX_LOG_ENTRIES) {
+        eventLog = eventLog.slice(0, MAX_LOG_ENTRIES);
+    }
+    
+    updateEventLogDisplay();
+}
+
+function updateEventLogDisplay() {
+    const content = document.getElementById('event-log-content');
+    if (!content) return;
+    
+    const colors = {
+        info: 'text-blue-400',
+        success: 'text-green-400',
+        warning: 'text-yellow-400',
+        error: 'text-red-400',
+        move: 'text-purple-400',
+        combat: 'text-orange-400',
+        item: 'text-cyan-400',
+        level: 'text-yellow-300',
+        gold: 'text-yellow-400'
+    };
+    
+    content.innerHTML = eventLog.map(entry => {
+        const color = colors[entry.type] || colors.info;
+        return `<div class="flex gap-2 text-xs">
+            <span class="text-gray-500">${entry.time}</span>
+            <span class="${color}">${entry.icon} ${entry.message}</span>
+        </div>`;
+    }).join('');
+}
+
+function toggleEventLog() {
+    const panel = document.getElementById('event-log-panel');
+    panel.classList.toggle('hidden');
+}
+
+function clearEventLog() {
+    if (confirm('Clear the event log?')) {
+        eventLog = [];
+        updateEventLogDisplay();
+    }
+}
+
+// ==================== XP SYSTEM ====================
+function calculateXPForLevel(level) {
+    if (level <= 1) return BigInt(0);
+    if (level === 2) return BigInt(500);
+    let xp = BigInt(500);
+    for (let i = 2; i < level; i++) {
+        const multiplier = i < 28 ? 1.25 : 1.091;
+        xp = BigInt(Math.floor(Number(xp) * multiplier));
+    }
+    return xp;
+}
+
+function addXP(amount) {
+    gameState.player.xp += BigInt(amount);
+    let leveledUp = false;
+    while (gameState.player.xp >= gameState.player.xpToNext && gameState.player.level < 99) {
+        gameState.player.level++;
+        gameState.player.statPoints += 5;
+        gameState.player.xpToNext = calculateXPForLevel(gameState.player.level + 1);
+        leveledUp = true;
+        addEventLog(`Level up: ${gameState.player.level}!`, 'level');
+        showNotification(`🎉 Level ${gameState.player.level}! +5 points`, 'success');
+    }
+    updateHUD();
+    return leveledUp;
+}
+
+// ==================== STATS CALCULATION ====================
+function getPlayerStats() {
+    const p = gameState.player;
+    let stats = {
+        strength: p.strength, agility: p.agility, intuition: p.intuition,
+        vitality: p.vitality, intellect: p.intellect, wisdom: p.wisdom,
+        defense: 0, attackBonus: 0, regenRate: p.wisdom
+    };
+    
+    Object.values(gameState.equipment).forEach(itemId => {
+        if (itemId && ITEMS_DB[itemId]?.stats) {
+            Object.entries(ITEMS_DB[itemId].stats).forEach(([stat, value]) => {
+                stats[stat] = (stats[stat] || 0) + value;
+            });
+        }
+    });
+    
+    stats.maxHp = 50 + stats.vitality * 10;
+    stats.damage = stats.strength + stats.attackBonus;
+    stats.hitChance = 75 + (stats.agility - 5) * 2;
+    stats.critChance = 10 + stats.intuition;
+    stats.regenRate = stats.wisdom;
+    
+    return stats;
+}
+
+function canEquipItem(itemId) {
+    const item = ITEMS_DB[itemId];
+    if (!item?.requirements) return { canEquip: true, missing: [] };
+    const missing = [];
+    Object.entries(item.requirements).forEach(([stat, required]) => {
+        const current = gameState.player[stat] || 0;
+        if (current < required) missing.push({ stat, required, current });
+    });
+    return { canEquip: missing.length === 0, missing };
+}
+
+function allocateStat(stat) {
+    if (gameState.player.statPoints <= 0) return;
+    gameState.player[stat]++;
+    gameState.player.statPoints--;
+    const stats = getPlayerStats();
+    gameState.player.maxHp = stats.maxHp;
+    if (gameState.player.hp > stats.maxHp) gameState.player.hp = stats.maxHp;
+    updateCharacterPanel();
+    updateHUD();
+    saveGame();
+}
+
+// ==================== REGENERATION ====================
+function updateRegeneration() {
+    const stats = getPlayerStats();
+    const timeSinceDamage = Date.now() - gameState.player.lastDamageTime;
+    
+    if (gameState.player.hp < stats.maxHp && timeSinceDamage > 5000) {
+        const baseRegenTime = 24 * 60 * 60 * 1000;
+        const regenMultiplier = 1 + (stats.regenRate * 0.05);
+        const hpPerMs = stats.maxHp / (baseRegenTime / regenMultiplier);
+        gameState.player.hp = Math.min(stats.maxHp, gameState.player.hp + hpPerMs * 1000);
+        updateHUD();
+    }
+    
+    const indicator = document.getElementById('regen-indicator');
+    if (indicator) indicator.style.display = gameState.player.hp < stats.maxHp ? 'block' : 'none';
+}
+
+// ==================== MONSTER SYSTEM ====================
+function generateMonsterLevel() {
+    const pl = gameState.player.level;
+    if (Math.random() < 0.9) return Math.max(1, pl + Math.floor(Math.random() * 5) - 2);
+    return pl + 10 + Math.floor(Math.random() * 6);
+}
+
+function generateMonsterClass() {
+    const r = Math.random();
+    if (r < 0.6) return 'normal';
+    if (r < 0.85) return 'champion';
+    if (r < 0.98) return 'unique';
+    return 'superUnique';
+}
+
+function generateAffixes(monsterClass) {
+    if (monsterClass === 'normal') return [];
+    const keys = Object.keys(AFFIXES);
+    const count = monsterClass === 'champion' ? 1 : monsterClass === 'unique' ? 2 : 3;
+    const selected = [];
+    for (let i = 0; i < count; i++) {
+        const a = keys[Math.floor(Math.random() * keys.length)];
+        if (!selected.includes(a)) selected.push(a);
+    }
+    return selected;
+}
+
+function spawnMonsterPack() {
+    const pos = gameState.player.position;
+    const type = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)];
+    const cls = generateMonsterClass();
+    const lvl = generateMonsterLevel();
+    const dangerous = lvl >= gameState.player.level + 10;
+    
+    const leader = createMonster(type, cls, lvl, pos, dangerous, true);
+    gameState.monsters.push(leader);
+    
+    const minionCount = 3 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < minionCount; i++) {
+        const offset = { lat: pos.lat + (Math.random() - 0.5) * 0.0005, lng: pos.lng + (Math.random() - 0.5) * 0.0005 };
+        const minion = createMonster(type, 'normal', Math.max(1, lvl - 1), offset, false, false);
+        minion.leaderId = leader.id;
+        gameState.monsters.push(minion);
+    }
+    renderMonsters();
+}
+
+function createMonster(type, cls, level, pos, isDangerous, isLeader) {
+    const baseHp = 30 + level * 10;
+    const mult = { normal: { hp: 1, xp: 1 }, champion: { hp: 1.5, xp: 3 }, unique: { hp: 3, xp: 10 }, superUnique: { hp: 5, xp: 50 } }[cls];
+    const affixes = generateAffixes(cls);
+    let defBonus = 0, dmgBonus = 0;
+    affixes.forEach(a => {
+        if (AFFIXES[a].effect.defenseBonus) defBonus += AFFIXES[a].effect.defenseBonus;
+        if (AFFIXES[a].effect.damageBonus) dmgBonus += AFFIXES[a].effect.damageBonus;
+    });
+    
+    return {
+        id: Date.now() + Math.random(),
+        type: type.id, name: isLeader && cls !== 'normal' ? generateUniqueName(type.name) : type.name,
+        icon: type.icon, class: cls, level,
+        hp: Math.floor(baseHp * mult.hp), maxHp: Math.floor(baseHp * mult.hp),
+        damage: Math.floor((5 + level * 2) * (1 + dmgBonus)),
+        defense: Math.floor(level * (1 + defBonus)),
+        xpReward: Math.floor((10 + level * 5) * mult.xp),
+        goldReward: Math.floor((5 + level * 3) * mult.xp),
+        affixes, isDangerous, isLeader,
+        lat: pos.lat + (Math.random() - 0.5) * 0.003,
+        lng: pos.lng + (Math.random() - 0.5) * 0.003,
+        behavior: type.behavior
+    };
+}
+
+function generateUniqueName(baseName) {
+    const pre = ['Dark', 'Bloody', 'Cursed', 'Ancient', 'Rabid'];
+    const suf = ['Destroyer', 'Devourer', 'Tormentor', 'Overlord', 'Warden'];
+    return `${pre[Math.floor(Math.random() * pre.length)]} ${baseName} ${suf[Math.floor(Math.random() * suf.length)]}`;
+}
+
+// ==================== PROXIMITY CHECK ====================
+function isMonsterInactive(monsterId) {
+    const cooldownEnd = gameState.inactiveMonsters[monsterId];
+    if (!cooldownEnd) return false;
+    if (Date.now() >= cooldownEnd) {
+        // Cooldown ended - remove from inactive list
+        delete gameState.inactiveMonsters[monsterId];
+        return false;
+    }
+    return true;
+}
+
+function setMonsterInactive(monsterId, durationMs = 5 * 60 * 1000) {
+    // Default: 5 minutes cooldown
+    gameState.inactiveMonsters[monsterId] = Date.now() + durationMs;
+    addEventLog(`Monster is inactive for 5 minutes`, 'warning');
+    renderStaticMonsters(true);
+    saveGame();
+}
+
+function checkProximity() {
+    if (gameState.combat) return;
+
+    const pPos = gameState.player.position;
+    const radius = gameState.player.interactionRadius;
+    const city = getPlayerCity();
+
+    const candidates = city
+        ? staticMonsters.filter(monster => monster.cityId === city.id)
+        : staticMonsters;
+
+    for (const monster of candidates) {
+        // Пропускаємо переможених монстрів
+        if (monster.defeated && monster.respawnAt && monster.respawnAt > Date.now()) continue;
+        
+        // Пропускаємо неактивних монстрів (після втечі/поразки)
+        if (isMonsterInactive(monster.id)) continue;
+        
+        const dist = getDistance(pPos.lat, pPos.lng, monster.lat, monster.lng);
+        if (dist <= radius) {
+            startCombat(monster, true);
+            break;
+        }
+    }
+}
+
+// ==================== COMBAT SYSTEM ====================
+let selectedAttackZone = null;
+let selectedDefenseZone = null;
+
+function startCombat(monster, isStatic = false) {
+    // Створюємо копію монстра для бою
+    const combatMonster = { ...monster };
+    
+    // Явно конвертуємо HP в числа
+    combatMonster.hp = Number(combatMonster.hp) || 100;
+    combatMonster.maxHp = Number(combatMonster.maxHp) || combatMonster.hp;
+    combatMonster.damage = Number(combatMonster.damage) || 10;
+    combatMonster.defense = Number(combatMonster.defense) || 0;
+    
+    // Переконуємось що HP валідний
+    if (!Number.isFinite(combatMonster.maxHp) || combatMonster.maxHp <= 0) {
+        combatMonster.maxHp = 100;
+    }
+    if (!Number.isFinite(combatMonster.hp) || combatMonster.hp <= 0) {
+        combatMonster.hp = combatMonster.maxHp;
+    }
+    
+    console.log(`🎮 Початок бою з ${combatMonster.name}: HP=${combatMonster.hp}/${combatMonster.maxHp}, DMG=${combatMonster.damage}, DEF=${combatMonster.defense}`);
+    
+    gameState.combat = { 
+        monster: combatMonster, 
+        turn: 'player', 
+        isStatic, 
+        resolved: false 
+    };
+    
+    selectedAttackZone = null;
+    selectedDefenseZone = null;
+    
+    addEventLog(`Combat: ${monster.name} (Lv.${monster.level})`, 'combat');
+    
+    document.getElementById('combat-screen').classList.remove('hidden');
+    document.getElementById('combat-log').innerHTML = '<p class="text-yellow-400">⚔️ Combat started!</p>';
+    
+    // Update player equipment display in combat
+    updateCombatPlayerEquipment();
+    updateCombatUI();
+    
+    document.querySelectorAll('.enemy-zone').forEach(z => z.classList.remove('selected-attack'));
+    document.querySelectorAll('.defense-btn').forEach(b => b.classList.remove('selected-defense'));
+    document.getElementById('attack-btn').disabled = true;
+}
+
+function updateCombatPlayerEquipment() {
+    const slots = ['helmet', 'armor', 'shield', 'sword', 'boots', 'gloves', 'belt'];
+    const defaults = { helmet: '🪖', armor: '🦺', shield: '🛡️', sword: '⚔️', boots: '👢', gloves: '🧤', belt: '🥋' };
+    
+    slots.forEach(slot => {
+        const el = document.getElementById(`combat-player-${slot}`);
+        if (el) {
+            const itemId = gameState.equipment[slot];
+            if (itemId && ITEMS_DB[itemId]) {
+                el.textContent = ITEMS_DB[itemId].icon;
+                el.classList.add('equipped');
+            } else {
+                el.textContent = defaults[slot];
+                el.classList.remove('equipped');
+            }
+        }
+    });
+}
+
+function getRarityColor(rarity) {
+    const colors = { common: 'gray-400', uncommon: 'green-500', rare: 'blue-500', epic: 'purple-500', legendary: 'yellow-500' };
+    return colors[rarity] || 'gray-600';
+}
+
+function selectAttackZone(zone) {
+    selectedAttackZone = zone;
+    document.querySelectorAll('.enemy-zone').forEach(z => {
+        z.classList.remove('selected-attack');
+        if (z.dataset.zone === zone) {
+            z.classList.add('selected-attack');
+        }
+    });
+    checkCanAttack();
+    addEventLog(`Attack target selected: ${zone}`, 'combat');
+}
+
+function selectDefense(defense) {
+    selectedDefenseZone = defense;
+    document.querySelectorAll('.defense-btn').forEach(b => {
+        b.classList.remove('selected-defense');
+        if (b.dataset.defense === defense) {
+            b.classList.add('selected-defense');
+        }
+    });
+    checkCanAttack();
+}
+
+function checkCanAttack() {
+    document.getElementById('attack-btn').disabled = !(selectedAttackZone && selectedDefenseZone);
+}
+
+function executeAttack() {
+    if (!selectedAttackZone || !selectedDefenseZone || !gameState.combat) return;
+    const monster = gameState.combat.monster;
+    
+    // Переконуємось що HP - число
+    monster.hp = Number(monster.hp);
+    monster.maxHp = Number(monster.maxHp);
+    
+    console.log(`⚔️ Атака! HP монстра до: ${monster.hp}/${monster.maxHp}`);
+    
+    if (gameState.combat.resolved && monster.hp > 0) gameState.combat.resolved = false;
+    if (gameState.combat.resolved) return;
+    
+    const stats = getPlayerStats();
+    const log = document.getElementById('combat-log');
+    
+    const enemyZones = ['head', 'body', 'belt', 'legs'];
+    const enemyDefZones = ['head-body', 'body-belt', 'belt-legs', 'head-legs'];
+    const enemyAttack = enemyZones[Math.floor(Math.random() * 4)];
+    const enemyDefense = enemyDefZones[Math.floor(Math.random() * 4)];
+    
+    // Player attack
+    let hitChance = stats.hitChance;
+    if (enemyDefense.split('-').includes(selectedAttackZone)) hitChance -= 20;
+    
+    if (Math.random() * 100 < hitChance) {
+        const crit = Math.random() * 100 < stats.critChance;
+        let dmg = Math.max(1, stats.damage - monster.defense);
+        if (crit) dmg *= 2;
+        
+        // Віднімаємо шкоду
+        const oldHp = monster.hp;
+        monster.hp = Math.max(0, monster.hp - dmg);
+        console.log(`💥 Удар! Шкода: ${dmg}, HP: ${oldHp} → ${monster.hp}`);
+        
+        log.innerHTML += `<p class="text-green-400">⚔️ ${crit ? 'CRIT!' : 'Hit'} ${selectedAttackZone}: ${dmg} damage</p>`;
+        document.querySelector('.enemy-sprite').classList.add('damage-flash');
+        setTimeout(() => document.querySelector('.enemy-sprite').classList.remove('damage-flash'), 300);
+    } else {
+        log.innerHTML += `<p class="text-gray-400">❌ Miss!</p>`;
+    }
+
+    console.log(`📊 HP монстра після атаки: ${monster.hp}`);
+
+    // Якщо монстр загинув - завершуємо бій негайно
+    if (monster.hp <= 0) {
+        console.log('☠️ Монстр вбитий! HP =', monster.hp);
+        monster.hp = 0;
+        
+        // Оновлюємо UI щоб показати 0 HP
+        document.getElementById('enemy-hp-bar').style.width = '0%';
+        document.getElementById('enemy-hp-text').textContent = `0/${monster.maxHp}`;
+        log.innerHTML += `<p class="text-yellow-400">🏆 Enemy defeated!</p>`;
+        log.scrollTop = log.scrollHeight;
+        
+        // Блокуємо кнопки
+        selectedAttackZone = null;
+        selectedDefenseZone = null;
+        document.querySelectorAll('.enemy-zone').forEach(z => z.classList.remove('selected-attack'));
+        document.querySelectorAll('.defense-btn').forEach(b => b.classList.remove('selected-defense'));
+        document.getElementById('attack-btn').disabled = true;
+        gameState.combat.resolved = true;
+        
+        // Закриваємо екран бою та показуємо нагороду
+        console.log('🏆 Викликаємо victory()...');
+        
+        // Закриваємо бойовий екран НЕГАЙНО
+        document.getElementById('combat-screen').classList.add('hidden');
+        
+        // Показуємо нагороду
+        const m = gameState.combat.monster;
+        
+        // Оновлюємо статичного монстра
+        if (gameState.combat.isStatic) {
+            const staticRef = staticMonsters.find(mon => mon.id === m.id);
+            if (staticRef) {
+                staticRef.defeated = true;
+                staticRef.respawnAt = Date.now() + GRID_SETTINGS.respawnMs;
+                saveStaticMonsters();
+            }
+        }
+        
+        // Нараховуємо XP та золото
+        const leveledUp = addXP(Number(m.xpReward));
+        gameState.player.gold += m.goldReward;
+        gameState.quests.monstersKilled++;
+        if (m.class === 'unique' || m.class === 'superUnique') gameState.quests.uniquesKilled++;
+        
+        addEventLog(`Victory! +${m.xpReward} XP, +${m.goldReward} gold`, 'success');
+        
+        // Оновлюємо маркери
+        gameState.monsters = gameState.monsters.filter(x => x.id !== m.id);
+        renderStaticMonsters(true);
+        
+        // Показуємо екран нагороди
+        document.getElementById('reward-xp').textContent = m.xpReward;
+        document.getElementById('reward-gold').textContent = m.goldReward;
+        document.getElementById('level-up-notice').classList.toggle('hidden', !leveledUp);
+        
+        // Лут
+        const lootItems = Object.keys(ITEMS_DB).filter(k => ITEMS_DB[k].type !== 'consumable');
+        if (Math.random() < 0.3) {
+            const id = lootItems[Math.floor(Math.random() * lootItems.length)];
+            gameState.inventory.push({ id, quantity: 1 });
+            gameState.quests.itemsCollected++;
+            addEventLog(`Found: ${ITEMS_DB[id].name}`, 'item');
+            document.getElementById('reward-items').innerHTML = `<p class="text-purple-400">+ ${ITEMS_DB[id].icon} ${ITEMS_DB[id].name}</p>`;
+        } else {
+            document.getElementById('reward-items').innerHTML = '';
+        }
+        
+        document.getElementById('victory-screen').classList.remove('hidden');
+        gameState.combat = null;
+        updateQuestProgress();
+        updateHUD();
+        saveGame();
+        
+        console.log('✅ Перемога оброблена, екран нагороди показано');
+        return;
+    }
+    
+    // Monster attack
+    if (monster.hp > 0) {
+        let enemyHit = 75;
+        if (selectedDefenseZone.split('-').includes(enemyAttack)) enemyHit -= 20;
+        
+        let cursePenalty = monster.affixes.includes('cursed') ? 0.2 : 0;
+        
+        if (Math.random() * 100 < enemyHit) {
+            let dmg = Math.max(1, monster.damage - Math.floor(stats.defense * (1 - cursePenalty)));
+            gameState.player.hp -= dmg;
+            gameState.player.lastDamageTime = Date.now();
+            log.innerHTML += `<p class="text-red-400">👹 ${monster.name} hit ${enemyAttack}: ${dmg}</p>`;
+        } else {
+            log.innerHTML += `<p class="text-blue-400">🛡️ Blocked ${enemyAttack}!</p>`;
+        }
+    }
+    
+    log.scrollTop = log.scrollHeight;
+    updateCombatUI();
+
+    // Залишаємо вибрані зони для наступного ходу, щоб можна було продовжувати атаку
+    checkCanAttack();
+    
+    if (gameState.player.hp <= 0) setTimeout(() => defeat(), 500);
+}
+
+function ensureVictoryIfDead() {
+    // Додаткова страховка: завершуємо бій, якщо HP ворога <= 0
+    if (!gameState.combat || gameState.combat.resolved) return;
+    const m = gameState.combat.monster;
+    if (m.hp <= 0) {
+        m.hp = 0;
+        gameState.combat.resolved = true;
+        selectedAttackZone = null;
+        selectedDefenseZone = null;
+        document.querySelectorAll('.enemy-zone').forEach(z => z.classList.remove('selected-attack'));
+        document.querySelectorAll('.defense-btn').forEach(b => b.classList.remove('selected-defense'));
+        const btn = document.getElementById('attack-btn');
+        if (btn) btn.disabled = true;
+        victory();
+    }
+}
+
+function updateCombatUI() {
+    if (!gameState.combat) return;
+    const m = gameState.combat.monster;
+    const stats = getPlayerStats();
+
+    // Якщо колись помилково поставили resolved, але HP > 0 — розблокуємо
+    if (gameState.combat.resolved && m.hp > 0) gameState.combat.resolved = false;
+
+    // Якщо ворог уже мертвий - завершуємо
+    if (m.hp <= 0) {
+        ensureVictoryIfDead();
+        return;
+    }
+    
+    // Player stats
+    document.getElementById('combat-player-level').textContent = gameState.player.level;
+    document.getElementById('combat-player-hp').style.width = (gameState.player.hp / stats.maxHp * 100) + '%';
+    document.getElementById('combat-player-hp-text').textContent = `${Math.max(0, Math.floor(gameState.player.hp))}/${stats.maxHp}`;
+    document.getElementById('combat-player-dmg').textContent = stats.damage;
+    document.getElementById('combat-player-def').textContent = stats.defense;
+    document.getElementById('combat-player-hit').textContent = stats.hitChance + '%';
+    document.getElementById('combat-player-crit').textContent = stats.critChance + '%';
+    
+    // Enemy info
+    document.getElementById('combat-enemy-icon').textContent = m.icon;
+    document.getElementById('combat-enemy-name').textContent = m.name;
+    document.getElementById('combat-enemy-level').textContent = m.level;
+    
+    const colors = { normal: 'bg-gray-600', champion: 'bg-blue-600', unique: 'bg-yellow-600', superUnique: 'bg-orange-600' };
+    const names = { normal: 'Normal', champion: 'Champion', unique: 'Unique', superUnique: 'Super Unique' };
+    document.getElementById('combat-enemy-class').className = `text-xs px-1 rounded ${colors[m.class]}`;
+    document.getElementById('combat-enemy-class').textContent = names[m.class];
+    
+    // Enemy affixes
+    document.getElementById('combat-enemy-affixes').innerHTML = m.affixes.map(a => 
+        `<span class="text-xs px-1 rounded ${AFFIXES[a].class}">${AFFIXES[a].name}</span>`
+    ).join('');
+    
+    // Enemy HP
+    if (m.hp > m.maxHp) m.hp = m.maxHp;
+    document.getElementById('enemy-hp-bar').style.width = (m.hp / m.maxHp * 100) + '%';
+    document.getElementById('enemy-hp-text').textContent = `${Math.max(0, Math.round(m.hp))}/${m.maxHp}`;
+    
+    // Enemy stats
+    document.getElementById('combat-enemy-dmg').textContent = m.damage;
+    document.getElementById('combat-enemy-def').textContent = m.defense;
+    document.getElementById('combat-enemy-hp-stat').textContent = m.maxHp;
+    document.getElementById('combat-enemy-type-icon').textContent = m.icon;
+}
+
+function victory() {
+    if (!gameState.combat) return;
+
+    const m = gameState.combat.monster;
+    m.hp = 0;
+
+    // Hide combat screen immediately
+    document.getElementById('combat-screen').classList.add('hidden');
+
+    // Update static monster state
+    if (gameState.combat.isStatic) {
+        const staticRef = staticMonsters.find(mon => mon.id === m.id);
+        if (staticRef) {
+            staticRef.defeated = true;
+            staticRef.respawnAt = Date.now() + GRID_SETTINGS.respawnMs;
+            saveStaticMonsters();
+        }
+    }
+
+    const leveledUp = addXP(Number(m.xpReward));
+    gameState.player.gold += m.goldReward;
+    gameState.quests.monstersKilled++;
+    if (m.class === 'unique' || m.class === 'superUnique') gameState.quests.uniquesKilled++;
+
+    addEventLog(`Victory! +${m.xpReward} XP, +${m.goldReward} gold`, 'success');
+
+    // Update markers
+    renderStaticMonsters(true);
+
+    // Rewards UI
+    document.getElementById('reward-xp').textContent = m.xpReward;
+    document.getElementById('reward-gold').textContent = m.goldReward;
+    document.getElementById('level-up-notice').classList.toggle('hidden', !leveledUp);
+
+    const lootItems = Object.keys(ITEMS_DB).filter(k => ITEMS_DB[k].type !== 'consumable');
+    if (Math.random() < 0.3) {
+        const id = lootItems[Math.floor(Math.random() * lootItems.length)];
+        gameState.inventory.push({ id, quantity: 1 });
+        gameState.quests.itemsCollected++;
+        addEventLog(`Found: ${ITEMS_DB[id].name}`, 'item');
+        document.getElementById('reward-items').innerHTML = `<p class="text-purple-400">+ ${ITEMS_DB[id].icon} ${ITEMS_DB[id].name}</p>`;
+    } else {
+        document.getElementById('reward-items').innerHTML = '';
+    }
+
+    document.getElementById('victory-screen').classList.remove('hidden');
+    gameState.combat = null;
+    updateQuestProgress();
+    updateHUD();
+    saveGame();
+}
+
+function defeat() {
+    // Зберігаємо ID монстра перед скиданням combat
+    const monsterId = gameState.combat?.monster?.id;
+    
+    gameState.player.hp = Math.floor(getPlayerStats().maxHp * 0.3);
+    gameState.player.gold = Math.floor(gameState.player.gold * 0.9);
+    
+    // Робимо монстра неактивним для цього гравця на 5 хвилин
+    if (monsterId) {
+        setMonsterInactive(monsterId, 5 * 60 * 1000);
+        addEventLog(`Defeat! Monster is inactive for 5 minutes`, 'error');
+    }
+    
+    document.getElementById('combat-screen').classList.add('hidden');
+    document.getElementById('defeat-screen').classList.remove('hidden');
+    gameState.combat = null;
+    saveGame();
+}
+
+function fleeCombat() {
+    // Check if there is an active combat
+    if (!gameState.combat) {
+        console.log('⚠️ No active combat to flee from');
+        return;
+    }
+
+    // Flee always succeeds - monster becomes inactive for 5 minutes
+    const monsterId = gameState.combat.monster?.id;
+    const monsterName = gameState.combat.monster?.name || 'monster';
+
+    console.log(`🏃 Fleeing from ${monsterName} (ID: ${monsterId})`);
+    
+    if (monsterId) {
+        setMonsterInactive(monsterId, 5 * 60 * 1000);
+    }
+    
+    // Закриваємо екран бою ПЕРЕД скиданням combat
+    document.getElementById('combat-screen').classList.add('hidden');
+    
+    // Скидаємо стан бою
+    gameState.combat = null;
+    selectedAttackZone = null;
+    selectedDefenseZone = null;
+    
+    showNotification('🏃 You fled! Monster is inactive for 5 minutes', 'info');
+    addEventLog(`Fled from ${monsterName}`, 'warning');
+    
+    // Оновлюємо відображення монстрів щоб показати неактивного
+    renderStaticMonsters(true);
+    saveGame();
+}
+
+function closeVictory() { document.getElementById('victory-screen').classList.add('hidden'); updateHUD(); }
+function closeDefeat() { document.getElementById('defeat-screen').classList.add('hidden'); updateHUD(); }
+
+// ==================== ENCOUNTER DIALOG ====================
+function closeEncounter() { document.getElementById('encounter-dialog').classList.add('hidden'); }
+function startEncounterFight() { closeEncounter(); /* PvP logic */ }
+
+// ==================== EQUIPMENT ====================
+function handleEquipSlot(slot) {
+    const equipped = gameState.equipment[slot];
+    if (equipped) {
+        gameState.inventory.push({ id: equipped, quantity: 1 });
+        gameState.equipment[slot] = null;
+        addEventLog(`Unequipped: ${ITEMS_DB[equipped].name}`, 'item');
+        showNotification(`❌ ${ITEMS_DB[equipped].name} unequipped`, 'info');
+        updateEquipmentDisplay();
+        renderInventory(); // Оновлюємо інвентар після зняття
+        updateHUD();
+        saveGame();
+    } else {
+        const items = gameState.inventory.filter(i => ITEMS_DB[i.id]?.type === slot);
+        if (items.length === 0) {
+            showNotification('No items for this slot', 'info');
+        } else {
+            showItemDetails(items[0].id, slot);
+        }
+    }
+}
+
+function showItemDetails(itemId, forSlot = null) {
+    const item = ITEMS_DB[itemId];
+    if (!item) return;
+    
+    const check = canEquipItem(itemId);
+    
+    document.getElementById('modal-item-icon').textContent = item.icon;
+    document.getElementById('modal-item-name').textContent = item.name;
+    
+    const rarityColors = { common: 'text-gray-400', uncommon: 'text-green-400', rare: 'text-blue-400', epic: 'text-purple-400', legendary: 'text-yellow-400' };
+    const rarityNames = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+    document.getElementById('modal-item-rarity').className = `text-sm ${rarityColors[item.rarity]}`;
+    document.getElementById('modal-item-rarity').textContent = rarityNames[item.rarity];
+    
+    let statsHtml = '';
+    if (item.stats && Object.keys(item.stats).length > 0) {
+        statsHtml = '<p class="text-gray-400 text-xs mb-1">Bonuses:</p>';
+        const statNames = { attackBonus: '⚔️ Attack', defense: '🛡️ Defense', strength: '💪 Strength', agility: '🏃 Agility', 
+            intuition: '👁️ Intuition', vitality: '❤️ Vitality', intellect: '🧠 Intellect', wisdom: '📖 Wisdom' };
+        Object.entries(item.stats).forEach(([stat, val]) => {
+            statsHtml += `<p class="text-green-400">+${val} ${statNames[stat] || stat}</p>`;
+        });
+    }
+    if (item.effect?.healPercent) {
+        statsHtml += `<p class="text-blue-400">💚 Restores ${item.effect.healPercent}% HP</p>`;
+    }
+    document.getElementById('modal-item-stats').innerHTML = statsHtml;
+    
+    let reqHtml = '';
+    if (item.requirements && Object.keys(item.requirements).length > 0) {
+        reqHtml = '<p class="text-gray-400 text-xs mt-2">Requirements:</p>';
+        const statNames = { strength: 'Strength', agility: 'Agility', vitality: 'Vitality', intellect: 'Intellect' };
+        Object.entries(item.requirements).forEach(([stat, val]) => {
+            const current = gameState.player[stat] || 0;
+            const color = current >= val ? 'text-green-400' : 'text-red-400';
+            reqHtml += `<p class="${color}">${statNames[stat]}: ${val} (you: ${current})</p>`;
+        });
+    }
+    document.getElementById('modal-item-requirements').innerHTML = reqHtml;
+    document.getElementById('modal-item-desc').textContent = item.desc;
+    
+    let actionsHtml = '';
+    const slot = forSlot || item.type;
+    if (item.type !== 'consumable') {
+        if (check.canEquip) {
+            actionsHtml += `<button onclick="equipItem('${itemId}', '${slot}')" class="flex-1 py-2 bg-green-600 hover:bg-green-500 rounded-lg">Equip</button>`;
+        } else {
+            actionsHtml += `<button disabled class="flex-1 py-2 bg-gray-600 rounded-lg opacity-50">Not enough stats</button>`;
+        }
+    } else {
+        actionsHtml += `<button onclick="useItem('${itemId}')" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg">Use</button>`;
+    }
+    actionsHtml += `<button onclick="closeItemModal()" class="flex-1 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg">Close</button>`;
+    document.getElementById('modal-actions').innerHTML = actionsHtml;
+    
+    document.getElementById('item-modal').classList.remove('hidden');
+}
+
+function equipItem(itemId, slot) {
+    if (!canEquipItem(itemId).canEquip) {
+        showNotification('❌ Not enough stats!', 'error');
+        return;
+    }
+    
+    if (gameState.equipment[slot]) {
+        gameState.inventory.push({ id: gameState.equipment[slot], quantity: 1 });
+    }
+    
+    const idx = gameState.inventory.findIndex(i => i.id === itemId);
+    if (idx !== -1) gameState.inventory.splice(idx, 1);
+    gameState.equipment[slot] = itemId;
+    
+    const stats = getPlayerStats();
+    gameState.player.maxHp = stats.maxHp;
+    if (gameState.player.hp > stats.maxHp) gameState.player.hp = stats.maxHp;
+    
+    addEventLog(`Equipped: ${ITEMS_DB[itemId].name}`, 'item');
+    
+    closeItemModal();
+    updateEquipmentDisplay();
+    renderInventory();
+    updateHUD();
+    saveGame();
+    showNotification(`✅ ${ITEMS_DB[itemId].name} equipped!`, 'success');
+}
+
+function useItem(itemId) {
+    const item = ITEMS_DB[itemId];
+    if (!item || item.type !== 'consumable') return;
+    
+    if (item.effect?.healPercent) {
+        const stats = getPlayerStats();
+        const heal = Math.floor(stats.maxHp * item.effect.healPercent / 100);
+        gameState.player.hp = Math.min(stats.maxHp, gameState.player.hp + heal);
+        showNotification(`💚 +${heal} HP`, 'success');
+    }
+    
+    const idx = gameState.inventory.findIndex(i => i.id === itemId);
+    if (idx !== -1) gameState.inventory.splice(idx, 1);
+    
+    closeItemModal();
+    updateHUD();
+    renderInventory();
+    saveGame();
+}
+
+function closeItemModal() { document.getElementById('item-modal').classList.add('hidden'); }
+
+function updateEquipmentDisplay() {
+    const slots = ['helmet', 'armor', 'shield', 'sword', 'boots', 'gloves', 'belt'];
+    const defaults = { helmet: '🪖', armor: '🦺', shield: '🛡️', sword: '⚔️', boots: '👢', gloves: '🧤', belt: '🥋' };
+    
+    slots.forEach(slot => {
+        const itemId = gameState.equipment[slot];
+        const icon = document.getElementById(`equip-${slot}-icon`);
+        const el = document.querySelector(`[data-slot="${slot}"]`);
+        
+        if (!el || !icon) return;
+        
+        if (itemId && ITEMS_DB[itemId]) {
+            icon.textContent = ITEMS_DB[itemId].icon;
+            el.classList.add('equipped');
+            el.classList.remove('empty');
+            el.style.opacity = '1';
+            el.style.background = 'linear-gradient(145deg, #2a2a4a, #1a1a2e)';
+            el.className = el.className.replace(/rarity-\w+/g, '');
+            el.classList.add(`rarity-${ITEMS_DB[itemId].rarity}`);
+        } else {
+            icon.textContent = defaults[slot];
+            el.classList.remove('equipped');
+            el.classList.add('empty');
+            el.style.opacity = '0.5';
+            el.style.background = 'linear-gradient(145deg, #374151, #1f2937)';
+            el.className = el.className.replace(/rarity-\w+/g, '');
+        }
+    });
+    
+    // Update all derived stats in the sidebar
+    const stats = getPlayerStats();
+    const hpEl = document.getElementById('stats-hp');
+    const dmgEl = document.getElementById('stats-dmg');
+    const defEl = document.getElementById('stats-def');
+    const hitEl = document.getElementById('stats-hit');
+    const critEl = document.getElementById('stats-crit');
+    const regenEl = document.getElementById('stats-regen');
+    
+    if (hpEl) hpEl.textContent = stats.maxHp;
+    if (dmgEl) dmgEl.textContent = stats.damage;
+    if (defEl) defEl.textContent = stats.defense;
+    if (hitEl) hitEl.textContent = stats.hitChance + '%';
+    if (critEl) critEl.textContent = stats.critChance + '%';
+    if (regenEl) regenEl.textContent = stats.regenRate;
+    
+    // Vision radius
+    const visionEl = document.getElementById('stats-vision');
+    if (visionEl) visionEl.textContent = calculateFogRadius() + 'm';
+    
+    // Оновлюємо туман війни при зміні характеристик
+    updateFog();
+}
+
+// ==================== INVENTORY ====================
+function renderInventory(filter = 'all') {
+    const grid = document.getElementById('inventory-grid');
+    let items = gameState.inventory;
+    
+    if (filter !== 'all') {
+        items = items.filter(inv => {
+            const item = ITEMS_DB[inv.id];
+            if (filter === 'weapon') return item?.type === 'sword';
+            if (filter === 'armor') return ['helmet', 'armor', 'shield', 'boots', 'gloves', 'belt'].includes(item?.type);
+            if (filter === 'consumable') return item?.type === 'consumable';
+            return true;
+        });
+    }
+    
+    grid.innerHTML = items.map(inv => {
+        const item = ITEMS_DB[inv.id];
+        if (!item) return '';
+        return `<div class="item-slot rarity-${item.rarity}" onclick="showItemDetails('${inv.id}', '${item.type}')">
+            <span>${item.icon}</span>
+        </div>`;
+    }).join('');
+    
+    document.getElementById('gold-amount').textContent = gameState.player.gold;
+    updateEquipmentDisplay();
+}
+
+function filterInventory(filter) {
+    document.querySelectorAll('.inv-filter').forEach(b => {
+        b.classList.toggle('bg-purple-700', b.dataset.filter === filter);
+        b.classList.toggle('bg-gray-700', b.dataset.filter !== filter);
+    });
+    renderInventory(filter);
+}
+
+// ==================== MAP ====================
+let map, playerMarker, playerRangeCircle;
+let monsterMarkers = [];
+let monsterCluster;
+let currentCityId = null;
+
+function initMap() {
+    map = L.map('map', { zoomControl: false, attributionControl: false })
+        .setView([gameState.player.position.lat, gameState.player.position.lng], 14);
+    
+    // Супутникова карта (Esri World Imagery)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Esri'
+    }).addTo(map);
+    
+    // Додатковий шар з назвами вулиць (англійською)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        opacity: 0.9,
+        attribution: 'CartoDB'
+    }).addTo(map);
+
+    monsterCluster = L.markerClusterGroup({
+        spiderfyOnMaxZoom: true,
+        disableClusteringAtZoom: 16,
+        maxClusterRadius: 80,
+        chunkedLoading: true,
+        chunkInterval: 50,
+        chunkDelay: 20,
+        chunkProgress: updateClusterProgress,
+        animate: false
+    });
+    map.addLayer(monsterCluster);
+    
+    const playerIcon = L.divIcon({
+        html: '<div class="player-marker">🧙</div>',
+        className: '', iconSize: [40, 40], iconAnchor: [20, 20]
+    });
+    playerMarker = L.marker([gameState.player.position.lat, gameState.player.position.lng], { icon: playerIcon }).addTo(map);
+    
+    // Player interaction radius
+    playerRangeCircle = L.circle([gameState.player.position.lat, gameState.player.position.lng], {
+        radius: gameState.player.interactionRadius,
+        className: 'player-range',
+        color: '#8b5cf6',
+        weight: 3,
+        fillOpacity: 0.05,
+        dashArray: '10, 10'
+    }).addTo(map);
+
+    // Перевіряємо монстрів одразу після ініціалізації радіуса
+    checkProximity();
+    
+    map.on('click', (e) => {
+        if (gameState.debug.enabled) {
+            updatePlayerPosition(e.latlng.lat, e.latlng.lng);
+        }
+    });
+    
+    // Оновлення туману при переміщенні карти та зумі
+    map.on('move', updateFog);
+    map.on('zoom', updateFog);
+    map.on('zoomend', updateFog);
+    
+    initJoystick();
+}
+
+function updatePlayerPosition(lat, lng) {
+    const oldCity = getPlayerCity();
+    
+    if (lastPlayerPos) {
+        const dist = getDistance(lastPlayerPos.lat, lastPlayerPos.lng, lat, lng);
+        gameState.quests.distanceTraveled += dist;
+        updateQuestProgress();
+        
+        if (dist > 10) { // Log only meaningful movement
+            addEventLog(`Movement: ${Math.floor(dist)}m`, 'move');
+        }
+    }
+    lastPlayerPos = { lat, lng };
+    
+    gameState.player.position = { lat, lng };
+    playerMarker.setLatLng([lat, lng]);
+    playerRangeCircle.setLatLng([lat, lng]);
+    updateFog();
+    updateDebugCoords();
+    
+    // Перевіряємо чи змінилось місто
+    const newCity = getPlayerCity();
+    const oldCityId = oldCity ? oldCity.id : null;
+    const newCityId = newCity ? newCity.id : null;
+    
+    if (oldCityId !== newCityId) {
+        // Місто змінилось - оновлюємо монстрів
+        console.log(`🔄 Зміна міста: ${oldCityId} → ${newCityId}`);
+        renderStaticMonsters(true);
+    }
+    
+    checkProximity();
+    saveGame();
+}
+
+function updateDebugCoords() {
+    if (!gameState.debug.enabled) return;
+    const pos = gameState.player.position;
+    document.getElementById('debug-lat').textContent = pos.lat.toFixed(6);
+    document.getElementById('debug-lng').textContent = pos.lng.toFixed(6);
+    
+    // Оновлюємо назву поточного міста
+    const city = getPlayerCity();
+    const cityEl = document.getElementById('debug-city');
+    if (cityEl) {
+        cityEl.textContent = city ? city.name : 'Wilderness';
+    }
+}
+
+
+
+function initJoystick() {
+    const container = document.getElementById('joystick-container');
+    const knob = document.getElementById('joystick-knob');
+    let active = false, interval = null;
+    let dir = { x: 0, y: 0 };
+    
+    function move(cx, cy) {
+        const rect = container.getBoundingClientRect();
+        let dx = cx - rect.left - 60, dy = cy - rect.top - 60;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 35) { dx = dx/dist*35; dy = dy/dist*35; }
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        dir = { x: dx/35, y: -dy/35 };
+    }
+    
+    function end() {
+        active = false;
+        knob.style.transform = 'translate(-50%, -50%)';
+        dir = { x: 0, y: 0 };
+        if (interval) { clearInterval(interval); interval = null; }
+    }
+    
+    function start(e) {
+        if (!gameState.debug.enabled) return;
+        active = true;
+        const t = e.touches ? e.touches[0] : e;
+        move(t.clientX, t.clientY);
+        if (!interval) {
+            interval = setInterval(() => {
+                if (active && (dir.x || dir.y)) {
+                    const speed = 0.00005 * gameState.debug.moveSpeed;
+                    updatePlayerPosition(
+                        gameState.player.position.lat + dir.y * speed,
+                        gameState.player.position.lng + dir.x * speed
+                    );
+                }
+            }, 50);
+        }
+    }
+    
+    knob.addEventListener('mousedown', start);
+    knob.addEventListener('touchstart', start, { passive: true });
+    document.addEventListener('mousemove', e => { if (active) move(e.clientX, e.clientY); });
+    document.addEventListener('touchmove', e => { if (active && e.touches[0]) move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchend', end);
+}
+
+function renderDistrictPolygons() {
+    if (!map) return;
+    if (!window.districtLayerGroup) {
+        window.districtLayerGroup = L.layerGroup().addTo(map);
+    } else {
+        window.districtLayerGroup.clearLayers();
+    }
+
+    // Візуалізуємо радіуси всіх міст для діагностики
+    CITY_REGIONS.forEach(city => {
+        if (city.districts) {
+            // Для Берліна - малюємо райони
+            city.districts.forEach(dist => {
+                const poly = L.polygon(dist.polygon.map(([lat, lng]) => [lat, lng]), {
+                    color: dist.color,
+                    weight: 2,
+                    fillColor: dist.fill,
+                    fillOpacity: 0.35,
+                    opacity: dist.borderOpacity,
+                    dashArray: '6, 6'
+                }).addTo(window.districtLayerGroup);
+                poly.bindTooltip(`${dist.name} (Lv.${dist.minLevel}-${dist.maxLevel})`, { permanent: false, direction: 'center', opacity: 0.8 });
+            });
+        } else {
+            // Для інших міст - великі кола
+            L.circle([city.lat, city.lng], {
+                radius: city.radiusKm * 1000,
+                color: '#8b5cf6',
+                weight: 2,
+                fillColor: 'rgba(139,92,246,0.08)',
+                fillOpacity: 0.15,
+                dashArray: '4, 4'
+            }).addTo(window.districtLayerGroup)
+            .bindTooltip(`${city.name} (Lv.${city.minLevel}-${city.maxLevel})`, { permanent: true, direction: 'center', opacity: 0.9, className: 'city-label' });
+        }
+    });
+}
+
+// Визначає в якому місті знаходиться гравець
+function getPlayerCity() {
+    const pos = gameState.player.position;
+    let closestCity = null;
+    let closestDist = Infinity;
+
+    console.log(`📍 City detection for coordinates: ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`);
+
+    CITY_REGIONS.forEach(city => {
+        const dist = getDistance(pos.lat, pos.lng, city.lat, city.lng);
+        const radiusMeters = city.radiusKm * 1000;
+
+        console.log(`  ${city.name}: distance ${Math.floor(dist)}m (radius ${radiusMeters}m) - ${dist < radiusMeters ? '✅' : '❌'}`);
+
+        if (dist < radiusMeters && dist < closestDist) {
+            closestCity = city;
+            closestDist = dist;
+        }
+    });
+
+    if (closestCity) {
+        console.log(`✅ City detected: ${closestCity.name}`);
+    } else {
+        console.log('⚠️ Not inside any city (Wilderness)');
+    }
+
+    return closestCity;
+}
+
+
+
+function renderStaticMonsters(force = false) {
+    if (!map) {
+        console.log('⚠️ Map is not initialized!');
+        return;
+    }
+
+    console.log('🗺️ renderStaticMonsters() called');
+    console.log(`📊 Status: staticMonsters.length = ${staticMonsters ? staticMonsters.length : 0}`);
+
+    // Ensure monsters exist
+    if (!staticMonsters || staticMonsters.length === 0) {
+        console.warn('⚠️ No monsters found, generating...');
+        buildStaticMonsters();
+    }
+
+    if (!staticMonsters || staticMonsters.length === 0) {
+        console.error('❌ Failed to generate monsters!');
+        return;
+    }
+
+    const city = getPlayerCity();
+    console.log(`🗺️ Current city: ${city ? city.name : 'not detected'}`);
+
+    const cityId = city ? city.id : null;
+    if (!force && currentCityId === cityId && monsterMarkers.length > 0) {
+        console.log('ℹ️ City unchanged and monsters already rendered; skipping');
+        return;
+    }
+    currentCityId = cityId;
+    
+    renderDistrictPolygons();
+
+    // Ініціалізуємо кластер якщо потрібно
+    if (!monsterCluster) {
+        monsterCluster = L.markerClusterGroup({
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 16,
+            maxClusterRadius: 80,
+            chunkedLoading: true,
+            chunkInterval: 50,
+            chunkDelay: 20,
+            animate: false
+        });
+        map.addLayer(monsterCluster);
+    }
+    
+    // Очищаємо старі маркери
+    monsterCluster.clearLayers();
+    monsterMarkers = [];
+
+    // Фільтруємо монстрів для поточного міста
+    let monstersToShow = [];
+    if (city) {
+        monstersToShow = staticMonsters.filter(m => m.cityId === city.id);
+        console.log(`🏙️ ${city.name}: знайдено ${monstersToShow.length} монстрів`);
+    } else {
+        const pos = gameState.player.position;
+        monstersToShow = staticMonsters.filter(m => {
+            const dist = getDistance(pos.lat, pos.lng, m.lat, m.lng);
+            return dist <= 5000;
+        });
+        console.log(`🌍 Wilderness: знайдено ${monstersToShow.length} монстрів в радіусі 5км`);
+    }
+    
+    if (monstersToShow.length === 0) {
+        console.warn('⚠️ No monsters found to display!');
+        if (city) {
+            showNotification(`⚠️ ${city.name} - no monsters`, 'warning');
+        }
+        return;
+    }
+    
+    // Створюємо маркери
+    const markersToAdd = [];
+    monstersToShow.forEach(monster => {
+        // Пропускаємо переможених монстрів що ще не респавнились
+        if (monster.defeated && monster.respawnAt && monster.respawnAt > Date.now()) return;
+        
+        // Воскрешаємо монстра якщо час вийшов
+        if (monster.defeated && monster.respawnAt && monster.respawnAt <= Date.now()) {
+            monster.defeated = false;
+            monster.respawnAt = null;
+        }
+
+        // Перевіряємо чи монстр неактивний для цього гравця
+        const isInactive = isMonsterInactive(monster.id);
+        const inactiveClass = isInactive ? 'inactive' : '';
+        
+        const icon = L.divIcon({
+            html: `<div class="monster-marker ${monster.class} ${inactiveClass}">
+                <span class="monster-icon">${monster.icon}</span>
+                <span class="monster-level">Lv.${monster.level}</span>
+            </div>`,
+            className: '',
+            iconSize: [60, 70],
+            iconAnchor: [30, 35]
+        });
+
+        const marker = L.marker([monster.lat, monster.lng], { icon });
+        marker.monsterId = monster.id;
+        marker.bindTooltip(`
+            <div class="text-xs">
+                <div class="font-bold">${monster.name}</div>
+                <div>Lv.${monster.level} · ${monster.class}</div>
+                ${monster.district ? `<div>🏙️ ${monster.district}</div>` : ''}
+                ${monster.landmarkName ? `<div>📍 ${monster.landmarkName}</div>` : ''}
+            </div>
+        `, { permanent: false, direction: 'top' });
+        
+        marker.on('click', () => {
+            // Перевіряємо чи монстр неактивний
+            if (isMonsterInactive(monster.id)) {
+                const remaining = Math.ceil((gameState.inactiveMonsters[monster.id] - Date.now()) / 1000);
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                showNotification(`⏳ Monster is inactive for ${mins}:${secs.toString().padStart(2, '0')}`, 'warning');
+                return;
+            }
+            
+            const dist = getDistance(gameState.player.position.lat, gameState.player.position.lng, monster.lat, monster.lng);
+            if (dist <= gameState.player.interactionRadius) {
+                startCombat(monster, true);
+            } else {
+                showNotification('❌ Get closer!', 'warning');
+            }
+        });
+        
+        markersToAdd.push(marker);
+        monsterMarkers.push(marker);
+    });
+    
+    monsterCluster.addLayers(markersToAdd);
+    console.log(`✅ Rendered ${markersToAdd.length} monsters`);
+
+    if (city) {
+        showNotification(`🏙️ ${city.name} - ${markersToAdd.length} monsters`, 'info');
+    }
+}
+
+function updateClusterProgress(processed, total, elapsed) {
+    if (elapsed > 1000) {
+        console.log(`Завантаження монстрів: ${processed} / ${total}`);
+    }
+}
+
+function calculateFogRadius() {
+    // Базовий радіус видимості в метрах
+    const stats = getPlayerStats();
+    // Базовий радіус 100м + Інтуїція*5м + Мудрість*3м
+    const baseRadiusMeters = 100 + (gameState.player.intuition * 5) + (gameState.player.wisdom * 3);
+    return baseRadiusMeters;
+}
+
+function metersToPixels(meters) {
+    if (!map) return 100;
+    const zoom = map.getZoom();
+    const lat = gameState.player.position.lat;
+    // Формула конвертації метрів в пікселі на основі зуму та широти
+    const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+    return meters / metersPerPixel;
+}
+
+function updateFog() {
+    if (!gameState.settings.fog) return;
+    if (!map) return;
+    
+    try {
+        const point = map.latLngToContainerPoint([gameState.player.position.lat, gameState.player.position.lng]);
+        const fog = document.getElementById('fog');
+        fog.style.setProperty('--player-x', point.x + 'px');
+        fog.style.setProperty('--player-y', point.y + 'px');
+        
+        // Розрахунок радіусу в пікселях на основі метрів та зуму
+        const radiusMeters = calculateFogRadius();
+        const radiusPixels = metersToPixels(radiusMeters);
+        
+        // Встановлюємо радіуси туману (в пікселях)
+        fog.style.setProperty('--fog-radius-inner', Math.max(20, radiusPixels * 0.6) + 'px');
+        fog.style.setProperty('--fog-radius-mid', Math.max(40, radiusPixels * 0.8) + 'px');
+        fog.style.setProperty('--fog-radius-outer', Math.max(60, radiusPixels) + 'px');
+        fog.style.setProperty('--fog-radius-max', Math.max(80, radiusPixels * 1.3) + 'px');
+    } catch (e) {
+        // Карта ще не готова
+    }
+}
+
+function centerOnPlayer() {
+    map.setView([gameState.player.position.lat, gameState.player.position.lng], 17);
+}
+
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ==================== HUD ====================
+function updateHUD() {
+    const stats = getPlayerStats();
+    document.getElementById('player-level').textContent = gameState.player.level;
+    document.getElementById('hp-bar').style.width = (gameState.player.hp / stats.maxHp * 100) + '%';
+    document.getElementById('hp-text').textContent = `${Math.floor(gameState.player.hp)}/${stats.maxHp}`;
+    
+    const xpCur = Number(gameState.player.xp);
+    const xpNext = Number(gameState.player.xpToNext);
+    const xpPrev = Number(calculateXPForLevel(gameState.player.level));
+    const progress = ((xpCur - xpPrev) / (xpNext - xpPrev)) * 100;
+    document.getElementById('xp-bar').style.width = Math.min(100, progress) + '%';
+    document.getElementById('xp-text').textContent = formatNumber(xpCur) + '/' + formatNumber(xpNext);
+}
+
+function formatNumber(n) {
+    if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+    return n.toString();
+}
+
+function updateCharacterPanel() {
+    const stats = getPlayerStats();
+    const p = gameState.player;
+    
+    document.getElementById('char-level').textContent = p.level;
+    document.getElementById('char-xp').textContent = formatNumber(Number(p.xp));
+    document.getElementById('char-xp-next').textContent = formatNumber(Number(p.xpToNext));
+    
+    document.getElementById('stat-str').textContent = stats.strength;
+    document.getElementById('stat-agi').textContent = stats.agility;
+    document.getElementById('stat-int').textContent = stats.intuition;
+    document.getElementById('stat-vit').textContent = stats.vitality;
+    document.getElementById('stat-intl').textContent = stats.intellect;
+    document.getElementById('stat-wis').textContent = stats.wisdom;
+    
+    document.getElementById('stat-hp').textContent = stats.maxHp;
+    document.getElementById('stat-dmg').textContent = stats.damage;
+    document.getElementById('stat-def').textContent = stats.defense;
+    document.getElementById('stat-hit').textContent = stats.hitChance + '%';
+    document.getElementById('stat-crit').textContent = stats.critChance + '%';
+    document.getElementById('stat-regen').textContent = stats.regenRate;
+    
+    // Показуємо/приховуємо кнопки "+" біля характеристик
+    const hasPoints = p.statPoints > 0;
+    document.querySelectorAll('.stat-plus-btn').forEach(btn => {
+        btn.classList.toggle('hidden', !hasPoints);
+    });
+    
+    // Показуємо кількість очок біля заголовка
+    const pointsHint = document.getElementById('points-hint');
+    const pointsInline = document.getElementById('points-inline');
+    if (pointsHint && pointsInline) {
+        pointsHint.classList.toggle('hidden', !hasPoints);
+        pointsInline.textContent = p.statPoints;
+    }
+}
+
+function updateQuestProgress() {
+    const q = gameState.quests;
+    document.getElementById('quest-progress-1').style.width = Math.min(100, q.monstersKilled / 5 * 100) + '%';
+    document.getElementById('quest-count-1').textContent = `${Math.min(5, q.monstersKilled)}/5`;
+    document.getElementById('quest-progress-2').style.width = Math.min(100, q.itemsCollected / 10 * 100) + '%';
+    document.getElementById('quest-count-2').textContent = `${Math.min(10, q.itemsCollected)}/10`;
+    document.getElementById('quest-progress-3').style.width = Math.min(100, q.uniquesKilled / 3 * 100) + '%';
+    document.getElementById('quest-count-3').textContent = `${Math.min(3, q.uniquesKilled)}/3`;
+    document.getElementById('quest-progress-4').style.width = Math.min(100, q.distanceTraveled / 1000 * 100) + '%';
+    document.getElementById('quest-count-4').textContent = `${Math.floor(q.distanceTraveled)}/1000m`;
+}
+
+function openMenu(menu) {
+    closeMenu();
+    document.getElementById(menu + '-panel').classList.remove('hidden');
+    if (menu === 'character') updateCharacterPanel();
+    if (menu === 'inventory') renderInventory();
+    if (menu === 'quests') updateQuestProgress();
+}
+
+function closeMenu() {
+    ['character', 'inventory', 'quests', 'settings'].forEach(m => {
+        document.getElementById(m + '-panel').classList.add('hidden');
+    });
+}
+
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notifications');
+    const colors = { info: 'bg-blue-600', success: 'bg-green-600', warning: 'bg-yellow-600', error: 'bg-red-600' };
+    const el = document.createElement('div');
+    el.className = `notification ${colors[type]} px-4 py-2 rounded-lg shadow-lg text-sm`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+    addEventLog(message, type);
+}
+
+// ==================== SETTINGS ====================
+function toggleSetting(setting) {
+    gameState.settings[setting] = !gameState.settings[setting];
+    updateSettingToggle(setting);
+    
+    if (setting === 'fog') {
+        document.getElementById('fog').style.display = gameState.settings.fog ? 'block' : 'none';
+    }
+    saveGame();
+}
+
+function updateSettingToggle(setting) {
+    const toggle = document.getElementById(setting + '-toggle');
+    if (toggle) {
+        toggle.classList.toggle('on', gameState.settings[setting]);
+        toggle.classList.toggle('off', !gameState.settings[setting]);
+    }
+}
+
+function toggleDebugMode() {
+    gameState.debug.enabled = !gameState.debug.enabled;
+    document.getElementById('debug-badge').classList.toggle('hidden', !gameState.debug.enabled);
+    document.getElementById('debug-options').classList.toggle('hidden', !gameState.debug.enabled);
+    document.getElementById('joystick-container').classList.toggle('hidden', !gameState.debug.enabled);
+    document.getElementById('debug-panel').classList.toggle('hidden', !gameState.debug.enabled);
+    document.getElementById('speed-control').classList.toggle('hidden', !gameState.debug.enabled);
+    
+    const toggle = document.getElementById('debug-toggle');
+    toggle.classList.toggle('on', gameState.debug.enabled);
+    toggle.classList.toggle('off', !gameState.debug.enabled);
+    
+    if (gameState.debug.enabled) {
+        updateDebugCoords();
+    }
+    
+    saveGame();
+}
+
+// ==================== DEBUG ====================
+const STATIC_MONSTER_KEY = 'fightcraft_static_monsters_v8';
+let staticMonsters = [];
+
+function seedRandom(seed) {
+    return function() {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+    };
+}
+
+function getGridCellId(lat, lng) {
+    const latIdx = Math.floor(lat / LAT_STEP_DEG);
+    const lngIdx = Math.floor(lng / LAT_STEP_DEG);
+    return `${latIdx}_${lngIdx}`;
+}
+
+function pickLandmarkForCell(lat, lng) {
+    let best = null;
+    let bestDist = Infinity;
+    LANDMARKS.forEach(land => {
+        const dist = getDistance(lat, lng, land.lat, land.lng);
+        if (dist < 1000 && dist < bestDist) {
+            best = land;
+            bestDist = dist;
+        }
+    });
+    return best;
+}
+
+function getLandmarkTypeForPoint(lat, lng) {
+    const district = assignDistrictForPoint(lat, lng);
+    if (district) {
+        if (district.id === 'mitte' || district.id === 'fk') return 'historic';
+        if (district.id === 'charlottenburg') return 'cultural';
+        if (district.id === 'pankow') return 'park';
+        if (district.id === 'neukoelln') return 'pedestrian';
+        if (district.id === 'spandau') return 'spiritual';
+    }
+    return null;
+}
+
+function getMonsterByLandUse(type, random) {
+    const pools = {
+        park: ['wolf', 'boar', 'spirit'],
+        pedestrian: ['goblin', 'hunter', 'mage'],
+        historic: ['skeleton', 'fallen', 'wraith'],
+        cultural: ['mage', 'wraith', 'golem'],
+        waterfront: ['dragonling', 'wraith', 'hunter'],
+        spiritual: ['fallen', 'mage', 'wraith'],
+        industrial: ['golem', 'orc', 'skeleton']
+    };
+    const list = pools[type] || ['goblin', 'wolf', 'golem'];
+    const templateId = list[Math.floor(random() * list.length)];
+    return MONSTER_LIBRARY.find(m => m.templateId === templateId) || MONSTER_LIBRARY[0];
+}
+
+function generateGridPoints() {
+    const points = [];
+    const spacingLat = GRID_SETTINGS.spacingMeters / 111320;
+
+    CITY_REGIONS.forEach(city => {
+        const spacingLng = spacingLat / Math.cos(city.lat * Math.PI / 180);
+        const latStart = city.lat - (city.radiusKm / 111);
+        const latEnd = city.lat + (city.radiusKm / 111);
+        const lngStart = city.lng - (city.radiusKm / (111 * Math.cos(city.lat * Math.PI / 180)));
+        const lngEnd = city.lng + (city.radiusKm / (111 * Math.cos(city.lat * Math.PI / 180)));
+        const cityCap = city.id === 'berlin' ? 2000 : city.id === 'london' || city.id === 'paris' || city.id === 'rome' ? 1200 : MAX_MONSTERS_PER_CITY;
+
+        let count = 0;
+        for (let lat = latStart; lat <= latEnd; lat += spacingLat) {
+            for (let lng = lngStart; lng <= lngEnd; lng += spacingLng) {
+                if (count >= cityCap) break;
+                const jitterLat = (Math.random() - 0.5) * spacingLat * 0.4;
+                const jitterLng = (Math.random() - 0.5) * spacingLng * 0.4;
+                const pointLat = lat + jitterLat;
+                const pointLng = lng + jitterLng;
+                const dist = getDistance(city.lat, city.lng, pointLat, pointLng);
+                if (dist <= city.radiusKm * 1000) {
+                    points.push({
+                        id: `${city.id}_${pointLat.toFixed(5)}_${pointLng.toFixed(5)}`,
+                        lat: pointLat,
+                        lng: pointLng,
+                        cityId: city.id
+                    });
+                    count++;
+                }
+            }
+            if (count >= cityCap) break;
+        }
+    });
+    return points;
+}
+
+function pickMonsterTemplate(random) {
+    const index = Math.floor(random() * MONSTER_LIBRARY.length);
+    return MONSTER_LIBRARY[index];
+}
+
+function assignDistrictForPoint(lat, lng, cityId) {
+    if (cityId === 'berlin') {
+        let selected = null;
+        let minDist = Infinity;
+        BERLIN_DISTRICTS.forEach(dist => {
+            const inside = pointInPolygon(lat, lng, dist.polygon);
+            if (inside) {
+                const d = getDistance(lat, lng, dist.center.lat, dist.center.lng);
+                if (d < minDist) {
+                    minDist = d;
+                    selected = dist;
+                }
+            }
+        });
+        return selected;
+    }
+    const city = CITY_REGIONS.find(c => c.id === cityId);
+    if (city) {
+        return {
+            id: city.id,
+            name: city.name,
+            color: '#8b5cf6',
+            fill: 'rgba(139,92,246,0.08)',
+            borderOpacity: 0.4,
+            minLevel: city.minLevel,
+            maxLevel: city.maxLevel,
+            radius: city.radiusKm * 1000,
+            center: { lat: city.lat, lng: city.lng }
+        };
+    }
+    return null;
+}
+
+function pointInPolygon(lat, lng, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i][0], yi = polygon[i][1];
+        const xj = polygon[j][0], yj = polygon[j][1];
+        const intersect = ((yi > lat) !== (yj > lat)) && (lng < (yj - yi) * (lat - xi) / (xj - xi) + yi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function levelByDistrict(district, lat, lng) {
+    if (!district) return 8 + Math.floor(Math.random() * 8);
+    const dist = getDistance(lat, lng, district.center.lat, district.center.lng);
+    const ratio = Math.min(1, dist / district.radius);
+    const level = district.maxLevel - (district.maxLevel - district.minLevel) * ratio;
+    return Math.round(level);
+}
+
+function buildStaticMonsters() {
+    const monsters = [];
+    console.log('🔨 Starting monster generation...');
+
+    CITY_REGIONS.forEach(city => {
+        console.log(`🏙️ Generating for ${city.name}...`);
+        
+        const spacingLat = GRID_SETTINGS.spacingMeters / 111320;
+        const spacingLng = spacingLat / Math.cos(city.lat * Math.PI / 180);
+        
+        const latStart = city.lat - (city.radiusKm / 111);
+        const latEnd = city.lat + (city.radiusKm / 111);
+        const lngStart = city.lng - (city.radiusKm / (111 * Math.cos(city.lat * Math.PI / 180)));
+        const lngEnd = city.lng + (city.radiusKm / (111 * Math.cos(city.lat * Math.PI / 180)));
+        
+        let cityCount = 0;
+        const maxForCity = city.id === 'berlin' ? 10000 : 800;
+        
+        for (let lat = latStart; lat <= latEnd; lat += spacingLat) {
+            for (let lng = lngStart; lng <= lngEnd; lng += spacingLng) {
+                if (cityCount >= maxForCity) break;
+                
+                const jitterLat = (Math.random() - 0.5) * spacingLat * 0.3;
+                const jitterLng = (Math.random() - 0.5) * spacingLng * 0.3;
+                const pointLat = lat + jitterLat;
+                const pointLng = lng + jitterLng;
+                
+                const dist = getDistance(city.lat, city.lng, pointLat, pointLng);
+                if (dist > city.radiusKm * 1000) continue;
+                
+                const district = assignDistrictForPoint(pointLat, pointLng, city.id);
+                const landmark = pickLandmarkForCell(pointLat, pointLng);
+                
+                let spawnLat = pointLat;
+                let spawnLng = pointLng;
+                let template = MONSTER_LIBRARY[Math.floor(Math.random() * MONSTER_LIBRARY.length)];
+                
+                if (landmark) {
+                    template = getMonsterByLandUse(landmark.type, Math.random);
+                    spawnLat = landmark.lat;
+                    spawnLng = landmark.lng;
+                }
+                
+                // Випадковий рівень з вагами: чим вищий рівень, тим рідше
+                // Використовуємо експоненційний розподіл
+                const randomValue = Math.random();
+                let level;
+                if (randomValue < 0.40) {
+                    // 40% шанс: рівень 1-15 (новачки)
+                    level = 1 + Math.floor(Math.random() * 15);
+                } else if (randomValue < 0.65) {
+                    // 25% шанс: рівень 16-35 (початківці)
+                    level = 16 + Math.floor(Math.random() * 20);
+                } else if (randomValue < 0.82) {
+                    // 17% шанс: рівень 36-55 (середній)
+                    level = 36 + Math.floor(Math.random() * 20);
+                } else if (randomValue < 0.92) {
+                    // 10% шанс: рівень 56-75 (досвідчений)
+                    level = 56 + Math.floor(Math.random() * 20);
+                } else if (randomValue < 0.98) {
+                    // 6% шанс: рівень 76-90 (ветеран)
+                    level = 76 + Math.floor(Math.random() * 15);
+                } else {
+                    // 2% шанс: рівень 91-99 (легенда)
+                    level = 91 + Math.floor(Math.random() * 9);
+                }
+                // Лендмарки = боси високого рівня (70-99)
+                if (landmark) {
+                    level = 70 + Math.floor(Math.random() * 30); // 70-99
+                }
+                
+                // Гарантуємо діапазон 1-99
+                level = Math.min(99, Math.max(1, level));
+                const cls = landmark ? 'superUnique' : template.class;
+                
+                const baseHp = 30 + level * 10;
+                const hpMult = cls === 'champion' ? 1.5 : cls === 'unique' ? 3 : cls === 'superUnique' ? 5 : 1;
+                const dmgMult = cls === 'champion' ? 1.2 : cls === 'unique' ? 1.5 : cls === 'superUnique' ? 2 : 1;
+                const xpMult = cls === 'champion' ? 3 : cls === 'unique' ? 10 : cls === 'superUnique' ? 50 : 1;
+                const goldMult = cls === 'champion' ? 2 : cls === 'unique' ? 4 : cls === 'superUnique' ? 8 : 1;
+                
+                monsters.push({
+                    id: `${city.id}_${pointLat.toFixed(5)}_${pointLng.toFixed(5)}`,
+                    lat: spawnLat,
+                    lng: spawnLng,
+                    cityId: city.id,
+                    district: district ? district.name : null,
+                    landmarkName: landmark ? landmark.name : null,
+                    respawnAt: null,
+                    defeated: false,
+                    name: template.name,
+                    icon: template.icon,
+                    type: template.type,
+                    class: cls,
+                    level: level,
+                    hp: Math.floor(baseHp * hpMult),
+                    maxHp: Math.floor(baseHp * hpMult),
+                    damage: Math.floor((5 + level * 2) * dmgMult),
+                    defense: Math.floor(level * dmgMult),
+                    xpReward: Math.max(50, Math.round((level ** 1.3) * xpMult)),
+                    goldReward: Math.max(20, Math.round((level ** 1.1) * goldMult)),
+                    affixes: template.affixes || []
+                });
+                
+                cityCount++;
+            }
+            if (cityCount >= maxForCity) break;
+        }
+        
+        console.log(`  ✅ ${city.name}: ${cityCount} monsters`);
+    });
+
+    staticMonsters = monsters;
+    console.log(`✅ Total generated: ${staticMonsters.length} monsters`);
+    saveStaticMonsters();
+}
+
+function saveStaticMonsters() {
+    try {
+        localStorage.setItem(STATIC_MONSTER_KEY, JSON.stringify(staticMonsters));
+    } catch (err) {
+        console.warn('⚠️ Неможливо зберегти монстрів у localStorage (перевищено ліміт). Дані будуть згенеровані знову при наступному запуску.', err);
+    }
+}
+
+function loadStaticMonsters() {
+    const saved = localStorage.getItem(STATIC_MONSTER_KEY);
+    if (saved) {
+        try {
+            staticMonsters = JSON.parse(saved);
+            if (!Array.isArray(staticMonsters) || staticMonsters.length === 0) {
+                console.log('⚠️ Empty monster cache, generating new...');
+                buildStaticMonsters();
+            } else {
+                console.log(`✅ Loaded ${staticMonsters.length} monsters from cache`);
+            }
+        } catch (e) {
+            console.warn('Corrupted monster cache, regenerating.', e);
+            buildStaticMonsters();
+        }
+    } else {
+        console.log('🆕 Monster cache not found, generating...');
+        buildStaticMonsters();
+    }
+}
+
+function spawnTestMonsters() {
+    const confirmRegenerate = confirm('Regenerate the global monster map? This may take a few seconds.');
+    if (!confirmRegenerate) return;
+    
+    document.getElementById('loading-screen').classList.remove('hidden');
+    document.getElementById('loading-status').textContent = 'Generating monsters...';
+    document.getElementById('loading-bar').style.width = '0%';
+    
+    setTimeout(() => {
+        buildStaticMonsters();
+        renderStaticMonsters();
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('loading-bar').style.width = '100%';
+        showNotification('🧪 Global monster map updated!', 'success');
+        closeMenu();
+    }, 100);
+}
+
+function healPlayer() {
+    gameState.player.hp = getPlayerStats().maxHp;
+    updateHUD();
+    showNotification('❤️ Fully healed!', 'success');
+}
+
+function teleportToCoords() {
+    const latInput = document.getElementById('teleport-lat').value;
+    const lngInput = document.getElementById('teleport-lng').value;
+    
+    const lat = parseFloat(latInput);
+    const lng = parseFloat(lngInput);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+        showNotification('❌ Invalid coordinates!', 'error');
+        return;
+    }
+    
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        showNotification('❌ Coordinates out of range!', 'error');
+        return;
+    }
+    
+    updatePlayerPosition(lat, lng);
+    map.setView([lat, lng], 14);
+    
+    // Auto-detect city by coordinates
+    const city = getPlayerCity();
+    if (city) {
+        showNotification(`📍 ${city.name} (Lv.${city.minLevel}-${city.maxLevel})`, 'success');
+    } else {
+        showNotification(`📍 Wilderness`, 'info');
+    }
+}
+
+
+
+function setMoveSpeed(speed) {
+    gameState.debug.moveSpeed = speed;
+    document.getElementById('debug-speed').textContent = speed + 'x';
+    
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.toggle('active', parseFloat(btn.dataset.speed) === speed);
+    });
+    
+    showNotification(`🏃 Speed: ${speed}x`, 'info');
+}
+
+function giveTestItems() {
+    ['rustySword', 'leatherArmor', 'leatherCap', 'leatherBoots', 'leatherGloves', 'healthPotion', 'healthPotion', 'ironSword'].forEach(id => {
+        gameState.inventory.push({ id, quantity: 1 });
+    });
+    gameState.quests.itemsCollected += 8;
+    showNotification('🎁 Items added!', 'success');
+    saveGame();
+}
+
+function addTestXP() {
+    addXP(1000);
+    showNotification('⭐ +1000 XP', 'success');
+    saveGame();
+}
+
+function addTestGold() {
+    gameState.player.gold += 500;
+    showNotification('💰 +500 gold', 'success');
+    saveGame();
+}
+
+// ==================== SAVE/LOAD ====================
+function saveGame() {
+    // Remove expired inactive monster entries
+    const now = Date.now();
+    Object.keys(gameState.inactiveMonsters).forEach(id => {
+        if (gameState.inactiveMonsters[id] < now) {
+            delete gameState.inactiveMonsters[id];
+        }
+    });
+    
+    const data = {
+        ...gameState,
+        player: { ...gameState.player, xp: gameState.player.xp.toString(), xpToNext: gameState.player.xpToNext.toString() }
+    };
+    localStorage.setItem('fightcraft_v3', JSON.stringify(data));
+    saveStaticMonsters();
+}
+
+function loadGame() {
+    const saved = localStorage.getItem('fightcraft_v3');
+    if (saved) {
+        const data = JSON.parse(saved);
+        gameState = {
+            ...gameState,
+            ...data,
+            player: {
+                ...gameState.player,
+                ...data.player,
+                xp: BigInt(data.player.xp || 0),
+                xpToNext: BigInt(data.player.xpToNext || 500)
+            },
+            inactiveMonsters: data.inactiveMonsters || {}
+        };
+        
+        // Remove expired inactive monster entries
+        const now = Date.now();
+        Object.keys(gameState.inactiveMonsters).forEach(id => {
+            if (gameState.inactiveMonsters[id] < now) {
+                delete gameState.inactiveMonsters[id];
+            }
+        });
+    }
+}
+
+function resetGame() {
+    if (confirm('Reset all progress?')) {
+        localStorage.removeItem('fightcraft_v3');
+        location.reload();
+    }
+}
+
+// ==================== INIT ====================
+async function init() {
+    const bar = document.getElementById('loading-bar');
+    const status = document.getElementById('loading-status');
+    
+    bar.style.width = '10%';
+    status.textContent = 'Detecting location...';
+    await new Promise(r => setTimeout(r, 200));
+    
+    // Завантажуємо збережену гру спочатку
+    loadGame();
+    
+    // Спроба отримати реальні GPS координати
+    const defaultCoords = { lat: 52.484512, lng: 13.449876 }; // Берлін за замовчуванням
+    
+    try {
+        if ('geolocation' in navigator) {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    pos => resolve(pos),
+                    err => reject(err),
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            });
+            
+            gameState.player.position = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+            addEventLog(`GPS acquired: ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`, 'success');
+            console.log('GPS координати отримано:', position.coords.latitude, position.coords.longitude);
+        } else {
+            throw new Error('Геолокація не підтримується');
+        }
+    } catch (error) {
+        console.warn('GPS недоступний, використовуються координати за замовчуванням:', error.message);
+        gameState.player.position = defaultCoords;
+        addEventLog(`GPS unavailable, using Berlin`, 'warning');
+    }
+    
+    bar.style.width = '20%';
+    status.textContent = 'Loading...';
+    
+    bar.style.width = '50%';
+    status.textContent = 'Initializing map...';
+    await new Promise(r => setTimeout(r, 200));
+    
+    initMap();
+    
+    const stats = getPlayerStats();
+    gameState.player.maxHp = stats.maxHp;
+    if (!gameState.player.hp) gameState.player.hp = stats.maxHp;
+    
+    bar.style.width = '80%';
+    status.textContent = 'Configuring...';
+    await new Promise(r => setTimeout(r, 200));
+    
+    // Update setting toggles
+    ['sound', 'notifications', 'fog', 'vibration'].forEach(updateSettingToggle);
+    if (!gameState.settings.fog) document.getElementById('fog').style.display = 'none';
+    
+    bar.style.width = '100%';
+    status.textContent = 'Ready!';
+    await new Promise(r => setTimeout(r, 300));
+    
+    document.getElementById('loading-screen').classList.add('hidden');
+    
+    updateHUD();
+    
+    // Завантажуємо монстрів
+    loadStaticMonsters();
+    console.log(`📊 Після loadStaticMonsters: ${staticMonsters.length} в базі`);
+    
+    // Якщо монстрів немає - генеруємо
+    if (!staticMonsters || staticMonsters.length === 0) {
+        console.log('🔄 Генерую нових монстрів...');
+        buildStaticMonsters();
+    }
+    
+    console.log(`📊 Перед рендерингом: ${staticMonsters.length} монстрів у базі`);
+    
+    // Центруємо карту на гравці
+    map.setView([gameState.player.position.lat, gameState.player.position.lng], 15);
+    
+    // Рендеримо монстрів ОДРАЗУ при старті
+    console.log(`🔄 Початок рендерингу монстрів...`);
+    renderStaticMonsters(true);
+    console.log(`✅ Рендеринг завершено. Маркерів на карті: ${monsterMarkers.length}`);
+    
+    lastPlayerPos = { ...gameState.player.position };
+    
+    setInterval(updateRegeneration, 1000);
+    setInterval(saveGame, 60000);
+    
+    // Показуємо інформацію про поточне місто
+    const city = getPlayerCity();
+    if (city) {
+        showNotification(`🏙️ ${city.name} - ready to play!`, 'success');
+    } else {
+        showNotification('🎮 Enable Debug Mode in Settings to test movement', 'info');
+    }
+    updateEventLogDisplay();
+}
+
+init();
+</script>
+</body>
+</html>

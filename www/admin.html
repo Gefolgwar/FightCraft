@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FightCraft Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-del {
+            @apply px-3 py-1 bg-red-900/50 hover:bg-red-800 text-red-200 rounded border border-red-700 text-xs;
+        }
+
+        .tag {
+            @apply px-2 py-0.5 rounded text-xs font-bold uppercase;
+        }
+
+        .tag-admin {
+            @apply bg-purple-900 text-purple-200 border border-purple-500;
+        }
+
+        .tag-user {
+            @apply bg-blue-900 text-blue-200 border border-blue-500;
+        }
+
+        .tag-orphan {
+            @apply bg-orange-900 text-orange-200 border border-orange-500;
+        }
+    </style>
+</head>
+
+<body class="p-6">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center bg-gray-900 p-4 rounded-xl border border-gray-700 shadow-xl">
+            <div>
+                <h1
+                    class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                    🛡️ Admin Dashboard</h1>
+                <p class="text-gray-400 text-sm">Database Inspector</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="window.location.href='db-usage.html'"
+                    class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-sm">📊 DB Usage</button>
+                <button onclick="window.location.href='/'"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">⬅️
+                    Back to Game</button>
+                <button onclick="forceGlobalUpdate()"
+                    class="px-4 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg text-sm font-bold border border-purple-500 shadow-lg shadow-purple-900/50">🚀
+                    Force Update</button>
+                <button onclick="loadData()" class="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg text-sm">🔄
+                    Refresh</button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass p-4 rounded-xl">
+                <div class="text-gray-400 text-sm">Total Users</div>
+                <div class="text-3xl font-bold text-blue-400" id="stat-users">...</div>
+            </div>
+            <div class="glass p-4 rounded-xl">
+                <div class="text-gray-400 text-sm">Total Characters</div>
+                <div class="text-3xl font-bold text-green-400" id="stat-chars">...</div>
+            </div>
+            <div class="glass p-4 rounded-xl">
+                <div class="text-gray-400 text-sm">Orphaned Records</div>
+                <div class="text-3xl font-bold text-orange-400" id="stat-orphans">...</div>
+            </div>
+        </div>
+
+        <!-- USERS TABLE -->
+        <div class="glass rounded-xl overflow-hidden">
+            <div class="p-4 bg-gray-800/50 border-b border-gray-700 flex justify-between">
+                <h2 class="font-bold text-lg">👥 Users Collection</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-400 text-xs uppercase bg-gray-900/50">
+                            <th class="p-3">UID</th>
+                            <th class="p-3">Email / Name</th>
+                            <th class="p-3">Role</th>
+                            <th class="p-3">Last Login</th>
+                            <th class="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table" class="text-sm">
+                        <tr>
+                            <td colspan="5" class="p-4 text-center text-gray-500">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CHARACTERS TABLE (Collection Group) -->
+        <div class="glass rounded-xl overflow-hidden">
+            <div class="p-4 bg-gray-800/50 border-b border-gray-700 flex justify-between">
+                <h2 class="font-bold text-lg">🧙 All Characters (Collection Group)</h2>
+                <div class="text-xs text-gray-400">Shows all chars, including orphans</div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-400 text-xs uppercase bg-gray-900/50">
+                            <th class="p-3">Character ID</th>
+                            <th class="p-3">Name & Class</th>
+                            <th class="p-3">Owner Info</th>
+                            <th class="p-3">Owner UID</th>
+                            <th class="p-3">Status</th>
+                            <th class="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="chars-table" class="text-sm">
+                        <tr>
+                            <td colspan="5" class="p-4 text-center text-gray-500">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT -->
+    <script type="module">
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, deleteDoc, doc, collectionGroup, query, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_MmVmjrchLqGgl8h1Zr-7od9QHvYPlW4",
+            authDomain: "fight-craft-3c3f0.firebaseapp.com",
+            projectId: "fight-craft-3c3f0",
+            appId: "1:1042637371139:android:0c6ff703f819bc80ea9b36"
+        };
+
+        // Init Firebase Safe
+        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let currentUser = null;
+
+        // Auth Check & Admin Guard
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                // Verify Admin Role
+                let isAdmin = false;
+
+                // 1. Super Admin Hardcode
+                if (user.uid === 'YshG61RxTIczGXOfFqiu2wqC63r2') {
+                    isAdmin = true;
+                } else {
+                    // 2. Database Check
+                    const snap = await getDoc(doc(db, 'users', user.uid));
+                    if (snap.exists() && snap.data().role === 'admin') {
+                        isAdmin = true;
+                    }
+                }
+
+                if (!isAdmin) {
+                    document.body.innerHTML = '<div class="glass p-10 m-10 text-center text-red-500 text-2xl font-bold">⛔ ACCESS DENIED</div>';
+                    setTimeout(() => window.location.href = 'index.html', 1500);
+                    return;
+                }
+
+                currentUser = user;
+                loadData();
+
+            } catch (error) {
+                console.error("Auth Guard Error:", error);
+                window.location.href = 'login.html';
+            }
+        });
+
+        window.loadData = async function () {
+            console.log('Fetching data...');
+            document.getElementById('users-table').innerHTML = '<tr><td colspan="5" class="p-4 text-center">Loading...</td></tr>';
+            document.getElementById('chars-table').innerHTML = '<tr><td colspan="5" class="p-4 text-center">Loading...</td></tr>';
+
+            try {
+                // 1. GET USERS
+                const usersSnap = await getDocs(collection(db, 'users'));
+                const usersMap = new Set();
+
+                let usersHtml = '';
+                usersSnap.forEach(doc => {
+                    const data = doc.data();
+                    usersMap.add(doc.id);
+                    const isMe = currentUser && doc.id === currentUser.uid;
+                    const role = data.role || 'player';
+
+                    usersHtml += `
+                        <tr class="border-b border-gray-800 hover:bg-gray-800/50 transition">
+                            <td class="p-3 font-mono text-xs text-gray-400">${doc.id} ${isMe ? '<span class="text-green-400">(YOU)</span>' : ''}</td>
+                            <td class="p-3">
+                                <div id="name-box-${doc.id}" class="flex items-center gap-2 group">
+                                    <div class="font-bold text-white">${data.displayName || 'No Name'}</div>
+                                    <button onclick="editName('${doc.id}', '${(data.displayName || '').replace(/'/g, "\\'")}')" 
+                                        class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-blue-400 transition">
+                                        ✏️
+                                    </button>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">${data.email || 'No Email'}</div>
+                            </td>
+                            <td class="p-3"><span class="tag ${role === 'admin' ? 'tag-admin' : 'tag-user'}">${role}</span></td>
+                            <td class="p-3 text-xs text-gray-400">${data.lastLogin?.toDate ? new Date(data.lastLogin.toDate()).toLocaleString() : 'Never'}</td>
+                            <td class="p-3 text-right">
+                                ${!isMe ? `<button onclick="deleteUser('${doc.id}')" class="btn-del">DELETE</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('users-table').innerHTML = usersHtml || '<tr><td colspan="5" class="p-4 text-center text-gray-500">No users found</td></tr>';
+                document.getElementById('stat-users').innerText = usersSnap.size;
+
+                // 2. GET ALL CHARACTERS (Manual iteration - no collectionGroup)
+                let charsHtml = '';
+                let orphanCount = 0;
+                let totalChars = 0;
+
+                // Iterate through each user and get their characters
+                for (const userDoc of usersSnap.docs) {
+                    const userId = userDoc.id;
+                    const userData = userDoc.data(); // Get owner data
+
+                    try {
+                        const userCharsSnap = await getDocs(collection(db, 'users', userId, 'characters'));
+
+                        userCharsSnap.forEach(charDoc => {
+                            totalChars++;
+                            const data = charDoc.data();
+                            const playerData = data.player || {};
+
+                            charsHtml += `
+                                <tr class="border-b border-gray-800 hover:bg-gray-800/50 transition">
+                                    <td class="p-3 font-mono text-xs text-gray-400">${charDoc.id}</td>
+                                    <td class="p-3">
+                                        <div>${playerData.name || 'Unnamed'}</div>
+                                        <div class="text-xs text-gray-500">Lvl ${playerData.level || 1} ${playerData.class || ''}</div>
+                                    </td>
+                                    <td class="p-3 text-xs">
+                                        <div class="font-bold text-gray-300">${userData.displayName || 'No Name'}</div>
+                                        <div class="text-gray-500">${userData.email || 'No Email'}</div>
+                                    </td>
+                                    <td class="p-3 font-mono text-xs text-gray-500">${userId}</td>
+
+                                    <td class="p-3">
+                                        ${data.isTestPlayer
+                                    ? '<span class="tag" style="background: #1e3a8a; border-color: #3b82f6;">🤖 TestPlayer</span>'
+                                    : '<span class="tag tag-user">ACTIVE</span>'}
+                                    </td>
+                                    <td class="p-3 text-right">
+                                        <button onclick="deleteChar('users/${userId}/characters/${charDoc.id}')" class="btn-del">DELETE</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } catch (e) {
+                        console.warn(`Failed to load chars for user ${userId}:`, e);
+                    }
+                }
+
+                document.getElementById('chars-table').innerHTML = charsHtml || '<tr><td colspan="5" class="p-4 text-center text-gray-500">No characters found</td></tr>';
+                document.getElementById('stat-chars').innerText = totalChars;
+                document.getElementById('stat-orphans').innerText = orphanCount;
+
+            } catch (error) {
+                console.error("Load failed:", error);
+                alert("Load failed: " + error.message);
+            }
+        }
+
+        // GLOBAL ACTIONS
+        window.deleteUser = async (uid) => {
+            if (!confirm(`Delete User ${uid}?\nThis will remove the user and ALL their characters permanently!`)) return;
+            try {
+                // First, delete all characters subcollection
+                const charactersRef = collection(db, 'users', uid, 'characters');
+                const charactersSnap = await getDocs(charactersRef);
+
+                console.log(`🗑️ Deleting ${charactersSnap.size} characters for user ${uid}...`);
+
+                // Delete each character document
+                const deletePromises = [];
+                charactersSnap.forEach((charDoc) => {
+                    deletePromises.push(deleteDoc(charDoc.ref));
+                });
+
+                await Promise.all(deletePromises);
+                console.log('✅ All characters deleted');
+
+                // Now delete the user document
+                await deleteDoc(doc(db, 'users', uid));
+                console.log('✅ User document deleted');
+
+                alert('User and characters deleted successfully');
+                loadData();
+            } catch (e) {
+                console.error('Delete failed:', e);
+                alert('Delete failed: ' + e.message);
+            }
+        };
+
+        window.editName = (uid, currentName) => {
+            const container = document.getElementById(`name-box-${uid}`);
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="flex items-center gap-1 w-full">
+                    <input type="text" id="input-${uid}" value="${currentName}" 
+                        class="bg-gray-900 border border-blue-500 rounded px-2 py-1 text-white text-sm font-bold w-full outline-none"
+                        onkeydown="if(event.key==='Enter') saveName('${uid}')">
+                    <button onclick="saveName('${uid}')" class="text-green-500 hover:text-green-400 px-1">💾</button>
+                    <button onclick="loadData()" class="text-red-500 hover:text-red-400 px-1">✕</button>
+                </div>
+            `;
+            setTimeout(() => document.getElementById(`input-${uid}`).focus(), 50);
+        };
+
+        window.saveName = async (uid) => {
+            const input = document.getElementById(`input-${uid}`);
+            if (!input) return;
+
+            const newName = input.value.trim();
+            /* Allow empty? Maybe not. */
+            if (!newName) return;
+
+            try {
+                input.style.borderColor = '#fbbf24'; // Yellow processing
+                await updateDoc(doc(db, 'users', uid), { displayName: newName });
+
+                if (auth.currentUser && auth.currentUser.uid === uid) {
+                    await updateProfile(auth.currentUser, { displayName: newName });
+                }
+                loadData(); // Reload to show text mode
+            } catch (e) {
+                alert('Update failed: ' + e.message);
+            }
+        };
+
+        window.deleteChar = async (path) => {
+            if (!confirm(`Delete Character?`)) return;
+            try {
+                await deleteDoc(doc(db, path));
+                loadData();
+            } catch (e) { alert(e.message); }
+        };
+        window.forceGlobalUpdate = async () => {
+            if (!confirm("⚠️ FORCE GLOBAL UPDATE?\n\nThis will update 'world_metadata/current_state' timestamp.\n\nALL players will be forced to sync deltas (or full load) on their next game start.\n\nUse this after making changes to monsters/shops/etc.")) return;
+
+            try {
+                const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+                await setDoc(doc(db, 'world_metadata', 'current_state'), {
+                    last_global_update: serverTimestamp(),
+                    triggeredBy: currentUser.email || 'admin'
+                }, { merge: true });
+
+                alert("✅ Global Update Triggered!\n\nNew timestamp set. Players will now sync.");
+            } catch (e) {
+                console.error("Force Update Error:", e);
+                alert("Error: " + e.message);
+            }
+        };
+
+    </script>
+</body>
+
+</html>

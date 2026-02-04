@@ -1,0 +1,22 @@
+{
+    "rules": {
+        "live_players": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+        },
+        "battle_requests": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+        },
+        "battles": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+        },
+        "players": {
+            "$uid": {
+                ".read": "auth != null",
+                ".write": "$uid === auth.uid"
+            }
+        }
+    }
+}

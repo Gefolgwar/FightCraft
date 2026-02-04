@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Database Backup</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+
+<body class="p-6 md:p-10 flex flex-col items-center min-h-screen">
+    <div class="max-w-4xl w-full bg-slate-900/50 p-6 rounded-xl border border-slate-700 shadow-2xl">
+        <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">💾
+            Database Backup</h1>
+        <p class="text-slate-400 text-sm mb-6">Securely export all game data to JSON.</p>
+
+        <div id="status" class="mb-4 text-yellow-400 font-mono text-sm animate-pulse">🔒 Verifying Admin Access...</div>
+
+        <div id="content" class="hidden space-y-6">
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-800 p-3 rounded border border-slate-600 text-center">
+                    <div class="text-xs text-slate-400">Users</div>
+                    <div class="text-2xl font-bold text-blue-400" id="count-users">0</div>
+                </div>
+                <div class="bg-slate-800 p-3 rounded border border-slate-600 text-center">
+                    <div class="text-xs text-slate-400">Characters</div>
+                    <div class="text-2xl font-bold text-green-400" id="count-chars">0</div>
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="space-y-1">
+                <label class="text-xs text-slate-500 uppercase font-bold">Data Preview (First 50 lines)</label>
+                <div class="bg-slate-950 p-4 rounded-lg text-[10px] font-mono h-64 overflow-auto border border-slate-800 text-green-300 shadow-inner"
+                    id="json-preview">
+                    Loading data...
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-4 pt-4 border-t border-slate-700">
+                <button onclick="window.location.href='/'"
+                    class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold transition text-slate-200">
+                    ⬅️ Back
+                </button>
+                <button onclick="downloadJson()"
+                    class="flex-[2] px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-white shadow-lg transition transform hover:scale-[1.02] flex justify-center items-center gap-2">
+                    <span>⬇️ DOWNLOAD FULL BACKUP</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT -->
+    <script type="module">
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, collectionGroup, query } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // CONFIG
+        const firebaseConfig = { apiKey: "AIzaSyD_MmVmjrchLqGgl8h1Zr-7od9QHvYPlW4", authDomain: "fight-craft-3c3f0.firebaseapp.com", projectId: "fight-craft-3c3f0", appId: "1:1042637371139:android:0c6ff703f819bc80ea9b36" };
+
+        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let backupData = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = 'login.html'; return; }
+
+            // ADMIN CHECK
+            let isAdmin = false;
+            // Super Admin Hardcode
+            if (user.uid === 'YshG61RxTIczGXOfFqiu2wqC63r2') isAdmin = true;
+            else {
+                // DB Check
+                try {
+                    const s = await getDoc(doc(db, 'users', user.uid));
+                    if (s.exists() && s.data().role === 'admin') isAdmin = true;
+                } catch (e) { console.warn(e); }
+            }
+
+            if (!isAdmin) {
+                document.body.innerHTML = '<div class="flex h-screen items-center justify-center"><h1 class="text-3xl font-bold text-red-500">⛔ ACCESS DENIED</h1></div>';
+                setTimeout(() => window.location.href = 'index.html', 2000);
+                return;
+            }
+
+            // LOAD DATA
+            const statusEl = document.getElementById('status');
+            statusEl.innerText = '📦 Fetching all database records...';
+            statusEl.className = 'mb-4 text-blue-400 font-mono text-sm animate-pulse';
+
+            document.getElementById('content').classList.remove('hidden');
+
+            try {
+                const users = [];
+                const chars = [];
+
+                // 1. Users
+                const uSnap = await getDocs(collection(db, 'users'));
+                uSnap.forEach(d => users.push({ id: d.id, ...d.data() }));
+                document.getElementById('count-users').innerText = users.length;
+
+                // 2. Characters (Manual iteration - no collectionGroup)
+                let totalChars = 0;
+                for (const userDoc of uSnap.docs) {
+                    try {
+                        const userCharsSnap = await getDocs(collection(db, 'users', userDoc.id, 'characters'));
+                        userCharsSnap.forEach(charDoc => {
+                            chars.push({ id: charDoc.id, parent: userDoc.id, ...charDoc.data() });
+                            totalChars++;
+                        });
+                    } catch (e) {
+                        console.warn(`Failed chars for ${userDoc.id}:`, e);
+                    }
+                }
+                document.getElementById('count-chars').innerText = totalChars;
+
+                backupData = { timestamp: new Date().toISOString(), users, characters: chars };
+
+                // Preview (Truncated)
+                const jsonStr = JSON.stringify(backupData, null, 2);
+                document.getElementById('json-preview').innerText = jsonStr.substring(0, 5000) + (jsonStr.length > 5000 ? '\n... (truncated for preview)' : '');
+
+                statusEl.innerText = `✅ Data Ready.`;
+                statusEl.className = 'mb-4 text-green-400 font-mono text-sm';
+
+            } catch (e) {
+                statusEl.innerText = '❌ Error: ' + e.message;
+                statusEl.className = 'mb-4 text-red-400 font-mono text-sm font-bold';
+            }
+        });
+
+        window.downloadJson = function () {
+            if (!backupData) return;
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `fightcraft_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+        };
+    </script>
+</body>
+
+</html>

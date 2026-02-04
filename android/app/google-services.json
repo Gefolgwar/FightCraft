@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1042637371139",
+    "project_id": "fight-craft-3c3f0",
+    "storage_bucket": "fight-craft-3c3f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1042637371139:android:0c6ff703f819bc80ea9b36",
+        "android_client_info": {
+          "package_name": "com.fightcraft.game"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_MmVmjrchLqGgl8h1Zr-7od9QHvYPlW4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is admin
+    // Hardcoded check for YOUR UID ensures access even if DB role is missing
+    function isAdmin() {
+      return request.auth != null && 
+             (request.auth.uid == 'YshG61RxTIczGXOfFqiu2wqC63r2' || 
+              (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles (for multiplayer)
+      allow read: if request.auth != null;
+      
+      // Users can update their own profile
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Only allow user creation during registration
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Only admins can delete users
+      allow delete: if isAdmin();
+      
+      // Characters subcollection
+      match /characters/{characterId} {
+        // Anyone authenticated can read characters (MP)
+        allow read: if request.auth != null;
+        // Users can only write their own
+        allow create, update: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+        // Users can delete their own
+        allow delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      }
+
+      // Invites subcollection - Relaxed for testing
+      match /invites/{inviteId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // Combats collection - Relaxed for testing
+    match /combats/{combatId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Collection Group query for characters (for admin debug panel)
+    // This allows admins to query ALL characters across users using collectionGroup()
+    match /{path=**}/characters/{characterId} {
+      allow read: if request.auth != null;
+    }
+    
+    
+    // Templates collection - only admins can read/write originally, 
+    // BUT we need authenticated users to read it for caching now? 
+    // Wait, getTemplates was restricted to admins in code: "if (!isAdmin())".
+    // If the user is trying to load templates and they are Admin, it should work.
+    // The error says "Missing or insufficient permissions" for a read.
+    // Let's check who is reading. "admin.html" -> Admin.
+    // Ah, wait. The user error log shows "Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]".
+    // This might be the query filtering? 
+    // Lets look at the rule again.
+    
+    // Templates collection - authenticated users can read, admins can write
+    match /templates/{templateId} {
+      allow read: if request.auth != null; // Was: if request.auth != null; This was ALREADY allowing read for all auth users.
+      allow write: if isAdmin();
+    }
+    
+    // Spawned objects - admins can write, all authenticated users can read
+    match /spawned_objects/{objectId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // Castles collection - authenticated users can read, admins can write
+    match /castles/{castleId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // World Snapshots - admins can write, authenticated users can read (for map viewer)
+    match /world_snapshots/{snapshotId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // World Chunks (Packed States) - All users can read, only admins can write (auto-pack)
+    match /world_chunks/{chunkId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // World Metadata - All users can read (for sync), admins can write (force update)
+    match /world_metadata/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // City Zones - All users can read, admins can write
+    match /city_zones/{cityId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // Players collection (legacy) - authenticated users can read/write their own
+    match /players/{playerId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                   (request.auth.uid == playerId || isAdmin());
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

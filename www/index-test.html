@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FightCraft Modular Test</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="bg-gray-900 text-white p-8">
+    <h1 class="text-3xl font-bold mb-4">Модульна версія - Тест</h1>
+
+    <div class="space-y-4">
+        <button onclick="openMenu('character-panel')" class="btn-action px-6 py-3 rounded-lg">
+            Відкрити панель персонажа
+        </button>
+
+        <button onclick="showNotification('Це працює!', 'success')" class="btn-action px-6 py-3 rounded-lg">
+            Показати нотифікацію
+        </button>
+
+        <button onclick="toggleGameDebug()" class="btn-action px-6 py-3 rounded-lg">
+            Перемкнути Debug
+        </button>
+    </div>
+
+    <!-- Character Panel (hidden initially) -->
+    <div id="character-panel" class="hidden fixed inset-0 z-[2000]">
+        <div class="absolute inset-0 bg-black/70" onclick="closeMenu()"></div>
+        <div class="absolute inset-4 menu-panel rounded-2xl p-6">
+            <h2 class="text-2xl font-bold mb-4">Панель персонажа</h2>
+            <p>Це працює! Модулі завантажені.</p>
+            <button onclick="closeMenu()" class="btn-action px-6 py-3 rounded-lg mt-4">Закрити</button>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed top-4 right-4 z-[3000] space-y-2"></div>
+
+    <!-- Load modular app -->
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

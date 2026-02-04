@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monster Templates Migration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🐉 Monster Templates Migration</h1>
+
+        <div class="bg-yellow-900/30 border border-yellow-500 rounded-lg p-4 mb-6">
+            <p class="text-yellow-300">⚠️ This is a one-time migration script</p>
+            <p class="text-sm text-yellow-200 mt-2">It will convert all monsters from data.js to Firestore templates</p>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">Migration Progress</h2>
+            <div id="status" class="mb-4 text-gray-400">Waiting to start...</div>
+            <div id="progress" class="space-y-2"></div>
+        </div>
+
+        <button id="migrate-btn" onclick="startMigration()"
+            class="w-full py-3 bg-green-700 hover:bg-green-600 rounded-lg font-bold text-lg">
+            🚀 Start Migration
+        </button>
+
+        <div class="mt-6 text-sm text-gray-400">
+            <p>After migration completes, check the <a href="gameplay_monsters.html"
+                    class="text-blue-400 underline">Monsters Admin Panel</a></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { MONSTER_LIBRARY } from './js/data.js';
+        import { initFirebase, saveTemplate } from './js/firebase-service.js';
+
+        window.startMigration = async function () {
+            const btn = document.getElementById('migrate-btn');
+            const status = document.getElementById('status');
+            const progress = document.getElementById('progress');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            status.textContent = 'Initializing Firebase...';
+            progress.innerHTML = '';
+
+            try {
+                // Initialize Firebase
+                await initFirebase();
+                status.textContent = '🔥 Firebase ready! Starting migration...';
+
+                let successCount = 0;
+                let failCount = 0;
+                const total = MONSTER_LIBRARY.length;
+                const defaultWeight = Math.floor(100 / total);
+
+                for (const monster of MONSTER_LIBRARY) {
+                    try {
+                        const template = {
+                            id: `monster_${monster.templateId}`,
+                            type: 'monster',
+                            name: monster.name,
+                            icon: monster.icon,
+                            class: monster.class,
+                            level: monster.level,
+                            hp: monster.hp,
+                            damage: monster.damage,
+                            defense: monster.defense,
+                            xpReward: monster.xpReward,
+                            goldReward: monster.goldReward,
+                            monsterType: monster.type,
+                            affixes: monster.affixes || [],
+                            weight: defaultWeight,
+                            originalTemplateId: monster.templateId
+                        };
+
+                        const success = await saveTemplate(template);
+                        if (success) {
+                            successCount++;
+                            progress.innerHTML += `<div class="text-green-400">✅ ${monster.name}</div>`;
+                        } else {
+                            failCount++;
+                            progress.innerHTML += `<div class="text-red-400">❌ ${monster.name} - Failed</div>`;
+                        }
+
+                        status.textContent = `Progress: ${successCount + failCount}/${total}`;
+                    } catch (error) {
+                        failCount++;
+                        progress.innerHTML += `<div class="text-red-400">❌ ${monster.name} - ${error.message}</div>`;
+                    }
+                }
+
+                status.innerHTML = `
+                    <div class="text-2xl font-bold text-green-400 mb-2">✅ Migration Complete!</div>
+                    <div class="text-sm">Success: ${successCount} | Failed: ${failCount}</div>
+                `;
+
+                btn.textContent = '✅ Migration Complete';
+                btn.classList.remove('bg-green-700', 'hover:bg-green-600');
+                btn.classList.add('bg-gray-700');
+
+            } catch (error) {
+                status.innerHTML = `<div class="text-red-400">❌ Error: ${error.message}</div>`;
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            }
+        };
+    </script>
+</body>
+
+</html>

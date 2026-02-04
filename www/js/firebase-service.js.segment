@@ -1,0 +1,25 @@
+﻿/**
+ * Subscribe to spawned objects in a city
+ * @param {string} cityId 
+ * @param {function} onUpdate Callback(objects)
+ */
+export function subscribeToSpawnedObjects(cityId, onUpdate) {
+    const q = query(
+        collection(db, 'spawned_objects'),
+        where('cityId', '==', cityId)
+    );
+
+    trackUsage('read', `spawned_objects - STARTING SUBSCRIPTION (${cityId})`);
+    return onSnapshot(q, (snapshot) => {
+        trackUsage('read', `spawned_objects - Snapshot Update (${cityId}, ${snapshot.size} docs)`);
+        const objects = [];
+        snapshot.forEach(doc => {
+            objects.push({ id: doc.id, ...doc.data() });
+        });
+        onUpdate(objects);
+    }, (error) => {
+        console.warn(`âš ï¸ Spawned Objects Sync Error for ${cityId}:`, error);
+        // Do not crash, just log. Likely permission issue if public read is disabled.
+    });
+}
+

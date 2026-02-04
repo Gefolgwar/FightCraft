@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Usage & Billing - FightCraft</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center bg-gray-900 p-4 rounded-xl border border-gray-700 shadow-xl">
+            <div>
+                <h1
+                    class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-500">
+                    📊 DB Billing & Quota
+                </h1>
+                <p class="text-gray-400 text-sm">Real-time resource monitor • <span id="current-date"
+                        class="text-emerald-400 font-mono">...</span></p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="window.location.href='admin.html'"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">⬅️ Back</button>
+                <button id="btn-refresh"
+                    class="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg text-sm transition">🔄 Refresh</button>
+                <button id="btn-clear-logs"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg border border-gray-500 text-sm transition text-gray-200">🧹
+                    Clear Logs</button>
+                <button id="btn-clear"
+                    class="px-4 py-2 bg-red-900/50 hover:bg-red-800 rounded-lg border border-red-700 text-sm transition text-red-200">🗑️
+                    Reset Day</button>
+                <button id="btn-bundle"
+                    class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg border border-emerald-500 text-sm transition text-white">📦
+                    Generate Bundles</button>
+            </div>
+        </div>
+
+        <!-- Quota Progress Section -->
+        <div class="glass p-6 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-3">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h3 class="font-bold text-gray-200">Reads Quota (Daily)</h3>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">50,000 Free Limit</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-2xl font-bold text-blue-400" id="reads-percent">0%</span>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden border border-gray-700">
+                    <div id="reads-bar"
+                        class="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-1000"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h3 class="font-bold text-gray-200">Writes Quota (Daily)</h3>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">20,000 Free Limit</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-2xl font-bold text-red-400" id="writes-percent">0%</span>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden border border-gray-700">
+                    <div id="writes-bar"
+                        class="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-1000"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="glass p-5 rounded-xl border-l-4 border-blue-500">
+                <div class="text-gray-400 text-xs font-bold uppercase">Total Reads</div>
+                <div class="text-3xl font-bold text-blue-400 mt-1" id="stat-reads">0</div>
+            </div>
+            <div class="glass p-5 rounded-xl border-l-4 border-red-500">
+                <div class="text-gray-400 text-xs font-bold uppercase">Total Writes+Del</div>
+                <div class="text-3xl font-bold text-red-400 mt-1" id="stat-writes">0</div>
+            </div>
+            <div class="glass p-5 rounded-xl border-l-4 border-emerald-500">
+                <div class="text-gray-400 text-xs font-bold uppercase">RTDB Bandwidth</div>
+                <div class="text-3xl font-bold text-emerald-400 mt-1" id="stat-rtdb">0</div>
+            </div>
+            <div class="glass p-5 rounded-xl border-l-4 border-yellow-500">
+                <div class="text-gray-400 text-xs font-bold uppercase">Last Hour</div>
+                <div class="text-3xl font-bold text-yellow-400 mt-1" id="stat-hour-reads">0</div>
+                <div class="text-[10px] text-gray-500 mt-1">reads</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 glass p-6 rounded-xl">
+                <h2 class="font-bold text-lg text-gray-200 mb-4">Activity (Last 10 min)</h2>
+                <div class="h-[300px]">
+                    <canvas id="usageChart"></canvas>
+                </div>
+            </div>
+            <div class="glass p-6 rounded-xl flex flex-col">
+                <h2 class="font-bold text-lg text-gray-200 mb-2">🔥 Top Consumption</h2>
+                <div class="flex-1 overflow-y-auto max-h-[300px] scrollbar-hide pr-2">
+                    <table class="w-full text-left">
+                        <thead class="text-[10px] text-gray-500 uppercase border-b border-gray-800">
+                            <tr>
+                                <th class="pb-2">Target Path</th>
+                                <th class="pb-2">Info</th>
+                                <th class="pb-2 text-right">Docs</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-queries-body" class="text-xs"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- DB Schema Reference -->
+        <div class="mb-6 bg-black/40 border border-gray-800 rounded-xl p-4">
+            <button
+                class="w-full flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-wider"
+                onclick="const s = document.getElementById('schema-legend'); s.classList.toggle('hidden'); s.classList.toggle('grid');">
+                <span>📖 DB Schema Reference (Legend)</span>
+                <span class="opacity-50 text-[10px]">Click to toggle</span>
+            </button>
+            <div id="schema-legend" class="mt-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 hidden">
+                <div class="text-[10px] space-y-1 p-2 bg-white/5 rounded">
+                    <div class="text-blue-400 font-bold">users/{uid}</div>
+                    <div class="text-gray-400 italic">Профіль гравця, роль, позиція</div>
+                </div>
+                <div class="text-[10px] space-y-1 p-2 bg-white/5 rounded">
+                    <div class="text-blue-400 font-bold">users/{uid}/characters/{cid}</div>
+                    <div class="text-gray-400 italic">Персонаж: інвентар, статти, XP</div>
+                </div>
+                <div class="text-[10px] space-y-1 p-2 bg-white/5 rounded">
+                    <div class="text-blue-400 font-bold">spawned_objects/{oid}</div>
+                    <div class="text-gray-400 italic">Монстри, Магазини, Замки (Map)</div>
+                </div>
+                <div class="text-[10px] space-y-1 p-2 bg-white/5 rounded">
+                    <div class="text-blue-400 font-bold">templates/{tid}</div>
+                    <div class="text-gray-400 italic">Шаблони для спавну (Admin)</div>
+                </div>
+                <div class="text-[10px] space-y-1 p-2 bg-white/5 rounded">
+                    <div class="text-blue-400 font-bold">world_snapshots/{sid}</div>
+                    <div class="text-gray-400 italic">Резервні копії станів світу</div>
+                </div>
+                <div class="text-[10px] space-y-1 p-2 bg-white/5 rounded">
+                    <div class="text-blue-400 font-bold">city_zones/{cityId}</div>
+                    <div class="text-gray-400 italic">Межі міст (GeoJSON)</div>
+                </div>
+                <div class="text-[10px] space-y-1 p-2 bg-white/5 rounded">
+                    <div class="text-blue-400 font-bold">groups/{groupId}</div>
+                    <div class="text-gray-400 italic">Групи гравців (Party)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Table -->
+        <div class="glass rounded-xl overflow-hidden">
+            <div class="p-4 bg-gray-800/30 border-b border-gray-700">
+                <h2 class="font-bold text-lg text-gray-200">Detailed Request Log</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-400 text-xs uppercase bg-gray-900/50">
+                            <th class="p-3 cursor-pointer" data-sort="timestamp">Time</th>
+                            <th class="p-3 cursor-pointer" data-sort="type">Type</th>
+                            <th class="p-3 cursor-pointer" data-sort="path">Path</th>
+                            <th class="p-3 cursor-pointer" data-sort="size">Docs</th>
+                            <th class="p-3">Data</th>
+                            <th class="p-3">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="js/db-usage.js"></script>
+</body>
+
+</html>
