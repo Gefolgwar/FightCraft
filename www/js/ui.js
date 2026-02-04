@@ -22,9 +22,39 @@ export function updateHUD() {
     }
 }
 
+// Helper to update header info with current user/char details
+function updateMenuHeader(menu) {
+    const headerId = `header-info-${menu}`;
+    const headerEl = document.getElementById(headerId);
+    console.log(`🔍 updateMenuHeader called for: ${menu}. Element found: ${!!headerEl}`);
+
+    if (headerEl) {
+        import('./firebase-service.js').then(({ auth }) => {
+            const user = auth.currentUser;
+            console.log("👤 Auth User:", user ? user.email : "No User");
+
+            const email = user ? (user.email || user.displayName || 'Guest') : 'Guest';
+
+            // Get character info from global state
+            const charName = (window.gameState && window.gameState.player && window.gameState.player.name) || 'Unknown';
+            const charLevel = (window.gameState && window.gameState.player && window.gameState.player.level) || 1;
+
+            console.log(`📝 Updating header to: ${email} | ${charName} (Lv.${charLevel})`);
+
+            headerEl.textContent = `${email} | ${charName} (Lv.${charLevel})`;
+        }).catch(e => console.error("❌ updateMenuHeader Error:", e));
+    } else {
+        console.warn(`⚠️ Element #${headerId} NOT FOUND in DOM`);
+    }
+}
+
 export function openMenu(menu) {
     closeMenu();
     document.getElementById(menu + '-panel').classList.remove('hidden');
+
+    // Update header info for all menus
+    updateMenuHeader(menu);
+
     if (menu === 'inventory' && window.renderInventory) window.renderInventory();
     if (menu === 'character' && window.updateCharacterPanel) window.updateCharacterPanel();
 }

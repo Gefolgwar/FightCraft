@@ -16,8 +16,8 @@ service cloud.firestore {
       // Anyone authenticated can read user profiles (for multiplayer)
       allow read: if request.auth != null;
       
-      // Users can update their own profile
-      allow update: if request.auth != null && request.auth.uid == userId;
+      // Users can update their own profile OR Admins can update any profile
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
       
       // Only allow user creation during registration
       allow create: if request.auth != null && request.auth.uid == userId;

@@ -495,7 +495,11 @@ window.teleportToCoords = function () {
 };
 
 // Initialize debug mode UI on game load
-function initializeDebugMode() {
+// Initialize debug mode UI on game load
+async function initializeDebugMode() {
+    const { isAdmin, isModerator } = await import('./firebase-service.js');
+    const isAuthorized = isAdmin() || isModerator();
+
     const badge = document.getElementById('debug-badge');
     const panel = document.getElementById('debug-panel');
     const joy = document.getElementById('joystick-container');
@@ -504,6 +508,15 @@ function initializeDebugMode() {
     const tools = document.getElementById('debug-options');
     const mpDebug = document.getElementById('mp-debug');
     const consoleBtn = document.getElementById('debug-console-btn');
+
+    // FORCE HIDE for non-authorized users
+    if (!isAuthorized) {
+        console.log("⛔ Access Denied: Debug Mode restricted to Admins/Mods.");
+        gameState.debug.enabled = false;
+        if (toggle) toggle.style.display = 'none'; // Hide the toggle button itself
+    } else {
+        if (toggle) toggle.style.display = 'flex'; // Show toggle for auth users
+    }
 
     if (gameState.debug.enabled) {
         // Show all debug elements

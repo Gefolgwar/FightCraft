@@ -93,6 +93,8 @@ export async function initFirebase() {
 
                 if (user) {
                     currentUser = user;
+                    // Expose email globally to avoid circular imports in UI
+                    window.currentUserEmail = user.email;
                     console.log(`✅ Firebase: Auth detected in ${duration}s for ${user.email}`);
 
                     try {
@@ -185,10 +187,6 @@ export function getUserRole() {
 }
 
 export function isAdmin() {
-    // UI OVERRIDE: Allow localhost to see admin panels for convenience
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return true;
-    }
     return userRole && userRole.toLowerCase() === 'admin';
 }
 
@@ -227,7 +225,29 @@ export async function savePlayerToCloud(playerData) {
         const dataToSave = {
             ...playerData,
             lastSave: serverTimestamp(),
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            dbUsage: (() => {
+                // Aggregate Stats
+                const localReads = parseInt(localStorage.getItem('total_firestore_reads') || '0', 10);
+                const totalReads = Math.max(usageStats.reads, localReads);
+
+                // Aggregate Logs
+                let allLogs = [...usageStats.logs];
+                try {
+                    const localLogs = JSON.parse(localStorage.getItem('firestore_detailed_logs') || '[]');
+                    allLogs = allLogs.concat(localLogs);
+                } catch (e) { }
+
+                // Sort and Limit logs to last 50 to save bandwidth
+                allLogs.sort((a, b) => b.timestamp - a.timestamp);
+                if (allLogs.length > 50) allLogs = allLogs.slice(0, 50);
+
+                return {
+                    reads: totalReads,
+                    writes: usageStats.writes || 0,
+                    logs: allLogs
+                };
+            })()
         };
 
         // We use setDoc with merge to update or create
@@ -2061,10 +2081,18 @@ export function getUsageStatsFC() {
     return usageStats;
 }
 
-export function clearUsageStatsFC() {
+export async function clearUsageStatsFC() {
     usageStats = { reads: 0, writes: 0, rtdb: 0, logs: [] };
     localStorage.removeItem(STORAGE_KEY);
-    console.log("DB Usage cleared.");
+    localStorage.setItem('total_firestore_reads', '0');
+    localStorage.removeItem('firestore_detailed_logs');
+    console.log("DB Usage cleared locally.");
+
+    // Sync clear to cloud
+    if (gameState.player) {
+        await savePlayerToCloud(gameState.player);
+        console.log("DB Usage cleared in Cloud.");
+    }
 }
 
 loadStats();

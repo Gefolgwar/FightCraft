@@ -74,3 +74,27 @@
         </div>
     </div>
 </div>
+
+<!-- Multiplayer Panel (Injected into game-container by ui-loader.js) -->
+<div id="multiplayer-panel"
+    class="absolute bottom-[280px] left-5 z-[90] w-64 bg-slate-900/90 backdrop-blur-md p-3 rounded-lg border border-blue-500/30 shadow-2xl pointer-events-auto hidden">
+    <div class="flex justify-between items-center mb-2 border-b border-blue-500/30 pb-1">
+        <span class="text-xs font-bold text-blue-300">🎮 Multiplayer</span>
+        <span class="text-[10px] text-blue-500" id="mp-sync-status">Connected</span>
+    </div>
+
+    <div class="space-y-2">
+        <button onclick="window.openMenu('statistics')"
+            class="w-full py-2 bg-blue-700 hover:bg-blue-600 rounded text-xs font-bold border border-blue-900 transition-colors">
+            🏆 Leaderboard
+        </button>
+
+        <div class="border-t border-gray-700/50 pt-2 mt-2">
+            <div class="text-[10px] text-gray-400 mb-1">Testing Controls:</div>
+            <button onclick="toggleJoystick()"
+                class="w-full py-1 bg-purple-700 hover:bg-purple-600 rounded text-[10px] border border-purple-900">
+                🕹️ Toggle Joystick
+            </button>
+        </div>
+    </div>
+</div>

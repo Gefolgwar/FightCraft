@@ -131,6 +131,30 @@ export function showNotification(message, type = 'info') {
     }
 }
 
+// Helper to update header info with current user/char details
+function updateMenuHeader(menu) {
+    const headerId = `header-info-${menu}`;
+    const headerEl = document.getElementById(headerId);
+    console.log(`🔍 [UI-Controller] updateMenuHeader called for: ${menu}. Element #${headerId} found: ${!!headerEl}`);
+
+    if (headerEl) {
+        // Use global window variables set by firebase-service main loop
+        const email = window.currentUserEmail || 'Guest';
+
+        // Get fresh character info using recalculateStats helper (same as updateCharacterPanel)
+        const p = recalculateStats();
+        const charName = p.name || 'Unknown';
+        const charLevel = p.level || 1;
+
+        const text = `${email} | ${charName} (Lv.${charLevel})`;
+        console.log(`📝 [UI-Controller] Updating header text to: ${text}`);
+
+        headerEl.textContent = text;
+    } else {
+        console.warn(`⚠️ [UI-Controller] Header Element #${headerId} NOT FOUND`);
+    }
+}
+
 // ==================== MENUS ====================
 export function openMenu(menuId) {
     console.log('🔍 openMenu called with:', menuId);
@@ -145,6 +169,11 @@ export function openMenu(menuId) {
 
     // Use mapped ID if exists, otherwise use as-is
     const fullMenuId = menuMap[menuId] || menuId;
+
+    // Update Header Info (Account | Char Name)
+    // We use the short name (menuId) if possible, or extract from full ID
+    const shortName = Object.keys(menuMap).find(key => menuMap[key] === fullMenuId) || menuId.replace('-panel', '');
+    updateMenuHeader(shortName);
 
     // Hide all full-screen modals first
     const modals = ['character-panel', 'inventory-panel', 'settings-panel', 'quests-panel', 'statistics-panel', 'item-modal'];
@@ -223,12 +252,12 @@ export function updateInventoryStats() {
 
     // Stats in Equipment Panel (right column)
     set('inv-avatar-icon', p.avatar || '🧙');
-    set('stats-hp', stats.maxHp);
-    set('stats-dmg', stats.attack);
-    set('stats-def', stats.defense);
+    set('stats-hp', p.maxHp);
+    set('stats-dmg', p.attack);
+    set('stats-def', p.defense);
     set('stats-hit', (80 + p.agility + p.intuition) + '%');
     set('stats-crit', (p.intuition + (p.luck || 0)) + '%');
-    set('stats-regen', stats.regenRate);
+    set('stats-regen', p.regenRate);
     set('stats-vision', (100 + p.intuition * 5 + p.wisdom * 3) + 'm');
 }
 
@@ -1453,16 +1482,28 @@ console.log('✅ UI Controller: All window functions set:', {
  * Update settings panel based on user role (renamed to avoid conflict)
  */
 export async function refreshSettingsVisibility() {
-    const { isAdmin } = await import('./firebase-service.js');
+    const { isAdmin, isModerator } = await import('./firebase-service.js');
     const adminSettings = document.getElementById('admin-only-settings');
+    const advancedAdmin = document.getElementById('debug-advanced-admin');
 
     const admin = isAdmin();
-    console.log(`UI Check - Is Admin: ${admin}, Element found: ${!!adminSettings}`);
+    const mod = isModerator();
+
+    console.log(`UI Check - Is Admin: ${admin}, Is Mod: ${mod}, Element found: ${!!adminSettings}`);
 
     if (adminSettings) {
-        if (admin) {
+        if (admin || mod) {
             adminSettings.classList.remove('hidden');
-            console.log('✅ Showing ADMIN settings');
+            console.log('✅ Showing ADMIN settings (Mod/Admin)');
+
+            // Advanced settings (World Gen / Legacy) - Admin Only
+            if (advancedAdmin) {
+                if (admin) {
+                    advancedAdmin.classList.remove('hidden');
+                } else {
+                    advancedAdmin.classList.add('hidden');
+                }
+            }
         } else {
             adminSettings.classList.add('hidden');
             console.log('❌ Hiding ADMIN settings');

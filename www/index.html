@@ -150,7 +150,7 @@
 
         <!-- District Toggle FAB (New) -->
         <button onclick="toggleDistrictVisibility()" id="district-toggle-btn"
-            class="absolute top-45 right-3 z-[1001] w-12 h-12 backdrop-blur border border-purple-500/50 rounded-full flex items-center justify-center shadow-lg transition-all hover:bg-black/80 bg-black/60">
+            class="absolute top-[180px] right-3 z-[1001] w-12 h-12 backdrop-blur border border-purple-500/50 rounded-full flex items-center justify-center shadow-lg transition-all hover:bg-black/80 bg-black/60">
             <span class="text-2xl" id="district-toggle-icon">🗺️</span>
         </button>
 
@@ -276,7 +276,8 @@
         <div
             class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
             <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
-                <h2 class="text-xl font-bold rpg-font text-purple-300">Character</h2>
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Character <span id="header-info-character"
+                        class="text-xs text-purple-300/50 font-mono ml-2 font-normal"></span></h2>
                 <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -382,7 +383,8 @@
         <div
             class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
             <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
-                <h2 class="text-xl font-bold rpg-font text-purple-300">Equipment</h2>
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Equipment <span id="header-info-inventory"
+                        class="text-xs text-purple-300/50 font-mono ml-2 font-normal"></span></h2>
                 <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
             </div>
 
@@ -757,7 +759,8 @@
         <div
             class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
             <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
-                <h2 class="text-xl font-bold rpg-font text-purple-300">Quests</h2>
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Quests <span id="header-info-quests"
+                        class="text-xs text-purple-300/50 font-mono ml-2 font-normal"></span></h2>
                 <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3" id="quests-list">
@@ -815,7 +818,8 @@
         <div
             class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
             <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
-                <h2 class="text-xl font-bold rpg-font text-purple-300">Settings</h2>
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Settings <span id="header-info-settings"
+                        class="text-xs text-purple-300/50 font-mono ml-2 font-normal"></span></h2>
                 <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -880,12 +884,14 @@
                         <button onclick="addTestGold()"
                             class="w-full py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm">💰 +500
                             Gold</button>
-                        <button onclick="window.open('gameplay_leveling.html', '_blank')"
-                            class="w-full py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm flex items-center justify-center gap-2">
-                            <i class="fas fa-chart-line"></i> Leveling Table
-                        </button>
 
-                        <div class="mt-4 pt-4 border-t border-gray-700 grid grid-cols-1 gap-2">
+                        <div id="debug-advanced-admin"
+                            class="mt-4 pt-4 border-t border-gray-700 grid grid-cols-1 gap-2">
+                            <button onclick="window.open('gameplay_leveling.html', '_blank')"
+                                class="w-full py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm flex items-center justify-center gap-2">
+                                <i class="fas fa-chart-line"></i> Leveling Table
+                            </button>
+
                             <h4 class="text-[10px] uppercase text-gray-500 font-bold">World Generation</h4>
                             <button onclick="window.open('gameplay_monsters.html', '_blank')"
                                 class="w-full py-2 bg-purple-900/50 hover:bg-purple-900 border border-purple-700 rounded-lg text-sm text-purple-300 font-bold flex items-center justify-center gap-2">
@@ -974,7 +980,8 @@
         <div
             class="absolute inset-x-3 top-12 bottom-12 menu-panel rounded-2xl overflow-hidden flex flex-col max-w-lg mx-auto">
             <div class="p-4 border-b border-purple-900/50 flex justify-between items-center">
-                <h2 class="text-xl font-bold rpg-font text-purple-300">Statistics</h2>
+                <h2 class="text-xl font-bold rpg-font text-purple-300">Statistics <span id="header-info-statistics"
+                        class="text-xs text-purple-300/50 font-mono ml-2 font-normal"></span></h2>
                 <button onclick="closeMenu()" class="text-2xl hover:text-purple-400">✕</button>
             </div>
 

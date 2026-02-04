@@ -2,7 +2,9 @@
     {
         "origin": [
             "http://localhost:8080",
-            "http://127.0.0.1:8080"
+            "http://127.0.0.1:8080",
+            "https://fight-craft-3c3f0.web.app",
+            "https://fight-craft-3c3f0.firebaseapp.com"
         ],
         "method": [
             "GET"

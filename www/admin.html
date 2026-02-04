@@ -37,6 +37,10 @@
         .tag-orphan {
             @apply bg-orange-900 text-orange-200 border border-orange-500;
         }
+
+        .tag-mod {
+            @apply bg-green-900 text-green-200 border border-green-500;
+        }
     </style>
 </head>
 
@@ -93,6 +97,8 @@
                             <th class="p-3">UID</th>
                             <th class="p-3">Email / Name</th>
                             <th class="p-3">Role</th>
+                            <th class="p-3">Reads</th>
+                            <th class="p-3">Writes</th>
                             <th class="p-3">Last Login</th>
                             <th class="p-3 text-right">Actions</th>
                         </tr>
@@ -132,17 +138,80 @@
                 </table>
             </div>
         </div>
+
+        <!-- LOGS MODAL -->
+        <div id="logs-modal"
+            class="fixed inset-0 bg-black/80 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+            <div
+                class="bg-gray-900 border border-gray-700 rounded-xl w-[90%] md:w-[800px] max-h-[90vh] flex flex-col shadow-2xl">
+                <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-800/50 rounded-t-xl">
+                    <h3 class="font-bold text-lg text-blue-400">📜 Detailed Logs <span id="logs-modal-user"
+                            class="text-sm text-gray-500 ml-2"></span></h3>
+                    <button onclick="document.getElementById('logs-modal').classList.add('hidden')"
+                        class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                <div class="flex-1 overflow-auto p-0">
+                    <table class="w-full text-left border-collapse">
+                        <thead
+                            class="sticky top-0 bg-gray-900 border-b border-gray-800 text-xs text-gray-400 uppercase">
+                            <tr>
+                                <th class="p-3">Time</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Path</th>
+                                <th class="p-3">Docs</th>
+                                <th class="p-3">Desc</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-modal-body" class="text-xs font-mono">
+                            <!-- Logs here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 border-t border-gray-800 text-right bg-gray-900/50 rounded-b-xl">
+                    <button onclick="document.getElementById('logs-modal').classList.add('hidden')"
+                        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- SCRIPT -->
+    <!-- LIVE SESSIONS TABLE (RTDB) -->
+    <div class="glass rounded-xl overflow-hidden mb-10">
+        <div class="p-4 bg-gray-800/50 border-b border-gray-700 flex justify-between">
+            <h2 class="font-bold text-lg text-red-400">🔴 Active Sessions (RTDB)</h2>
+            <div class="text-xs text-gray-400">Live map data (Ghosts live here)</div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-gray-400 text-xs uppercase bg-gray-900/50">
+                        <th class="p-3">Session KEY</th>
+                        <th class="p-3">Character ID</th>
+                        <th class="p-3">Name</th>
+                        <th class="p-3">Position</th>
+                        <th class="p-3">Update</th>
+                        <th class="p-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rtdb-table" class="text-sm">
+                    <tr>
+                        <td colspan="6" class="p-4 text-center text-gray-500">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, getDocs, deleteDoc, doc, collectionGroup, query, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, get, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD_MmVmjrchLqGgl8h1Zr-7od9QHvYPlW4",
             authDomain: "fight-craft-3c3f0.firebaseapp.com",
+            databaseURL: "https://fight-craft-3c3f0-default-rtdb.europe-west1.firebasedatabase.app/",
             projectId: "fight-craft-3c3f0",
             appId: "1:1042637371139:android:0c6ff703f819bc80ea9b36"
         };
@@ -151,6 +220,7 @@
         const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        const rtdb = getDatabase(app);
 
         let currentUser = null;
 
@@ -195,6 +265,7 @@
             console.log('Fetching data...');
             document.getElementById('users-table').innerHTML = '<tr><td colspan="5" class="p-4 text-center">Loading...</td></tr>';
             document.getElementById('chars-table').innerHTML = '<tr><td colspan="5" class="p-4 text-center">Loading...</td></tr>';
+            window.userStatsMap = {};
 
             try {
                 // 1. GET USERS
@@ -221,14 +292,33 @@
                                 </div>
                                 <div class="text-xs text-gray-500 mt-1">${data.email || 'No Email'}</div>
                             </td>
-                            <td class="p-3"><span class="tag ${role === 'admin' ? 'tag-admin' : 'tag-user'}">${role}</span></td>
+                            <td class="p-3">
+                                <div id="role-box-${doc.id}" class="flex items-center gap-2 group">
+                                    <span class="tag ${role === 'admin' ? 'tag-admin' : (role === 'moderator' ? 'tag-mod' : 'tag-user')}">${role}</span>
+                                    <button onclick="editRole('${doc.id}', '${role}')" 
+                                        class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-blue-400 transition">
+                                        ✏️
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="p-3 text-center text-gray-300">
+                                <span class="bg-gray-800 px-2 py-1 rounded text-blue-300 font-mono">${data.dbUsage ? data.dbUsage.reads : (isMe ? (localStorage.getItem('total_firestore_reads') || '-') : '-')}</span>
+                            </td>
+                            <td class="p-3 text-center text-gray-300">
+                                <span class="bg-gray-800 px-2 py-1 rounded text-red-300 font-mono">${data.dbUsage ? data.dbUsage.writes : '-'}</span>
+                            </td>
                             <td class="p-3 text-xs text-gray-400">${data.lastLogin?.toDate ? new Date(data.lastLogin.toDate()).toLocaleString() : 'Never'}</td>
-                            <td class="p-3 text-right">
+                            <td class="p-3 text-right flex justify-end gap-2">
+                                <button onclick="showUserLogs('${doc.id}')" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-2 py-1 rounded text-xs" title="View Detailed Logs">📜 Logs</button>
+                                <button onclick="resetUserStats('${doc.id}')" class="bg-red-900/30 hover:bg-red-900/50 border border-red-800 text-red-400 px-2 py-1 rounded text-xs" title="Reset Reads/Writes">🗑️ Reset</button>
                                 ${!isMe ? `<button onclick="deleteUser('${doc.id}')" class="btn-del">DELETE</button>` : ''}
                             </td>
                         </tr>
                     `;
+                    // Store logs for modal
+                    window.userStatsMap[doc.id] = data.dbUsage?.logs || [];
                 });
+
                 document.getElementById('users-table').innerHTML = usersHtml || '<tr><td colspan="5" class="p-4 text-center text-gray-500">No users found</td></tr>';
                 document.getElementById('stat-users').innerText = usersSnap.size;
 
@@ -283,11 +373,58 @@
                 document.getElementById('stat-chars').innerText = totalChars;
                 document.getElementById('stat-orphans').innerText = orphanCount;
 
+                // 3. GET RTDB SESSIONS (Live Map)
+                console.log("Fetching RTDB Sessions...");
+                try {
+                    if (!rtdb) throw new Error("RTDB instance is missing/null");
+                    const rtdbSnap = await get(ref(rtdb, 'live_players'));
+                    console.log("RTDB Snapshot exists:", rtdbSnap.exists(), "Count:", rtdbSnap.size);
+
+                    let rtdbHtml = '';
+                    if (rtdbSnap.exists()) {
+                        rtdbSnap.forEach(child => {
+                            try {
+                                const data = child.val();
+                                const key = child.key;
+                                console.log("Session:", key, data);
+                                const lastUpdate = data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : 'Unknown';
+
+                                rtdbHtml += `
+                                    <tr class="border-b border-gray-800 hover:bg-gray-800/50 transition">
+                                        <td class="p-3 font-mono text-xs text-gray-400">${key.substring(0, 8)}...</td>
+                                        <td class="p-3 text-xs text-blue-300">${data.id || '-'}</td>
+                                        <td class="p-3 font-bold text-white">${data.name || 'Unknown'}</td>
+                                        <td class="p-3 text-xs text-gray-400">${data.position?.lat?.toFixed(4) || '?'}, ${data.position?.lng?.toFixed(4) || '?'}</td>
+                                        <td class="p-3 text-xs text-gray-500">${lastUpdate}</td>
+                                        <td class="p-3 text-right">
+                                            <button onclick="deleteSession('${key}')" class="text-red-500 border border-red-500 px-2 py-1 rounded text-xs hover:bg-red-900/50">KILL</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            } catch (innerE) { console.error("Error parsing row:", innerE); }
+                        });
+                    }
+                    document.getElementById('rtdb-table').innerHTML = rtdbHtml || '<tr><td colspan="6" class="p-4 text-center text-gray-500">No active sessions (Map Empty)</td></tr>';
+                } catch (rtdbErr) {
+                    console.error("RTDB Error:", rtdbErr);
+                    document.getElementById('rtdb-table').innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">Error loading sessions: ${rtdbErr.message}</td></tr>`;
+                }
+
             } catch (error) {
                 console.error("Load failed:", error);
                 alert("Load failed: " + error.message);
             }
-        }
+        };
+
+        window.deleteSession = async (key) => {
+            if (!confirm('Kill this session? Parameter: ' + key)) return;
+            try {
+                await remove(ref(rtdb, `live_players/${key}`));
+                loadData(); // Refresh
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        };
 
         // GLOBAL ACTIONS
         window.deleteUser = async (uid) => {
@@ -326,18 +463,53 @@
 
             container.innerHTML = `
                 <div class="flex items-center gap-1 w-full">
-                    <input type="text" id="input-${uid}" value="${currentName}" 
-                        class="bg-gray-900 border border-blue-500 rounded px-2 py-1 text-white text-sm font-bold w-full outline-none"
-                        onkeydown="if(event.key==='Enter') saveName('${uid}')">
+                    <input type="text" id="name-input-${uid}" value="${currentName}" 
+                        class="bg-gray-900 border border-blue-500 rounded px-2 py-1 text-white text-xs w-full outline-none focus:ring-1 focus:ring-blue-400">
                     <button onclick="saveName('${uid}')" class="text-green-500 hover:text-green-400 px-1">💾</button>
                     <button onclick="loadData()" class="text-red-500 hover:text-red-400 px-1">✕</button>
                 </div>
             `;
-            setTimeout(() => document.getElementById(`input-${uid}`).focus(), 50);
+        };
+
+        window.showUserLogs = (uid) => {
+            const logs = window.userStatsMap ? window.userStatsMap[uid] : [];
+            const tbody = document.getElementById('logs-modal-body');
+            document.getElementById('logs-modal-user').innerText = uid;
+
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No logs available</td></tr>';
+            } else {
+                tbody.innerHTML = logs.map(l => `
+                    <tr class="border-b border-gray-800">
+                        <td class="p-2 text-gray-400">${new Date(l.timestamp).toLocaleTimeString()}</td>
+                        <td class="p-2 ${l.type === 'READ' ? 'text-blue-400' : 'text-red-400'}">${l.type}</td>
+                        <td class="p-2 font-mono text-gray-500 truncate max-w-[150px]" title="${l.path}">${l.path}</td>
+                        <td class="p-2 font-bold">${l.size}</td>
+                        <td class="p-2 opacity-50 truncate max-w-[200px]" title="${l.description || ''}">${l.description || '-'}</td>
+                    </tr>
+                `).join('');
+            }
+            document.getElementById('logs-modal').classList.remove('hidden');
+        };
+
+        window.resetUserStats = async (uid) => {
+            if (!confirm('Reset usage stats for this user?')) return;
+            try {
+                await updateDoc(doc(db, 'users', uid), {
+                    'dbUsage.reads': 0,
+                    'dbUsage.writes': 0,
+                    'dbUsage.logs': []
+                });
+                alert('Reset complete. Stats cleared in Cloud.');
+                loadData();
+            } catch (e) {
+                console.error(e);
+                alert('Error: ' + e.message);
+            }
         };
 
         window.saveName = async (uid) => {
-            const input = document.getElementById(`input-${uid}`);
+            const input = document.getElementById(`name-input-${uid}`);
             if (!input) return;
 
             const newName = input.value.trim();
@@ -352,6 +524,36 @@
                     await updateProfile(auth.currentUser, { displayName: newName });
                 }
                 loadData(); // Reload to show text mode
+            } catch (e) {
+                alert('Update failed: ' + e.message);
+            }
+        };
+
+        window.editRole = (uid, currentRole) => {
+            const container = document.getElementById(`role-box-${uid}`);
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="flex items-center gap-1 w-full">
+                    <select id="role-input-${uid}" class="bg-gray-900 border border-blue-500 rounded px-2 py-1 text-white text-xs font-bold outline-none">
+                        <option value="player" ${currentRole === 'player' ? 'selected' : ''}>player</option>
+                        <option value="moderator" ${currentRole === 'moderator' ? 'selected' : ''}>moderator</option>
+                        <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>admin</option>
+                    </select>
+                    <button onclick="saveRole('${uid}')" class="text-green-500 hover:text-green-400 px-1">💾</button>
+                    <button onclick="loadData()" class="text-red-500 hover:text-red-400 px-1">✕</button>
+                </div>
+            `;
+        };
+
+        window.saveRole = async (uid) => {
+            const input = document.getElementById(`role-input-${uid}`);
+            if (!input) return;
+
+            const newRole = input.value;
+            try {
+                await updateDoc(doc(db, 'users', uid), { role: newRole });
+                loadData();
             } catch (e) {
                 alert('Update failed: ' + e.message);
             }

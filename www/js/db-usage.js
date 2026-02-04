@@ -16,27 +16,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     setInterval(updateDashboard, 5000);
 });
 
-function initDashboard() {
-    updateDashboard();
-    document.getElementById('btn-clear').addEventListener('click', () => {
-        if (confirm('Reset ALL today\'s statistics?')) {
-            clearUsageStatsFC();
-            // Clear monitored logs too
-            localStorage.setItem('total_firestore_reads', '0');
-            localStorage.removeItem('firestore_detailed_logs');
-            console.log("🧹 Logs cleared!");
-            updateDashboard();
-            updateDashboard();
-        }
-    });
 
+
+async function initDashboard() {
+    // Show User
+    const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+        document.getElementById('user-display').textContent = user.email || user.uid;
+    }
+
+    updateDashboard();
+
+    // Consolidated Button: Clear Logs & Stats
     const btnClearLogs = document.getElementById('btn-clear-logs');
     if (btnClearLogs) {
-        btnClearLogs.addEventListener('click', () => {
-            if (confirm('Clear only the detailed logs?')) {
-                localStorage.removeItem('firestore_detailed_logs');
-                console.log("🧹 Detailed Logs cleared!");
+        btnClearLogs.addEventListener('click', async () => {
+            if (confirm('🧹 CLEAR ALL LOGS & STATS?\n\nThis will reset reads/writes counters locally AMD in the Cloud, and clear the log table.')) {
+                await clearUsageStatsFC();
                 updateDashboard();
+                // Force UI update immediately
+                document.getElementById('stat-reads').textContent = '0';
+                document.getElementById('stat-writes').textContent = '0';
+                document.getElementById('log-table-body').innerHTML = '';
             }
         });
     }
