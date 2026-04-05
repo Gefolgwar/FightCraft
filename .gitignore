@@ -18,7 +18,12 @@ Thumbs.db
 
 # Build
 android/app/build/
+android/build/
 android/.gradle/
+
+# JVM crash logs
+android/hs_err_pid*.log
+android/replay_pid*.log
 
 # Temp/debug files
 *.segment
