@@ -814,7 +814,129 @@ window.filterInventory = filterInventory;
 window.toggleEventLog = toggleEventLog;
 window.clearEventLog = clearEventLog;
 
+// ==================== ONLINE PLAYERS LIST ====================
+
+/**
+ * Перемикає видимість панелі Online Players
+ */
+export function toggleOnlinePlayersList() {
+    const panel = document.getElementById('online-players-panel');
+    if (panel) panel.classList.toggle('hidden');
+}
+window.toggleOnlinePlayersList = toggleOnlinePlayersList;
+
+/**
+ * Рендер списку онлайн гравців у панель
+ * Викликається з RTDB callback в app.js
+ * @param {Array} players - масив гравців з subscribeToPlayersRTDB
+ */
+export function renderOnlinePlayersList(players) {
+    const content = document.getElementById('online-players-content');
+    const badge = document.getElementById('online-count-badge');
+    const panelCount = document.getElementById('online-panel-count');
+
+    if (!content) return;
+
+    const currentCharId = window._currentCharacterId || window._currentlyPlayingCharacterId;
+
+    // Фільтруємо себе зі списку
+    const otherPlayers = players.filter(p => p.id !== currentCharId);
+    const totalOnline = players.length;
+
+    // Оновлюємо лічильники
+    if (badge) badge.textContent = totalOnline;
+    if (panelCount) panelCount.textContent = totalOnline;
+
+    if (otherPlayers.length === 0) {
+        content.innerHTML = `
+            <div class="text-center py-6">
+                <div class="text-3xl mb-2">🌍</div>
+                <p class="text-gray-500 text-xs">No other players online</p>
+                <p class="text-gray-600 text-[10px] mt-1">You're the only hero here!</p>
+            </div>`;
+        return;
+    }
+
+    content.innerHTML = otherPlayers.map(player => {
+        const avatar = player.avatar || '🧙';
+        const name = player.name || 'Unknown';
+        const level = player.level || 1;
+        const lat = player.lat ? player.lat.toFixed(4) : '?';
+        const lng = player.lng ? player.lng.toFixed(4) : '?';
+        const isTest = player.isTestPlayer;
+
+        // Колір бордера залежно від типу гравця
+        const borderColor = isTest ? 'border-yellow-600/40' : 'border-cyan-600/30';
+        const bgColor = isTest ? 'bg-yellow-900/10' : 'bg-slate-800/50';
+        const testBadge = isTest ? '<span class="text-[8px] px-1 py-0.5 bg-yellow-600/30 text-yellow-400 rounded ml-1">BOT</span>' : '';
+
+        return `
+        <div class="group ${bgColor} rounded-lg p-2 border ${borderColor} hover:border-cyan-400/50 transition-all cursor-default">
+            <div class="flex items-center gap-2">
+                <!-- Аватар -->
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-700 to-indigo-900 flex items-center justify-center text-lg border border-purple-500/50 shrink-0 shadow-inner">
+                    ${avatar}
+                </div>
+                <!-- Інфо -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-bold text-white truncate">${name}</span>
+                        ${testBadge}
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px] text-gray-500">
+                        <span class="text-purple-400 font-semibold">Lv.${level}</span>
+                        <span>📍${lat}, ${lng}</span>
+                    </div>
+                </div>
+                <!-- Кнопки дій -->
+                <div class="flex gap-1 opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button onclick="window.focusOnPlayer('${player.id}', ${player.lat || 0}, ${player.lng || 0})"
+                        class="w-7 h-7 rounded bg-blue-600/30 hover:bg-blue-500/50 flex items-center justify-center text-xs border border-blue-500/30 transition-colors"
+                        title="Focus on map">
+                        🔍
+                    </button>
+                    <button onclick="window.challengePlayer('${player.id}', '${name}')"
+                        class="w-7 h-7 rounded bg-red-600/30 hover:bg-red-500/50 flex items-center justify-center text-xs border border-red-500/30 transition-colors"
+                        title="Challenge to PvP">
+                        ⚔️
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+window.renderOnlinePlayersList = renderOnlinePlayersList;
+
+/**
+ * Фокус карти на обраного гравця
+ */
+window.focusOnPlayer = function(playerId, lat, lng) {
+    if (!lat || !lng) {
+        showNotification('Player position unknown', 'warning');
+        return;
+    }
+    // Імпортуємо map функцію щоб перемістити камеру
+    import('./map.js').then(({ map }) => {
+        if (map) {
+            map.setView([lat, lng], 18, { animate: true });
+            showNotification(`🔍 Focused on player`, 'info');
+        }
+    });
+};
+
+/**
+ * Виклик на PvP (stub — делегуємо в pvp.js)
+ */
+window.challengePlayer = function(playerId, playerName) {
+    if (window.initiatePvPChallenge) {
+        window.initiatePvPChallenge(playerId, playerName);
+    } else {
+        showNotification(`⚔️ PvP challenge sent to ${playerName}!`, 'warning');
+    }
+};
+
 // ==================== MULTIPLAYER DEBUG UI ====================
+
 
 /**
  * Update Multiplayer Debug Panel with current info

@@ -2,7 +2,7 @@
 import { gameState, updatePlayer, setStaticMonsters, getStaticMonsters, STATIC_MONSTER_KEY, recalculateStats } from './gameState.js';
 import { ITEMS_DB, MONSTER_LIBRARY, CITY_ANCHORS } from './data.js';
 import { initFirebase, savePlayerToCloud, loadPlayerFromCloud, getCurrentUser, subscribeToPlayersRTDB, saveCharacter, getCharacter, logout, subscribeToSpawnedObjects } from './firebase-service.js';
-import { updateHUD, showNotification, addEventLog, updateEventLogDisplay, renderInventory, updateAdminPlayersList } from './ui-controller.js';
+import { updateHUD, showNotification, addEventLog, updateEventLogDisplay, renderInventory, updateAdminPlayersList, renderOnlinePlayersList } from './ui-controller.js';
 import { initMap, updatePlayerPosition, getDistance, updateOtherPlayers, renderStaticMonsters, updateDebugCoords, centerOnPlayer } from './map.js';
 import { loadStaticMonsters, buildStaticMonsters } from './monsters.js';
 import { initCharacterSelection } from './character-selection.js';
@@ -90,7 +90,10 @@ async function init() {
 
     updateProgress('Loading world data...', 40);
     // Subscribe to other players (LIVE version via RTDB)
-    subscribeToPlayersRTDB(updateOtherPlayers);
+    subscribeToPlayersRTDB((players) => {
+        updateOtherPlayers(players);
+        renderOnlinePlayersList(players);
+    });
 
     // Try to get real GPS coordinates
     const defaultCoords = { lat: 52.484512, lng: 13.449876 }; // Berlin by default
@@ -327,6 +330,9 @@ window.startGameWithCharacter = async function (characterId, data) {
 
         // 1. Update Map Markers
         updateOtherPlayers(players);
+
+        // 1.5. Update Online Players List UI
+        renderOnlinePlayersList(players);
 
         // 2. Sync local gameState level 
         const selfData = players.find(p => p.id === currentCharId);

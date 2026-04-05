@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -153,6 +153,32 @@
             class="absolute top-[180px] right-3 z-[1001] w-12 h-12 backdrop-blur border border-purple-500/50 rounded-full flex items-center justify-center shadow-lg transition-all hover:bg-black/80 bg-black/60">
             <span class="text-2xl" id="district-toggle-icon">🗺️</span>
         </button>
+
+        <!-- Online Players FAB Button -->
+        <button onclick="toggleOnlinePlayersList()" id="online-players-btn"
+            class="absolute top-[240px] right-3 z-[1001] w-12 h-12 backdrop-blur border border-cyan-500/50 rounded-full flex items-center justify-center shadow-lg transition-all hover:bg-black/80 bg-black/60 hover:border-cyan-400 hover:shadow-cyan-500/20">
+            <span class="text-xl">👥</span>
+            <span id="online-count-badge"
+                class="absolute -top-1 -right-1 w-5 h-5 bg-cyan-500 text-[10px] font-bold rounded-full flex items-center justify-center text-black shadow-lg border border-cyan-300">0</span>
+        </button>
+
+        <!-- Online Players Panel -->
+        <div id="online-players-panel"
+            class="hidden absolute top-[300px] right-3 z-[1002] w-72 max-h-[50vh] bg-slate-900/95 backdrop-blur-lg rounded-xl border border-cyan-500/30 shadow-2xl shadow-cyan-900/20 overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="p-3 border-b border-cyan-800/50 flex justify-between items-center bg-gradient-to-r from-cyan-900/30 to-transparent">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm">👥</span>
+                    <h3 class="text-sm font-bold text-cyan-300">Online Players</h3>
+                    <span id="online-panel-count" class="text-[10px] px-1.5 py-0.5 bg-cyan-600/30 text-cyan-300 rounded-full border border-cyan-500/30">0</span>
+                </div>
+                <button onclick="toggleOnlinePlayersList()" class="text-gray-400 hover:text-white text-sm">✕</button>
+            </div>
+            <!-- Player List -->
+            <div id="online-players-content" class="flex-1 overflow-y-auto p-2 space-y-1.5">
+                <div class="text-center text-gray-500 text-xs py-4">Loading players...</div>
+            </div>
+        </div>
 
         <!-- Debug Console Button (Admin only) -->
         <button onclick="toggleDebugConsole()" id="debug-console-btn"
