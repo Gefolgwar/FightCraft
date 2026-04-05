@@ -1,7 +1,7 @@
 // Main application initialization
 import { gameState, updatePlayer, setStaticMonsters, getStaticMonsters, STATIC_MONSTER_KEY, recalculateStats } from './gameState.js';
 import { ITEMS_DB, MONSTER_LIBRARY, CITY_ANCHORS } from './data.js';
-import { initFirebase, savePlayerToCloud, loadPlayerFromCloud, getCurrentUser, subscribeToPlayersRTDB, saveCharacter, getCharacter, logout, subscribeToSpawnedObjects } from './firebase-service.js';
+import { initFirebase, savePlayerToCloud, loadPlayerFromCloud, getCurrentUser, subscribeToPlayersRTDB, saveCharacter, getCharacter, logout, subscribeToSpawnedObjects, registerPlayerInRTDB } from './firebase-service.js';
 import { updateHUD, showNotification, addEventLog, updateEventLogDisplay, renderInventory, updateAdminPlayersList, renderOnlinePlayersList } from './ui-controller.js';
 import { initMap, updatePlayerPosition, getDistance, updateOtherPlayers, renderStaticMonsters, updateDebugCoords, centerOnPlayer } from './map.js';
 import { loadStaticMonsters, buildStaticMonsters } from './monsters.js';
@@ -89,11 +89,6 @@ async function init() {
     }
 
     updateProgress('Loading world data...', 40);
-    // Subscribe to other players (LIVE version via RTDB)
-    subscribeToPlayersRTDB((players) => {
-        updateOtherPlayers(players);
-        renderOnlinePlayersList(players);
-    });
 
     // Try to get real GPS coordinates
     const defaultCoords = { lat: 52.484512, lng: 13.449876 }; // Berlin by default
@@ -128,6 +123,18 @@ async function init() {
             addEventLog(`GPS unavailable, using Berlin`, 'warning');
         }
     }
+
+    // Повна реєстрація гравця в RTDB при логіні
+    // (set з усіма даними + onDisconnect для автоочищення)
+    await registerPlayerInRTDB(gameState.player.position.lat, gameState.player.position.lng);
+    console.log('📡 Player registered in RTDB');
+
+    // Підписка на інших гравців (LIVE версія через RTDB)
+    // Робимо ПІСЛЯ публікації своєї позиції
+    subscribeToPlayersRTDB((players) => {
+        updateOtherPlayers(players);
+        renderOnlinePlayersList(players);
+    });
 
     updateProgress('Reticulating splines...', 70);
 
@@ -351,9 +358,8 @@ window.startGameWithCharacter = async function (characterId, data) {
         updateAdminPlayersList(players);
     });
 
-    // INITIAL POSITION SYNC
-    const { updatePlayerLocationRTDB } = await import('./firebase-service.js');
-    updatePlayerLocationRTDB(gameState.player.position.lat, gameState.player.position.lng);
+    // Повна реєстрація гравця в RTDB (set + onDisconnect)
+    await registerPlayerInRTDB(gameState.player.position.lat, gameState.player.position.lng);
 
     // Init map
     const mapEl = document.getElementById('map');

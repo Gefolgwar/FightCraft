@@ -45,11 +45,16 @@ export function switchStatsTab(tab) {
 }
 
 function updateMyStats() {
-    const pvp = gameState.player.pvp || { wins: 0, losses: 0 };
+    const pvp = gameState.player.pvp || { wins: 0, losses: 0, draws: 0 };
     document.getElementById('stats-wins').textContent = pvp.wins;
     document.getElementById('stats-losses').textContent = pvp.losses;
 
-    const total = pvp.wins + pvp.losses;
+    // Draws stat
+    const draws = pvp.draws || 0;
+    const drawsEl = document.getElementById('stats-draws');
+    if (drawsEl) drawsEl.textContent = draws;
+
+    const total = pvp.wins + pvp.losses + draws;
     const rate = total > 0 ? Math.round((pvp.wins / total) * 100) : 0;
     document.getElementById('stats-winrate').textContent = `${rate}%`;
 

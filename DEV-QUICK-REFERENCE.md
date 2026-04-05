@@ -2,27 +2,45 @@
 
 ## 🎯 Instant Access
 
-**Server:** http://localhost:8080  
+**Local Server:**
+```bash
+# Запуск локального сервера (з кореня проєкту)
+npx firebase serve --only hosting --port 5000
+```
+**URL:** http://localhost:5000  
+**Live:** https://fight-craft-3c3f0.web.app  
 **Console Test:** `window.__checkGlobalFunctions()`  
-**Version:** v0.4.0 Modular
+**Version:** v0.5.0 Consolidated
 
 ---
 
 ## 📁 Key Files
 
 ```
-www/
-├── index.html          ← Main UI (Fixed IDs)
-├── js/
-│   ├── app.js         ← Entry point + window exports
-│   ├── ui-controller.js ← UI logic + menu system
-│   ├── map.js         ← Map + centerOnPlayer
-│   ├── gameState.js   ← Game state
-│   ├── combat.js      ← Combat system
-│   └── __test-globals.js ← Function tester
-├── UI-SYNC-COMPLETE.md      ← Detailed docs
-├── TESTING-CHECKLIST.md     ← QA guide
-└── FIX-SUMMARY-REPORT.md    ← Executive summary
+D:\Project\FightCraft/
+├── firebase.json        ← Firebase config (hosting: www/)
+├── package.json         ← Dependencies
+├── .gitignore
+├── www/                 ← Public hosting directory
+│   ├── index.html       ← Main UI
+│   ├── css/style.css    ← Styles
+│   └── js/
+│       ├── app.js           ← Entry point + init
+│       ├── ui-controller.js ← UI logic + Online Players
+│       ├── map.js           ← Leaflet map + markers
+│       ├── gameState.js     ← Game state management
+│       ├── combat.js        ← PvE combat system
+│       ├── pvp.js           ← PvP combat system
+│       ├── firebase-service.js ← Firebase/RTDB
+│       ├── data.js          ← Items, monsters DB
+│       ├── districts.js     ← District system
+│       ├── poi.js           ← Points of interest
+│       ├── monsters.js      ← Monster generation
+│       └── character-selection.js ← Char switching
+├── android/             ← Capacitor Android build
+├── firestore.rules
+├── database.rules.json
+└── storage.rules
 ```
 
 ---
@@ -318,13 +336,10 @@ init();
 
 ## 📞 Help
 
-### Documentation:
-- `UI-SYNC-COMPLETE.md` - Full fix details
-- `TESTING-CHECKLIST.md` - Testing guide
-- `FIX-SUMMARY-REPORT.md` - Summary
-
 ### Quick Links:
-- **Server:** http://localhost:8080
+- **Local:** http://localhost:5000 (`npx firebase serve --only hosting`)
+- **Live:** https://fight-craft-3c3f0.web.app
+- **Deploy:** `npx firebase deploy --only hosting`
 - **Console:** F12
 - **Elements:** F12 → Elements tab
 - **Network:** F12 → Network tab
@@ -344,6 +359,6 @@ init();
 
 ---
 
-*Last Updated: 2026-01-27*  
-*Version: v0.4.0 Modular*  
+*Last Updated: 2026-04-05*  
+*Version: v0.5.0 Consolidated*  
 *Status: ✅ Production Ready*

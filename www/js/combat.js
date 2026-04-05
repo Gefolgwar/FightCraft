@@ -670,6 +670,37 @@ export function closeDefeat() {
     updateHUD();
 }
 
+// ==================== PVP DRAW ====================
+
+/**
+ * Нічия у PvP бою — обидва гравці загинули одночасно
+ * Відновлює HP до 30%, не нараховує перемог/поразок
+ */
+export function pvpDraw() {
+    document.getElementById('combat-screen').classList.add('hidden');
+    document.getElementById('draw-screen').classList.remove('hidden');
+
+    // Ініціалізуємо pvp stats якщо немає
+    if (!gameState.player.pvp) gameState.player.pvp = { wins: 0, losses: 0, draws: 0 };
+    if (gameState.player.pvp.draws === undefined) gameState.player.pvp.draws = 0;
+    gameState.player.pvp.draws++;
+
+    // Відновлюємо HP до 30% (компроміс — ніхто не виграв)
+    const stats = recalculateStats();
+    gameState.player.hp = Math.floor(stats.maxHp * 0.3);
+
+    addEventLog(`🤝 PvP Draw! Both fighters fell simultaneously.`, 'warning');
+    saveGame();
+
+    gameState.combat = null;
+    updateHUD();
+}
+
+export function closeDraw() {
+    document.getElementById('draw-screen').classList.add('hidden');
+    updateHUD();
+}
+
 function setMonsterInactive(monsterId, durationMs = 5 * 60 * 1000) {
     const inactiveUntil = Date.now() + durationMs;
     gameState.inactiveMonsters[monsterId] = inactiveUntil;
@@ -897,9 +928,13 @@ function handlePvPRoundResult(result) {
     logEl.innerHTML += `<p class="text-red-400">💥 You took ${myDamageTaken} damage.</p>`;
     logEl.scrollTop = logEl.scrollHeight;
 
-    // Check Win/Loss
-    if (enemy.hp <= 0) victory();
-    else if (currentHp <= 0) {
+    // Check Win/Loss/Draw
+    // DRAW перевіряємо ПЕРШИМ — якщо обидва HP <= 0 одночасно
+    if (enemy.hp <= 0 && currentHp <= 0) {
+        pvpDraw();
+    } else if (enemy.hp <= 0) {
+        victory();
+    } else if (currentHp <= 0) {
         document.getElementById('combat-screen').classList.add('hidden');
         document.getElementById('defeat-screen').classList.remove('hidden');
     }
@@ -912,6 +947,7 @@ window.executeAttack = executeAttack;
 window.fleeCombat = fleeCombat;
 window.closeVictory = closeVictory;
 window.closeDefeat = closeDefeat;
+window.closeDraw = closeDraw;
 
 window.startCombat = startCombat;
 window.startPvPCombat = startPvPCombat;

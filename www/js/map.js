@@ -16,9 +16,13 @@ export let otherPlayerMarkers = {};  // Export for character switching
 let controlledPlayerCircle = null;   // Range circle for controlled player
 let lastKnownOtherPlayers = [];      // Track other players for debug logging
 
-// Sync Throttling (RTDB is cheap, so we use 3s for "live" feel)
+// Sync Throttling — Leading + Trailing Edge
+// Leading: миттєва відправка першого руху (швидкий відгук)
+// Trailing: гарантована відправка ОСТАННЬОЇ позиції (актуальність)
 let lastSharedPosSync = 0;
-const POSITION_SYNC_THROTTLE = 3000;
+let _pendingSyncPosition = null;   // Буфер останньої позиції
+let _trailingEdgeTimer = null;     // Таймер trailing edge
+const POSITION_SYNC_THROTTLE = 2000; // 2 секунди (знижено з 3с для живого відчуття)
 
 // ==================== MULTIPLAYER ====================
 
@@ -448,14 +452,52 @@ export function updatePlayerPosition(lat, lng) {
     // Check for new POIs (Castles/Shops)
     checkAndFetchPOIs();
 
-    // LIVE MOVEMENT SYNC (RTDB version - $0 cost for bandwidth)
+    // LIVE MOVEMENT SYNC (RTDB — Leading + Trailing throttle)
+    _syncPositionToRTDB(lat, lng);
+}
+
+/**
+ * Синхронізація позиції до RTDB з Leading + Trailing throttle.
+ * - Leading edge: перший рух відправляється миттєво
+ * - Trailing edge: ОСТАННЯ позиція серії рухів гарантовано відправляється
+ * Це вирішує баг, коли при швидких кліках фінальна позиція втрачалась.
+ */
+function _syncPositionToRTDB(lat, lng) {
     const now = Date.now();
+
+    // Завжди зберігаємо останню позицію в буфер
+    _pendingSyncPosition = { lat, lng };
+
+    // Leading edge: миттєва відправка, якщо throttle-вікно закрите
     if (now - lastSharedPosSync > POSITION_SYNC_THROTTLE) {
-        import('./firebase-service.js').then(({ updatePlayerLocationRTDB }) => {
-            updatePlayerLocationRTDB(lat, lng);
-            lastSharedPosSync = now;
-        });
+        _flushPositionSync();
+    } else {
+        // Trailing edge: запланувати відправку на кінець throttle-вікна
+        if (!_trailingEdgeTimer) {
+            const remaining = POSITION_SYNC_THROTTLE - (now - lastSharedPosSync);
+            _trailingEdgeTimer = setTimeout(() => {
+                _trailingEdgeTimer = null;
+                if (_pendingSyncPosition) {
+                    _flushPositionSync();
+                }
+            }, remaining);
+        }
+        // Якщо таймер вже є — він відправить найновішу позицію з буфера
     }
+}
+
+/**
+ * Відправити позицію з буфера до RTDB (внутрішня функція)
+ */
+function _flushPositionSync() {
+    if (!_pendingSyncPosition) return;
+    const { lat, lng } = _pendingSyncPosition;
+    _pendingSyncPosition = null;
+    lastSharedPosSync = Date.now();
+
+    import('./firebase-service.js').then(({ updatePlayerLocationRTDB }) => {
+        updatePlayerLocationRTDB(lat, lng);
+    });
 }
 
 export function updateDebugCoords() {

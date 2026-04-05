@@ -768,6 +768,18 @@
         </div>
     </div>
 
+    <!-- Draw Screen (PvP) -->
+    <div id="draw-screen" class="fixed inset-0 z-[5000] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80"></div>
+        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm relative text-center">
+            <div class="text-6xl mb-4">🤝</div>
+            <h2 class="text-2xl font-bold rpg-font text-yellow-400 mb-4">DRAW!</h2>
+            <p class="text-gray-400 mb-4">Both fighters fell at the same time!</p>
+            <p class="text-sm text-gray-500 mb-4">HP restored to 30%</p>
+            <button onclick="closeDraw()" class="w-full py-3 btn-action rounded-lg font-bold">Continue</button>
+        </div>
+    </div>
+
     <!-- Defeat Screen -->
     <div id="defeat-screen" class="fixed inset-0 z-[5000] hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/80"></div>
@@ -1036,6 +1048,10 @@
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-gray-400">Battles Lost</span>
                             <span class="text-red-400 font-bold" id="stats-losses">0</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-400">Draws</span>
+                            <span class="text-yellow-500 font-bold" id="stats-draws">0</span>
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="text-gray-400">Win Rate</span>

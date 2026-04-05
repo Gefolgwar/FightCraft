@@ -362,38 +362,69 @@ export async function updatePlayerLocation(lat, lng) {
 }
 
 /**
- * Realtime Database (RTDB) version of location update
- * Billed by bandwidth (cheap), perfect for 3s-5s updates
+ * Реєстрація гравця в RTDB — ПОВНИЙ запис з усіма даними.
+ * Викликається ОДИН РАЗ при логіні/старті гри.
+ * Встановлює onDisconnect для автоматичного видалення при від'єднанні.
  */
-export async function updatePlayerLocationRTDB(lat, lng) {
-    if (!rtdb) { console.warn("🎨 RTDB: Not initialized yet"); return; }
-    if (!currentUser) { console.warn("🎨 RTDB: No current user for sync"); return; }
-    if (!window._currentCharacterId) { console.warn("🎨 RTDB: No character ID for sync"); return; }
+export async function registerPlayerInRTDB(lat, lng) {
+    if (!rtdb) { console.warn("📡 RTDB: Not initialized yet"); return; }
+    if (!currentUser) { console.warn("📡 RTDB: No current user for sync"); return; }
+    if (!window._currentCharacterId) { console.warn("📡 RTDB: No character ID for sync"); return; }
 
     const path = `live_players/${window._currentCharacterId}`;
     try {
         const playerRef = ref(rtdb, path);
 
-        // Set up cleanup on disconnect
+        // Встановити очищення при від'єднанні (тільки тут, один раз)
         onDisconnect(playerRef).remove();
 
+        // Повний запис усіх даних гравця
         await set(playerRef, {
             id: window._currentCharacterId,
             userId: currentUser.uid,
             name: gameState.player.name || 'Hero',
             avatar: gameState.player.avatar || '🧙',
             level: gameState.player.level || 1,
-            level: gameState.player.level || 1,
-            // Sanitize stats to remove BigInts
+            // Серіалізація stats з обробкою BigInt
             stats: JSON.parse(JSON.stringify(recalculateStats(), (key, value) =>
                 typeof value === 'bigint' ? value.toString() : value
             )),
             position: { lat, lng },
             updatedAt: rtdbTimestamp()
         });
-        console.log(`📡 RTDB: Success. Player ${gameState.player.name} is now LIVE at ${path}`);
+        console.log(`📡 RTDB: Player ${gameState.player.name} registered at ${path}`);
     } catch (e) {
-        console.error(`📡 RTDB: Write failed to ${path}:`, e);
+        console.error(`📡 RTDB: Registration failed at ${path}:`, e);
+    }
+}
+
+/**
+ * Легке оновлення ТІЛЬКИ позиції в RTDB.
+ * Використовує update() замість set() — відправляє менше даних,
+ * що критично для швидких серій рухів (trailing edge throttle).
+ */
+export async function updatePlayerLocationRTDB(lat, lng) {
+    if (!rtdb) return;
+    if (!currentUser) return;
+    if (!window._currentCharacterId) return;
+
+    const path = `live_players/${window._currentCharacterId}`;
+    try {
+        const playerRef = ref(rtdb, path);
+
+        // Часткове оновлення — тільки позиція та мітка часу
+        await update(playerRef, {
+            position: { lat, lng },
+            updatedAt: rtdbTimestamp()
+        });
+    } catch (e) {
+        // Якщо вузол ще не існує (рідкісний випадок) — зробити повну реєстрацію
+        if (e.message && e.message.includes('permission')) {
+            console.warn(`📡 RTDB: Update fallback to register for ${path}`);
+            await registerPlayerInRTDB(lat, lng);
+        } else {
+            console.error(`📡 RTDB: Position update failed:`, e);
+        }
     }
 }
 
