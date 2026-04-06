@@ -1139,7 +1139,7 @@ function setMonsterInactive(monsterId, durationMs = 5 * 60 * 1000) {
 /**
  * Очистити арену та повернути статус гравця
  */
-function _cleanupCombatState() {
+export function _cleanupCombatState() {
     if (gameState.combat) {
         // Clear Active Subscriptions
         if (typeof gameState.combat.unsub === 'function') {
@@ -1147,12 +1147,25 @@ function _cleanupCombatState() {
             gameState.combat.unsub = null;
         }
         
+        // Clear opponent disconnect monitoring
+        if (typeof gameState.combat._unsubOpponent === 'function') {
+            gameState.combat._unsubOpponent();
+            gameState.combat._unsubOpponent = null;
+        }
+        if (gameState.combat._opponentGraceTimer) {
+            clearTimeout(gameState.combat._opponentGraceTimer);
+            gameState.combat._opponentGraceTimer = null;
+        }
+
         // Clear logic timer to prevent zombie loops
         if (gameState.combat.logic && gameState.combat.logic.timer) {
             clearInterval(gameState.combat.logic.timer);
             gameState.combat.logic.timer = null;
         }
     }
+
+    // Очистити localStorage PvP маркер
+    try { localStorage.removeItem('activePvPBattleId'); } catch(e) {}
 
     const arena = gameState.combat?.arena;
     if (arena) {
@@ -1361,6 +1374,68 @@ export async function startPvPCombat(battleId) {
         timer.textContent = '20';
         document.getElementById('combat-screen').appendChild(timer);
     }
+
+    // === OPPONENT DISCONNECT DETECTION ===
+    // Зберегти battleId в localStorage для реконнекту після рефрешу
+    try { localStorage.setItem('activePvPBattleId', battleId); } catch(e) {}
+
+    // Моніторинг онлайн-статусу опонента через RTDB
+    let _opponentGraceTimer = null;
+    let _opponentDisconnectTime = null;
+    const GRACE_PERIOD_MS = 30000; // 30 секунд на реконнект
+
+    const opponentPath = `live_players/${opponentCharId}`;
+    const unsubOpponent = subscribeToPath(opponentPath, (opponentData) => {
+        if (!gameState.combat || !gameState.combat.isPvP) {
+            // Бій вже закінчено — відписатися
+            unsubOpponent();
+            if (_opponentGraceTimer) clearTimeout(_opponentGraceTimer);
+            return;
+        }
+
+        if (!opponentData) {
+            // Опонент зник з RTDB (disconnect/refresh)
+            if (!_opponentDisconnectTime) {
+                _opponentDisconnectTime = Date.now();
+                console.log(`⚠️ PvP: Opponent disconnected! Grace period: ${GRACE_PERIOD_MS / 1000}s`);
+                showNotification(`⏳ Opponent disconnected. Waiting ${GRACE_PERIOD_MS / 1000}s for reconnect...`, 'warning');
+
+                _opponentGraceTimer = setTimeout(() => {
+                    // Перевірити чи бій ще активний
+                    if (!gameState.combat || !gameState.combat.isPvP) return;
+
+                    console.log(`🏆 PvP: Opponent didn't reconnect. Victory by forfeit!`);
+                    showNotification('🏆 Opponent forfeited! Victory!', 'success');
+
+                    // Встановити статус батлу як "fled"
+                    import('./firebase-service.js').then(s => {
+                        if (s.updateBattleRequestStatus) {
+                            s.updateBattleRequestStatus(battleId, { status: 'fled' });
+                        }
+                    });
+
+                    victory();
+                    try { localStorage.removeItem('activePvPBattleId'); } catch(e) {}
+                }, GRACE_PERIOD_MS);
+            }
+        } else {
+            // Опонент повернувся!
+            if (_opponentDisconnectTime) {
+                const elapsed = Date.now() - _opponentDisconnectTime;
+                console.log(`✅ PvP: Opponent reconnected after ${(elapsed / 1000).toFixed(1)}s`);
+                showNotification('✅ Opponent reconnected! Battle continues.', 'success');
+                _opponentDisconnectTime = null;
+                if (_opponentGraceTimer) {
+                    clearTimeout(_opponentGraceTimer);
+                    _opponentGraceTimer = null;
+                }
+            }
+        }
+    });
+
+    // Зберегти unsub для очищення при завершенні бою
+    gameState.combat._unsubOpponent = unsubOpponent;
+    gameState.combat._opponentGraceTimer = _opponentGraceTimer;
 }
 
 function handlePvPRoundResult(result) {

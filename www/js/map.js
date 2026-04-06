@@ -1198,8 +1198,42 @@ export function updateArenas(arenasData) {
         }
     });
 
-    // Додати/оновити арени
+    // Додати/оновити арени + Garbage Collection
     Object.entries(arenasData).forEach(([id, arena]) => {
+        const participants = arena.participants || [];
+        const ageMs = Date.now() - (arena.startedAt || 0);
+        let shouldCleanUp = false;
+
+        // Cleanup if arena has no participants and is older than 1 minute (to allow creation time)
+        if (participants.length === 0 && ageMs > 60000) {
+            shouldCleanUp = true;
+        }
+
+        // GC Check: If we have live players loaded, verify if participants are actually in combat
+        if (!shouldCleanUp && window._livePlayers && participants.length > 0) {
+            let bothFoundAndNotInCombat = true;
+            
+            participants.forEach(pid => {
+                const p = window._livePlayers.find(player => player.id === pid);
+                if (p && p.status === 'in_combat') {
+                    bothFoundAndNotInCombat = false;
+                }
+            });
+
+            // Cleanup if no participants are still 'in_combat' (and it's not brand new, to prevent race conditions), or if stringently old
+            if ((bothFoundAndNotInCombat && ageMs > 10000) || (ageMs > 3600000)) {
+                shouldCleanUp = true;
+            }
+        }
+
+        if (shouldCleanUp) {
+            console.log(`🧹 Garbage collecting stale arena: ${id}`);
+            import('./firebase-service.js').then(({ removeArenaRTDB }) => {
+                removeArenaRTDB(id);
+            });
+            return; // Skip rendering
+        }
+
         if (!arenaLayers[id] && arena.center) {
             renderArena(id, arena.center, arena.radius || 50);
         }

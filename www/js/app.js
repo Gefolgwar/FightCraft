@@ -126,14 +126,60 @@ async function init() {
 
     // Повна реєстрація гравця в RTDB при логіні
     // (set з усіма даними + onDisconnect для автоочищення)
+    // Перевірити localStorage на активний PvP бій ПЕРЕД реєстрацією
+    let _pendingPvPReconnect = null;
+    try {
+        const savedBattleId = localStorage.getItem('activePvPBattleId');
+        if (savedBattleId) {
+            console.log('🔄 Found active PvP battle in localStorage:', savedBattleId);
+            _pendingPvPReconnect = savedBattleId;
+        }
+    } catch(e) {}
+
     await registerPlayerInRTDB(gameState.player.position.lat, gameState.player.position.lng);
     console.log('📡 Player registered in RTDB');
+
+    // Якщо є активний PvP бій — спробувати реконнект
+    if (_pendingPvPReconnect && !gameState.combat) {
+        console.log('🔄 Reconnecting to PvP battle from localStorage:', _pendingPvPReconnect);
+        import('./combat.js').then(c => {
+            c.startPvPCombat(_pendingPvPReconnect).catch(err => {
+                console.warn('⚠️ PvP reconnect failed:', err);
+                if (c._cleanupCombatState) c._cleanupCombatState();
+            });
+        });
+    }
 
     // Підписка на інших гравців (LIVE версія через RTDB)
     // Робимо ПІСЛЯ публікації своєї позиції
     subscribeToPlayersRTDB((players) => {
+        window._livePlayers = players;
         updateOtherPlayers(players);
         renderOnlinePlayersList(players);
+
+        // Reconnect to active combat on refresh (fallback for group/unified combat)
+        if (!window._combatReconnectionChecked) {
+            window._combatReconnectionChecked = true;
+            const currentCharId = window._currentCharacterId || gameState.id;
+            const selfData = players.find(p => p.id === currentCharId);
+
+            if (selfData && selfData.status === 'in_combat' && !gameState.combat) {
+                console.log('🔄 Reconnecting to active combat:', selfData.combatId);
+                const combatId = selfData.combatId || '';
+                if (combatId.startsWith('combat_')) {
+                    import('./combat.js').then(c => c.joinUnifiedCombat(combatId));
+                } else if (combatId.startsWith('arena_-') && !_pendingPvPReconnect) {
+                    // PvP reconnect — тільки якщо localStorage не обробив
+                    const battleId = combatId.replace('arena_', '');
+                    import('./combat.js').then(c => c.startPvPCombat(battleId));
+                } else if (!_pendingPvPReconnect) {
+                    console.log('🧹 Single PvE combat lost. Cleaning up...');
+                    import('./combat.js').then(c => {
+                        if (c._cleanupCombatState) c._cleanupCombatState();
+                    });
+                }
+            }
+        }
     });
 
     updateProgress('Reticulating splines...', 70);
@@ -350,7 +396,7 @@ window.startGameWithCharacter = async function (characterId, data) {
         // 1.5. Update Online Players List UI
         renderOnlinePlayersList(players);
 
-        // 2. Sync local gameState level 
+        // 2. Sync local gameState level and combat reconnection
         const selfData = players.find(p => p.id === currentCharId);
         if (selfData) {
             const serverLevel = Number(selfData.level);
@@ -360,6 +406,26 @@ window.startGameWithCharacter = async function (characterId, data) {
                 if (selfData.xp) gameState.player.xp = BigInt(selfData.xp);
                 gameState.player.xpToNext = BigInt(500 * serverLevel * serverLevel);
                 updateHUD();
+            }
+
+            // RECONNECT COMBAT Logic
+            if (!window._combatReconnectionChecked) {
+                window._combatReconnectionChecked = true;
+                if (selfData.status === 'in_combat' && !gameState.combat) {
+                    console.log('🔄 Reconnecting to active combat:', selfData.combatId);
+                    const combatId = selfData.combatId || '';
+                    if (combatId.startsWith('combat_')) {
+                        import('./combat.js').then(c => c.joinUnifiedCombat(combatId));
+                    } else if (combatId.startsWith('arena_-')) {
+                        const battleId = combatId.replace('arena_', '');
+                        import('./combat.js').then(c => c.startPvPCombat(battleId));
+                    } else {
+                        console.log('🧹 Single PvE combat lost. Cleaning up...');
+                        import('./combat.js').then(c => {
+                            if (c._cleanupCombatState) c._cleanupCombatState();
+                        });
+                    }
+                }
             }
         }
 
