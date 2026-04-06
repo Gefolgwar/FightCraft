@@ -232,13 +232,16 @@ function showBattleRequestDialog(data, amIAttacker) {
         </button>
     `;
 
-    // Add Group Button (Optional per prompt)
-    // "Якщо один натиснув "Група""
-    // We can add it as a third option
+    // Add Group Button
     const groupBtn = document.createElement('button');
+    const inGroup = !!gameState.currentGroup;
     groupBtn.textContent = "👥 Group";
-    groupBtn.className = "flex-1 py-3 bg-blue-700 hover:bg-blue-600 rounded-lg font-bold mx-1";
-    groupBtn.onclick = () => onBattleAction('group');
+    groupBtn.className = `flex-1 py-3 rounded-lg font-bold mx-1 ${inGroup ? 'bg-gray-700 opacity-50 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600'}`;
+    if (inGroup) {
+        groupBtn.disabled = true;
+    } else {
+        groupBtn.onclick = () => onBattleAction('group');
+    }
     footer.insertBefore(groupBtn, footer.lastElementChild); // Insert in middle
 
     dialog.classList.remove('hidden');

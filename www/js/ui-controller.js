@@ -955,13 +955,13 @@ export function showGroupInviteDialog(groupId, inviterName, groupColor) {
     }
 
     dialog.innerHTML = `
-        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm text-center border-2 bg-gray-900" style="border-color: ${groupColor || '#22d3ee'}">
+        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm text-center border-2 bg-gray-900" style="border-color: #22c55e">
             <div class="text-5xl mb-4">👥</div>
             <h2 class="text-xl font-bold mb-2 text-cyan-400">Group Invite!</h2>
             <p class="text-gray-400 text-sm mb-4">
                 <span class="text-white font-bold">${inviterName}</span> invites you to join their group
             </p>
-            <div class="w-full h-1 rounded mb-4" style="background: ${groupColor || '#22d3ee'}"></div>
+            <div class="w-full h-1 rounded mb-4" style="background: #22c55e"></div>
             <div class="flex gap-3">
                 <button onclick="window.acceptGroupInvite('${groupId}'); document.getElementById('group-invite-dialog').classList.add('hidden')"
                     class="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold transition-all">

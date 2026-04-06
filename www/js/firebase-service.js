@@ -1381,6 +1381,29 @@ export function subscribeToSpawnedObjects(cityId, onUpdate) {
     });
 }
 
+/**
+ * Update fields on a spawned object (write-through: Firestore + cache)
+ * @param {string} objectId - spawned_objects document ID
+ * @param {Object} updates - fields to merge (e.g. { defeatedAt: Date.now() })
+ */
+export async function updateSpawnedObject(objectId, updates) {
+    if (!db || !objectId) return;
+
+    try {
+        const objRef = doc(db, 'spawned_objects', objectId);
+        await updateDoc(objRef, updates);
+        trackUsage('write', `[world] [update spawned object ${objectId}]`, 1, `spawned_objects/${objectId}`, updates);
+
+        // Write-through cache update
+        const cachedObj = _spawnedObjectsCache.find(o => o.id === objectId);
+        if (cachedObj) {
+            Object.assign(cachedObj, updates);
+        }
+    } catch (err) {
+        console.error(`❌ Failed to update spawned object ${objectId}:`, err);
+    }
+}
+
 // ==================== CASTLE SYSTEM ====================
 
 /**

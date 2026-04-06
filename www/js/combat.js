@@ -3,7 +3,7 @@ import { gameState, updatePlayer, getStaticMonsters, setStaticMonsters, STATIC_M
 import { ITEMS_DB, AFFIXES, GRID_SETTINGS } from './data.js';
 import { showNotification, addEventLog, updateHUD } from './ui-controller.js';
 import { getDistance, renderStaticMonsters, isInsideArena } from './map.js';
-import { claimCastle, getCurrentUser, createArenaRTDB, removeArenaRTDB, updatePlayerStatus } from './firebase-service.js';
+import { claimCastle, getCurrentUser, createArenaRTDB, removeArenaRTDB, updatePlayerStatus, updateSpawnedObject } from './firebase-service.js';
 import { saveGame } from './app.js';
 
 // ==================== COMBAT STATE ====================
@@ -146,30 +146,38 @@ export function startCombat(monster, isStatic = false) {
         });
     }
 
-    // Create arena if in a group or PvP
+    // Create arena for all combats
     const hasAllies = gameState.combat.allies.length > 0;
-    if (hasAllies || combatMonster.isPlayer) {
-        const arenaId = 'arena_' + Date.now();
-        const arenaCenter = { ...gameState.player.position };
-        const arenaRadius = 50; // 50 meters
-        gameState.combat.arena = { id: arenaId, center: arenaCenter, radius: arenaRadius };
+    const arenaId = combatMonster.battleId ? 'arena_' + combatMonster.battleId : 'arena_' + Date.now();
+    const arenaCenter = { ...gameState.player.position };
+    const arenaRadius = 50; // 50 meters
+    gameState.combat.arena = { id: arenaId, center: arenaCenter, radius: arenaRadius };
 
-        // Створити арену в RTDB (видима всім)
-        const participants = [window._currentCharacterId];
-        if (hasAllies) {
-            gameState.combat.allies.forEach(a => participants.push(a.id));
+    // Створити арену в RTDB (видима всім)
+    const participants = [window._currentCharacterId];
+    if (hasAllies) {
+        gameState.combat.allies.forEach(a => participants.push(a.id));
+    }
+    if (combatMonster.isPlayer && combatMonster.id) {
+        // Запобігаємо дублюванню якщо б'ємо самого себе при тестуванні
+        if (!participants.includes(combatMonster.id)) {
+            participants.push(combatMonster.id); // Додаємо опонента в учасники
         }
-        createArenaRTDB(arenaId, arenaCenter, arenaRadius, participants, combatMonster.isPlayer ? 'pvp' : 'pve');
+    }
+
+    // Імпортуємо createArenaRTDB якщо воно не імпортовано глобально
+    import('./firebase-service.js').then(({ createArenaRTDB, updatePlayerStatus }) => {
+        if (createArenaRTDB) createArenaRTDB(arenaId, arenaCenter, arenaRadius, participants, combatMonster.isPlayer ? 'pvp' : 'pve');
 
         // Оновити статус гравця
         const charId = window._currentCharacterId;
-        if (charId) {
+        if (charId && updatePlayerStatus) {
             updatePlayerStatus(charId, 'in_combat', { combatId: arenaId });
         }
+    });
 
-        // Рендер арени на локальній мапі
-        import('./map.js').then(m => m.renderArena(arenaId, arenaCenter, arenaRadius));
-    }
+    // Рендер арени на локальній мапі
+    import('./map.js').then(m => m.renderArena(arenaId, arenaCenter, arenaRadius));
 
     selectedAttackZone = null;
     selectedDefenseZone = null;
@@ -247,6 +255,14 @@ export async function startGroupCombat(monster, isStatic = false) {
         }
     };
 
+    const { createUnifiedCombatRTDB, setGroupActiveCombatRTDB, createArenaRTDB } = await import('./firebase-service.js');
+
+    // Create arena
+    const arenaId = 'arena_' + Date.now();
+    const arenaCenter = { ...gameState.player.position };
+    const arenaRadius = 50; // 50 meters
+    const arena = { id: arenaId, center: arenaCenter, radius: arenaRadius };
+
     const combatData = {
         type: "pve",
         status: "active",
@@ -264,16 +280,18 @@ export async function startGroupCombat(monster, isStatic = false) {
             }
         },
         currentRound: 1,
-        moves: {}
+        moves: {},
+        arena: arena
     };
-
-    const { createUnifiedCombatRTDB, setGroupActiveCombatRTDB } = await import('./firebase-service.js');
 
     showNotification("⚔️ Initiating Unified Group Combat...", "info");
 
     // 1. Створюємо кімнату бою
     const created = await createUnifiedCombatRTDB(combatId, combatData);
     if (created) {
+        // Sync arena to all players via RTDB
+        await createArenaRTDB(arenaId, arenaCenter, arenaRadius, Object.keys(teamAParticipants), 'pve');
+
         // 2. Встановлюємо activeCombat для групи (це буде тригером для Фази 2)
         await setGroupActiveCombatRTDB(groupId, combatId);
 
@@ -348,8 +366,14 @@ export async function joinUnifiedCombat(combatId) {
             turn: 'player', // Завжди показуємо UI для ходу, поки статус active
             resolved: data.status === 'finished',
             log: data.log || [], // Беремо лог з сервера
-            arena: gameState.combat?.arena || null
+            arena: data.arena || gameState.combat?.arena || null
         };
+
+        if (gameState.combat.arena) {
+            import('./map.js').then(({ renderArena }) => {
+                if (renderArena) renderArena(gameState.combat.arena.id, gameState.combat.arena.center, gameState.combat.arena.radius);
+            });
+        }
 
         // Оновлюємо статус гравця
         updatePlayerStatus(myCharId, 'in_combat', { combatId });
@@ -861,8 +885,13 @@ export function victory() {
         if (staticRef) {
             staticRef.defeated = true;
             staticRef.respawnAt = Date.now() + GRID_SETTINGS.respawnMs;
-            // Will need saveStaticMonsters function
         }
+    }
+
+    // Persist defeatedAt to Firestore so ALL players see the cooldown
+    const DEFEATED_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+    if (m.id) {
+        setMonsterInactive(m.id, DEFEATED_COOLDOWN_MS);
     }
 
     const leveledUp = window.addXP ? window.addXP(m.xpReward, 'Monster') : false;
@@ -1084,6 +1113,9 @@ function setMonsterInactive(monsterId, durationMs = 5 * 60 * 1000) {
     const inactiveUntil = Date.now() + durationMs;
     gameState.inactiveMonsters[monsterId] = inactiveUntil;
     console.log(`🚫 Monster ${monsterId} is inactive until ${new Date(inactiveUntil).toLocaleTimeString()}`);
+
+    // Persist to Firestore so ALL players see the cooldown
+    updateSpawnedObject(monsterId, { defeatedAt: Date.now() });
 }
 
 // Placeholder - will be imported from stats module
@@ -1189,6 +1221,7 @@ export async function startPvPCombat(battleId) {
 
     const pvpEnemy = {
         id: opponentId, // Use UID as ID
+        battleId: battleId, // Для використання в спільному arenaId
         name: opponent.name || "Unknown",
         level: opponent.level || 1,
         // Use exact maxHp from source or calc fallback

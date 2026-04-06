@@ -7,7 +7,7 @@ import {
     subscribeToGroupInvites, updatePlayerStatus, getCurrentUser
 } from './firebase-service.js';
 
-const GROUP_COLORS = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#fbbf24'];
+const GROUP_COLORS = ['#22c55e']; // Завжди зелений
 let _groupUnsubscribe = null;
 let _inviteUnsubscribe = null;
 
@@ -220,13 +220,16 @@ function _subscribeToGroupUpdates(groupId) {
         gameState.currentGroup = {
             id: data.id,
             leaderId: data.leaderId,
-            color: data.color,
+            color: '#22c55e',
             members: data.members || {},
             status: data.status,
             activeCombat: newCombat || null
         };
 
         updateGroupHUD();
+        import('./map.js').then(({ refreshAllPlayerMarkers }) => {
+            if (refreshAllPlayerMarkers) refreshAllPlayerMarkers();
+        });
 
         // Фаза 2: Якщо з'явився новий activeCombat — затягуємо гравця в бій
         if (newCombat && newCombat !== oldCombat) {
@@ -248,6 +251,9 @@ function _cleanupLocalGroup() {
         updatePlayerStatus(window._currentCharacterId, 'idle', { groupId: null });
     }
     updateGroupHUD();
+    import('./map.js').then(({ refreshAllPlayerMarkers }) => {
+        if (refreshAllPlayerMarkers) refreshAllPlayerMarkers();
+    });
 }
 
 function handleGroupInvite(invite) {

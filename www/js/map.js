@@ -84,7 +84,7 @@ export function updateOtherPlayers(players) {
             }
 
             const myGroupId = gameState.currentGroup?.id;
-            const isGroupMember = p.groupId && p.groupId === myGroupId;
+            const isGroupMember = !!p.groupId;
             const isInCombat = p.status === 'in_combat';
 
             if (otherPlayerMarkers[p.id]) {
@@ -107,7 +107,7 @@ export function updateOtherPlayers(players) {
                         borderStyle = 'border-red-500';
                         extraClass = 'combat-marker-pulse';
                     } else if (isGroupMember) {
-                        const groupColor = gameState.currentGroup?.color || '#22d3ee';
+                        const groupColor = gameState.currentGroup?.color || '#22c55e';
                         borderStyle = '';
                         extraClass = 'group-member-glow';
                         borderCss = `border-color: ${groupColor}; box-shadow: 0 0 8px ${groupColor}80;`;
@@ -154,6 +154,56 @@ export function updateOtherPlayers(players) {
 }
 
 /**
+ * Force refresh of all other player markers (e.g. when local player joins/leaves a group)
+ */
+export function refreshAllPlayerMarkers() {
+    if (!map) return;
+
+    // We can immediately re-run the reconstruction logic for immediate UI update
+    Object.entries(otherPlayerMarkers).forEach(([id, marker]) => {
+        try {
+            const p = marker.options.playerData || {};
+            const currentLevel = Number(marker.options.lastLevel || 1);
+            const status = p.status || 'idle';
+            const groupId = p.groupId || null;
+
+            const isGroupMember = !!groupId;
+            const isInCombat = status === 'in_combat';
+
+            let borderStyle = 'border-yellow-500/50';
+            let extraClass = '';
+            let borderCss = '';
+
+            if (isInCombat) {
+                borderStyle = 'border-red-500';
+                extraClass = 'combat-marker-pulse';
+            } else if (isGroupMember) {
+                const groupColor = gameState.currentGroup?.color || '#22c55e';
+                borderStyle = '';
+                extraClass = 'group-member-glow';
+                borderCss = `border-color: ${groupColor}; box-shadow: 0 0 8px ${groupColor}80;`;
+            }
+
+            // To get name and avatar, we can parse the existing HTML or re-fetch from somewhere.
+            // A safer and easier way is to just set lastGroupId to null, which forces the
+            // next `updateOtherPlayers` call to reconstruct the HTML completely.
+            marker.options.playerData.groupId = 'FORCE_REFRESH';
+        } catch (e) {
+            console.error(`Error refreshing marker for ${id}`, e);
+        }
+    });
+
+    // Also force update of own player marker (so we get the green glow)
+    if (playerMarker && typeof updatePlayerMarkerIcon === 'function') {
+        updatePlayerMarkerIcon(
+            gameState.player.avatar || '🧙',
+            gameState.player.level || 1,
+            gameState.player.name || 'YOU'
+        );
+    }
+}
+
+/**
  * Create a player marker on the map (for test players or newly spawned players)
  */
 export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, isTestPlayer = false, userId = null, playerData = {}) {
@@ -162,8 +212,7 @@ export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, 
     // Визначити стилі на основі статусу
     const groupId = playerData.groupId || null;
     const status = playerData.status || 'idle';
-    const myGroupId = gameState.currentGroup?.id;
-    const isGroupMember = groupId && groupId === myGroupId;
+    const isGroupMember = !!groupId;
     const isInCombat = status === 'in_combat';
 
     // Колір рамки: група → зелений/кольоровий, бій → червоний, звичайний → жовтий
@@ -177,7 +226,7 @@ export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, 
         extraClass = 'group-member-glow';
     }
 
-    const groupColor = isGroupMember ? (gameState.currentGroup?.color || '#22d3ee') : '';
+    const groupColor = isGroupMember ? (gameState.currentGroup?.color || '#22c55e') : '';
     const borderCss = groupColor ? `border-color: ${groupColor}; box-shadow: 0 0 8px ${groupColor}80;` : '';
 
     const icon = L.divIcon({
@@ -218,8 +267,62 @@ export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, 
             return;
         }
 
-        // Замість popup, одразу викликаємо Challenge (Encounter)
-        window._onPlayerAction('challenge', userId, playerId, name);
+        // Check if target is in the same group
+        const latestGroupId = marker.options.playerData?.groupId || playerData.groupId;
+        const myGroupId = gameState.currentGroup?.id;
+        const isSameGroup = myGroupId && latestGroupId && latestGroupId === myGroupId;
+
+        // Show popup with action buttons
+        const popupId = `player-popup-${playerId}`;
+        const challengeDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-red-500';
+        const inviteDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-cyan-500';
+        const sameGroupNote = isSameGroup ? `<div class="text-[10px] text-cyan-300 text-center mt-1">👥 Same group</div>` : '';
+
+        const popupContent = `
+            <div class="bg-gray-900/95 rounded-lg p-2 min-w-[120px] border border-gray-700 backdrop-blur-sm">
+                <div class="text-yellow-300 text-xs font-bold text-center mb-2">${name}</div>
+                ${sameGroupNote}
+                <div class="flex flex-col gap-1">
+                    <button id="${popupId}-challenge"
+                        class="text-[11px] px-3 py-1.5 rounded bg-red-600/80 text-white font-bold ${challengeDisabled} transition-colors"
+                        ${isSameGroup ? 'disabled' : ''}>
+                        ⚔️ Challenge
+                    </button>
+                    <button id="${popupId}-invite"
+                        class="text-[11px] px-3 py-1.5 rounded bg-cyan-600/80 text-white font-bold ${inviteDisabled} transition-colors"
+                        ${isSameGroup ? 'disabled' : ''}>
+                        👥 Invite to Group
+                    </button>
+                </div>
+            </div>`;
+
+        const popup = L.popup({
+            className: 'player-interaction-popup',
+            closeButton: false,
+            offset: [0, -20]
+        })
+            .setLatLng(curPos)
+            .setContent(popupContent)
+            .openOn(map);
+
+        // Attach click handlers after popup opens
+        setTimeout(() => {
+            const challengeBtn = document.getElementById(`${popupId}-challenge`);
+            const inviteBtn = document.getElementById(`${popupId}-invite`);
+
+            if (challengeBtn && !isSameGroup) {
+                challengeBtn.addEventListener('click', () => {
+                    map.closePopup(popup);
+                    window._onPlayerAction('challenge', userId, playerId, name);
+                });
+            }
+            if (inviteBtn && !isSameGroup) {
+                inviteBtn.addEventListener('click', () => {
+                    map.closePopup(popup);
+                    window._onPlayerAction('group', userId, playerId, name);
+                });
+            }
+        }, 50);
     });
 
     if (name.includes('TestPlayer103')) {
@@ -413,10 +516,15 @@ export async function setupDynamicLoading() {
 export function updatePlayerMarkerIcon(avatar = '🧙', level = 1, name = 'Player') {
     if (!playerMarker) return;
 
+    // Apply group color glow if player is in a group
+    const groupColor = gameState.currentGroup?.color || '';
+    const extraClass = groupColor ? 'group-member-glow' : '';
+    const borderCss = groupColor ? `border-color: ${groupColor}; box-shadow: 0 0 8px ${groupColor}80;` : '';
+    const borderStyle = groupColor ? '' : 'border-yellow-500/50';
+
     const iconHtml = `<div class="relative">
-        <div class="player-marker">${avatar}</div>
-        <!-- Name Badge -->
-        <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/60 text-yellow-300 text-[10px] px-2 py-0.5 rounded-full border border-yellow-500/50 whitespace-nowrap shadow-sm font-bold backdrop-blur-sm" style="z-index: 1000;">
+        <div class="player-marker ${extraClass}" style="${borderCss}">${avatar}</div>
+        <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/60 text-yellow-300 text-[10px] px-2 py-0.5 rounded-full border ${borderStyle} whitespace-nowrap shadow-sm font-bold backdrop-blur-sm" style="z-index: 1000; ${borderCss}">
             ${name} (Lv.${level})
         </div>
     </div>`;
@@ -696,7 +804,7 @@ export function renderStaticMonsters(force = false, center) {
     // Create markers
     const markersToAdd = [];
     monstersToShow.forEach(monster => {
-        // Skip defeated monsters
+        // Skip defeated monsters (old local system)
         if (monster.defeated && monster.respawnAt && monster.respawnAt > Date.now()) return;
 
         // Respawn monster if time is up
@@ -705,11 +813,14 @@ export function renderStaticMonsters(force = false, center) {
             monster.respawnAt = null;
         }
 
-        const isInactive = isMonsterInactive(monster.id);
+        // Check Firestore-persisted defeated state (visible to ALL players)
+        const defState = getMonsterDefeatedState(monster);
+        const isInactive = isMonsterInactive(monster.id) || defState.defeated;
         const inactiveClass = isInactive ? 'inactive' : '';
+        const opacityStyle = isInactive ? 'pointer-events: auto;' : '';
 
         const icon = L.divIcon({
-            html: `<div class="monster-marker ${monster.class} ${inactiveClass}">
+            html: `<div class="monster-marker ${monster.class} ${inactiveClass}" style="${opacityStyle}">
                 <span class="monster-icon">${monster.icon}</span>
                 <span class="monster-level">Lv.${monster.level}</span>
             </div>`,
@@ -723,19 +834,35 @@ export function renderStaticMonsters(force = false, center) {
             zIndexOffset: 1200 // Middle layer (indices)
         });
         marker.monsterId = monster.id;
+
+        // Tooltip — show cooldown timer if defeated
+        let tooltipExtra = '';
+        if (defState.defeated) {
+            const mins = Math.floor(defState.remainingMs / 60000);
+            const secs = Math.floor((defState.remainingMs % 60000) / 1000);
+            tooltipExtra = `<div class="text-yellow-400">⏳ ${mins}:${secs.toString().padStart(2, '0')}</div>`;
+        }
         marker.bindTooltip(`
             <div class="text-xs">
                 <div class="font-bold">${monster.name}</div>
                 <div>Lv.${monster.level} · ${monster.class}</div>
+                ${tooltipExtra}
             </div>
         `, { permanent: false, direction: 'top' });
 
         marker.on('click', () => {
-            if (isMonsterInactive(monster.id)) {
-                const remaining = Math.ceil((gameState.inactiveMonsters[monster.id] - Date.now()) / 1000);
+            // Check local inactive OR Firestore-persisted defeated
+            const currentDefState = getMonsterDefeatedState(monster);
+            if (isMonsterInactive(monster.id) || currentDefState.defeated) {
+                let remaining;
+                if (currentDefState.defeated) {
+                    remaining = Math.ceil(currentDefState.remainingMs / 1000);
+                } else {
+                    remaining = Math.ceil((gameState.inactiveMonsters[monster.id] - Date.now()) / 1000);
+                }
                 const mins = Math.floor(remaining / 60);
                 const secs = remaining % 60;
-                showNotification(`⏳ Monster is inactive for ${mins}:${secs.toString().padStart(2, '0')}`, 'warning');
+                showNotification(`⏳ Монстр відпочиває: ${mins}:${secs.toString().padStart(2, '0')}`, 'warning');
                 return;
             }
 
@@ -815,8 +942,28 @@ export function getDistance(lat1, lng1, lat2, lng2) {
     return R * c;
 }
 
+const DEFEATED_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+
 function isMonsterInactive(monsterId) {
-    return gameState.inactiveMonsters[monsterId] && gameState.inactiveMonsters[monsterId] > Date.now();
+    // Check local cooldown (flee/defeat penalties — local player only)
+    if (gameState.inactiveMonsters[monsterId] && gameState.inactiveMonsters[monsterId] > Date.now()) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Check if a monster is defeated (Firestore-persisted, visible to ALL players)
+ * @param {Object} monster - monster object from spawned_objects (must have .defeatedAt)
+ * @returns {{ defeated: boolean, remainingMs: number }}
+ */
+function getMonsterDefeatedState(monster) {
+    if (!monster.defeatedAt) return { defeated: false, remainingMs: 0 };
+    const elapsed = Date.now() - monster.defeatedAt;
+    if (elapsed < DEFEATED_COOLDOWN_MS) {
+        return { defeated: true, remainingMs: DEFEATED_COOLDOWN_MS - elapsed };
+    }
+    return { defeated: false, remainingMs: 0 };
 }
 
 // Глобальний експорт
@@ -987,12 +1134,26 @@ window.updatePlayerInteractionRadius = function (newRadius) {
 
 window._onPlayerAction = async function (action, targetId, charOrUserId, name) {
     if (action === 'challenge') {
+        // Block PvP against same-group members
+        const marker = otherPlayerMarkers[charOrUserId];
+        const targetGroupId = marker?.options?.playerData?.groupId;
+        if (targetGroupId && targetGroupId === gameState.currentGroup?.id) {
+            showNotification('❌ Не можна атакувати члена групи!', 'error');
+            return;
+        }
         const { createBattleRequest } = await import('./firebase-service.js');
         showNotification(`⚔️ Sending challenge to ${name}...`, 'info');
         await createBattleRequest(targetId, charOrUserId);
     } else if (action === 'group') {
+        // Block group invite if already in same group
+        const marker = otherPlayerMarkers[charOrUserId];
+        const targetGroupId = marker?.options?.playerData?.groupId;
+        if (targetGroupId && targetGroupId === gameState.currentGroup?.id) {
+            showNotification('❌ Гравець вже у вашій групі!', 'error');
+            return;
+        }
         if (window.invitePlayerToGroup) {
-            window.invitePlayerToGroup(targetId);
+            window.invitePlayerToGroup(charOrUserId);
             showNotification(`👥 Inviting ${name} to group...`, 'info');
         }
     }

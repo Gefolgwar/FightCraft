@@ -81,9 +81,13 @@ service cloud.firestore {
     }
     
     // Spawned objects - admins can write, all authenticated users can read
+    // Authenticated users can update ONLY the defeatedAt field (monster cooldown)
     match /spawned_objects/{objectId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['defeatedAt'])
+        && request.resource.data.defeatedAt is number;
+      allow create, delete: if isAdmin();
     }
     
     // Castles collection - authenticated users can read, admins can write
