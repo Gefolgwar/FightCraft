@@ -106,10 +106,13 @@ export function updateDistrictHUD() {
 export function showNotification(message, type = 'info') {
     if (!gameState.settings.notifications) return;
 
-    const container = document.getElementById('notifications') || document.getElementById('notification-container');
+    let container = document.getElementById('notifications') || document.getElementById('notification-container');
     if (!container) {
-        console.warn('Notification container not found, logging to console:', message);
-        return;
+        // Create container dynamically to prevent silence/warnings
+        container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-4';
+        document.body.appendChild(container);
     }
 
     const colors = { info: 'bg-blue-600', success: 'bg-green-600', warning: 'bg-yellow-600', error: 'bg-red-600' };

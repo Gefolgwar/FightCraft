@@ -71,7 +71,12 @@ export class BattleLogic {
 
         // If result exists, round is over -> Show result & Prep next
         if (result) {
-            this.callbacks.onRoundResult(result);
+            const isGameOver = this.callbacks.onRoundResult(result);
+            if (isGameOver) {
+                console.log(`⚔️ PvP: Battle is over (Role: ${this.role}). Timer stopped.`);
+                if (this.timer) clearInterval(this.timer);
+                return;
+            }
             this.currentRound++;
             this.startTimer(); // Auto-start next round timer
             return;

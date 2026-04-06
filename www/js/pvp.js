@@ -185,10 +185,18 @@ async function handleBattleStatusChange(data) {
         closeBattleDialog();
         showNotification("🚫 Battle rejected.", "warning");
         activeBattleRequestId = null;
-    } else if (data.status === 'cancelled') {
+    } else if (data.status === 'cancelled' || data.status === 'fled') {
         closeBattleDialog();
-        showNotification("⚠️ Battle cancelled.", "info");
+        showNotification(data.status === 'fled' ? "🏃 Opponent fled the battle!" : "⚠️ Battle cancelled.", "info");
         activeBattleRequestId = null;
+
+        // Handle mid-combat flee/cancel
+        const { gameState } = await import('./gameState.js');
+        if (gameState.combat && gameState.combat.isPvP && gameState.combat.logic?.battleId === data.battleId) {
+            const { victory } = await import('./combat.js');
+            console.log("⚔️ PvP: Opponent fled/cancelled. Triggering victory.");
+            victory();
+        }
     }
 }
 
@@ -221,28 +229,26 @@ function showBattleRequestDialog(data, amIAttacker) {
 
     // Reset Buttons
     const footer = dialog.querySelector('.flex.gap-3');
-    footer.innerHTML = `
-        <button onclick="onBattleAction('fight')" id="btn-pvp-fight"
-            class="flex-1 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold transition-all ${amIAttacker ? 'opacity-50 cursor-not-allowed' : ''}">
-            ⚔️ Fight
-        </button>
-        <button onclick="onBattleAction('flee')" id="btn-pvp-flee"
-            class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold transition-all">
-            🏃 Flee
-        </button>
-    `;
 
-    // Add Group Button
-    const groupBtn = document.createElement('button');
-    const inGroup = !!gameState.currentGroup;
-    groupBtn.textContent = "👥 Group";
-    groupBtn.className = `flex-1 py-3 rounded-lg font-bold mx-1 ${inGroup ? 'bg-gray-700 opacity-50 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600'}`;
-    if (inGroup) {
-        groupBtn.disabled = true;
+    if (amIAttacker) {
+        footer.innerHTML = `
+            <button onclick="onBattleAction('cancel')" id="btn-pvp-cancel"
+                class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold transition-all">
+                ❌ Скасувати (Cancel)
+            </button>
+        `;
     } else {
-        groupBtn.onclick = () => onBattleAction('group');
+        footer.innerHTML = `
+            <button onclick="onBattleAction('fight')" id="btn-pvp-fight"
+                class="flex-1 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold transition-all">
+                ⚔️ Fight
+            </button>
+            <button onclick="onBattleAction('flee')" id="btn-pvp-flee"
+                class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold transition-all">
+                🏃 Flee
+            </button>
+        `;
     }
-    footer.insertBefore(groupBtn, footer.lastElementChild); // Insert in middle
 
     dialog.classList.remove('hidden');
 
@@ -286,6 +292,12 @@ export async function onBattleAction(action) {
         // Cancel battle
         updateBattleRequestStatus(activeBattleRequestId, { status: 'cancelled' });
         closeBattleDialog();
+    }
+    else if (action === 'cancel') {
+        // Just cancel the request, no penalty for the attacker
+        updateBattleRequestStatus(activeBattleRequestId, { status: 'cancelled' });
+        closeBattleDialog();
+        showNotification("Запит скасовано.", "info");
     }
     else if (action === 'fight') {
         // Disable button
@@ -378,3 +390,75 @@ if (document.readyState === 'loading') {
     initPvP();
 }
 
+
+/**
+ * Show the player interaction menu (replaces Leaflet popup)
+ */
+export function showPlayerInteractionMenu(targetUserId, targetCharId, name, level, avatar, isSameGroup) {
+    // Remove existing if any
+    const existing = document.getElementById('player-interaction-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'player-interaction-modal';
+    modal.className = 'fixed inset-0 z-[4000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+    
+    const challengeDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-red-500';
+    const inviteDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-cyan-500';
+    const sameGroupNote = isSameGroup ? `<div class="text-sm text-cyan-300 text-center mb-4">👥 В вашій групі</div>` : '';
+
+    modal.innerHTML = `
+        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm relative text-center border border-gray-700 bg-gray-900 shadow-2xl">
+            <button id="close-interaction-modal" class="absolute top-2 right-2 text-gray-400 hover:text-white p-2">✕</button>
+            
+            <div class="flex flex-col items-center mb-6">
+                <div class="text-6xl mb-2">${avatar || '🧙'}</div>
+                <h2 class="text-2xl font-bold text-yellow-300">${name}</h2>
+                <div class="text-gray-400">Level ${level || 1}</div>
+            </div>
+            
+            ${sameGroupNote}
+            
+            <div class="flex flex-col gap-3">
+                <button id="btn-interaction-challenge" class="py-3 bg-red-600 ${challengeDisabled} text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2" ${isSameGroup ? 'disabled' : ''}>
+                    <span class="text-xl">⚔️</span> Напасти
+                </button>
+                <button id="btn-interaction-invite" class="py-3 bg-cyan-600 ${inviteDisabled} text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2" ${isSameGroup ? 'disabled' : ''}>
+                    <span class="text-xl">👥</span> Запросити в групу
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event Listeners
+    document.getElementById('close-interaction-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+
+    const challengeBtn = document.getElementById('btn-interaction-challenge');
+    if (challengeBtn && !isSameGroup) {
+        challengeBtn.addEventListener('click', () => {
+            modal.remove();
+            if (window._onPlayerAction) {
+                window._onPlayerAction('challenge', targetUserId, targetCharId, name);
+            }
+        });
+    }
+
+    const inviteBtn = document.getElementById('btn-interaction-invite');
+    if (inviteBtn && !isSameGroup) {
+        inviteBtn.addEventListener('click', () => {
+            modal.remove();
+            if (window._onPlayerAction) {
+                window._onPlayerAction('group', targetUserId, targetCharId, name);
+            }
+        });
+    }
+}

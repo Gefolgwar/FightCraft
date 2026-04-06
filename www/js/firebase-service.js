@@ -1171,9 +1171,12 @@ export async function saveTemplate(template) {
 
         // Auto-update templates timestamp so clients sync
         await setDoc(doc(db, 'world_metadata', 'current_state'), {
-            last_templates_update: serverTimestamp()
+            last_templates_update: serverTimestamp(),
+            // Invalidate the pre-generated bundle URL to force clients to fetch fresh from Firestore
+            templates: null
         }, { merge: true });
 
+        _templatesCache = {}; // Clear template cache after modification
         console.log(`✅ Template saved: ${id}`);
         return true;
     } catch (e) {
@@ -1194,9 +1197,12 @@ export async function deleteTemplate(templateId) {
 
         // Auto-update templates timestamp so clients sync
         await setDoc(doc(db, 'world_metadata', 'current_state'), {
-            last_templates_update: serverTimestamp()
+            last_templates_update: serverTimestamp(),
+            // Invalidate the pre-generated bundle URL to force clients to fetch fresh from Firestore
+            templates: null
         }, { merge: true });
 
+        _templatesCache = {}; // Clear template cache after modification
         console.log(`🗑️ Template deleted: ${templateId}`);
         return true;
     } catch (e) {
@@ -2189,7 +2195,7 @@ export async function createBattleRequest(targetUserId, targetCharId) {
             status: 'pending', // pending, active, cancelled, rejected
             createdAt: rtdbTimestamp(),
             choices: {
-                attacker: 'none',
+                attacker: 'fight', // Attacker implies 'fight' by initiating
                 target: 'none'
             }
         });
@@ -2337,6 +2343,7 @@ export async function submitBattleChoice(battleId, choice) {
     try {
         await runTransaction(requestRef, (currentData) => {
             if (currentData === null) return currentData; // Request deleted?
+            if (currentData.status !== 'pending') return; // Cannot change choice if not pending
 
             const myUid = currentUser.uid;
             let role = null;

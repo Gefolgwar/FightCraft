@@ -65,6 +65,9 @@ export function updateOtherPlayers(players) {
             const isTestPlayer = marker && marker.options && marker.options.isTestPlayer;
 
             if (!isTestPlayer) {
+                if (marker.combatArena) {
+                    marker.combatArena.remove();
+                }
                 marker.remove();
                 delete otherPlayerMarkers[id];
                 // console.log(`🗑️ Removed offline player marker: ${id}`);
@@ -90,6 +93,25 @@ export function updateOtherPlayers(players) {
             if (otherPlayerMarkers[p.id]) {
                 const marker = otherPlayerMarkers[p.id];
                 marker.setLatLng([p.position.lat, p.position.lng]);
+
+                // Manage combat arena for other players
+                if (isInCombat) {
+                    if (!marker.combatArena) {
+                        marker.combatArena = L.circle([p.position.lat, p.position.lng], {
+                            color: '#ef4444',
+                            fillColor: '#ef4444',
+                            fillOpacity: 0.1,
+                            radius: 100
+                        }).addTo(map);
+                    } else {
+                        marker.combatArena.setLatLng([p.position.lat, p.position.lng]);
+                    }
+                } else {
+                    if (marker.combatArena) {
+                        marker.combatArena.remove();
+                        marker.combatArena = null;
+                    }
+                }
 
                 // Update level/visuals if changed
                 const currentLevel = Number(p.level || 1);
@@ -249,10 +271,20 @@ export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, 
         playerData: playerData
     }).addTo(map);
 
+    if (isInCombat) {
+        marker.combatArena = L.circle([lat, lng], {
+            color: '#ef4444',
+            fillColor: '#ef4444',
+            fillOpacity: 0.1,
+            radius: 100
+        }).addTo(map);
+    }
+
     // Popup для взаємодії (Challenge / Group)
     marker.on('click', async () => {
         // Якщо гравець в бою — не дозволяти взаємодію
-        if (isInCombat) {
+        const currentStatus = marker.options.playerData?.status || 'idle';
+        if (currentStatus === 'in_combat') {
             import('./ui-controller.js').then(m => m.showNotification('⚔️ This player is in combat!', 'warning'));
             return;
         }
@@ -272,57 +304,12 @@ export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, 
         const myGroupId = gameState.currentGroup?.id;
         const isSameGroup = myGroupId && latestGroupId && latestGroupId === myGroupId;
 
-        // Show popup with action buttons
-        const popupId = `player-popup-${playerId}`;
-        const challengeDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-red-500';
-        const inviteDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-cyan-500';
-        const sameGroupNote = isSameGroup ? `<div class="text-[10px] text-cyan-300 text-center mt-1">👥 Same group</div>` : '';
-
-        const popupContent = `
-            <div class="bg-gray-900/95 rounded-lg p-2 min-w-[120px] border border-gray-700 backdrop-blur-sm">
-                <div class="text-yellow-300 text-xs font-bold text-center mb-2">${name}</div>
-                ${sameGroupNote}
-                <div class="flex flex-col gap-1">
-                    <button id="${popupId}-challenge"
-                        class="text-[11px] px-3 py-1.5 rounded bg-red-600/80 text-white font-bold ${challengeDisabled} transition-colors"
-                        ${isSameGroup ? 'disabled' : ''}>
-                        ⚔️ Challenge
-                    </button>
-                    <button id="${popupId}-invite"
-                        class="text-[11px] px-3 py-1.5 rounded bg-cyan-600/80 text-white font-bold ${inviteDisabled} transition-colors"
-                        ${isSameGroup ? 'disabled' : ''}>
-                        👥 Invite to Group
-                    </button>
-                </div>
-            </div>`;
-
-        const popup = L.popup({
-            className: 'player-interaction-popup',
-            closeButton: false,
-            offset: [0, -20]
-        })
-            .setLatLng(curPos)
-            .setContent(popupContent)
-            .openOn(map);
-
-        // Attach click handlers after popup opens
-        setTimeout(() => {
-            const challengeBtn = document.getElementById(`${popupId}-challenge`);
-            const inviteBtn = document.getElementById(`${popupId}-invite`);
-
-            if (challengeBtn && !isSameGroup) {
-                challengeBtn.addEventListener('click', () => {
-                    map.closePopup(popup);
-                    window._onPlayerAction('challenge', userId, playerId, name);
-                });
+        // Show custom interaction menu instead of Leaflet popup
+        import('./pvp.js').then(m => {
+            if (m.showPlayerInteractionMenu) {
+                m.showPlayerInteractionMenu(userId, playerId, name, level, avatar, isSameGroup);
             }
-            if (inviteBtn && !isSameGroup) {
-                inviteBtn.addEventListener('click', () => {
-                    map.closePopup(popup);
-                    window._onPlayerAction('group', userId, playerId, name);
-                });
-            }
-        }, 50);
+        });
     });
 
     if (name.includes('TestPlayer103')) {

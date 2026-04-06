@@ -149,60 +149,68 @@ export const SyncEngine = {
      */
     async downloadBundle(url) {
         const id = Math.random().toString(36).substring(7);
-        console.warn(`[SYNC-${id}] 🔽 START (Firebase SDK): ${url.substring(0, 60)}...`);
+        console.warn(`[SYNC-${id}] 🔽 START: ${url.substring(0, 60)}...`);
 
         try {
-            // Extract path from Firebase Storage URL
-            // URL format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media&token={token}
-            const urlObj = new URL(url);
-            const encodedPath = urlObj.pathname.split('/o/')[1];
-            if (!encodedPath) {
-                throw new Error('Invalid Storage URL format');
-            }
-            const path = decodeURIComponent(encodedPath.split('?')[0]);
-
-            console.warn(`[SYNC-${id}] 📦 Path extracted: ${path}`);
-
-            // Import Firebase Storage functions
-            const { ref, getBytes, getStorage } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
-            const { getApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-
-            let storage = getStorageInstance();
-
-            if (!storage) {
-                console.warn(`[SYNC-${id}] ⚠️ Storage not ready, initializing inline...`);
-                try {
-                    const app = getApp();
-                    storage = getStorage(app);
-                } catch (e) {
-                    throw new Error('Firebase app not initialized');
-                }
-            }
-
-            const fileRef = ref(storage, path);
-            console.warn(`[SYNC-${id}] 📡 Downloading via Firebase SDK...`);
-
-            // Add timeout to prevent infinite hang
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Download timeout (15s)')), 15000)
-            );
+            console.warn(`[SYNC-${id}] 📡 Downloading via fetch...`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
             try {
-                console.warn(`[SYNC-${id}] 🔄 Calling getBytes...`);
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.warn(`[SYNC-${id}] ✅ SUCCESS. Items: ${data?.length || 'N/A'}`);
+                return data;
+            } catch (err) {
+                clearTimeout(timeoutId);
+                console.warn(`[SYNC-${id}] ⚠️ Fetch failed: ${err.message}. Trying Firebase SDK fallback...`);
+
+                // Fallback to Firebase Storage SDK
+                const urlObj = new URL(url);
+                const encodedPath = urlObj.pathname.split('/o/')[1];
+                if (!encodedPath) throw new Error('Invalid Storage URL format for fallback');
+                const path = decodeURIComponent(encodedPath.split('?')[0]);
+
+                const { ref, getBytes, getStorage } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+                const { getApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+
+                let storage;
+                try {
+                    const { getStorageInstance } = await import('./firebase-service.js');
+                    storage = getStorageInstance();
+                } catch(e) {}
+                
+                if (!storage) {
+                    try {
+                        const app = getApp();
+                        storage = getStorage(app);
+                    } catch (e) {
+                        throw new Error('Firebase app not initialized');
+                    }
+                }
+
+                const fileRef = ref(storage, path);
+                
+                // Add short timeout for fallback
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('SDK fallback timeout (5s)')), 5000)
+                );
+
                 const bytes = await Promise.race([
                     getBytes(fileRef),
                     timeoutPromise
                 ]);
-                console.warn(`[SYNC-${id}] 📦 Downloaded ${bytes.byteLength} bytes. Parsing...`);
-
+                
                 const text = new TextDecoder().decode(bytes);
                 const data = JSON.parse(text);
-                console.warn(`[SYNC-${id}] ✅ SUCCESS. Items: ${data?.length || 'N/A'}`);
-
+                console.warn(`[SYNC-${id}] ✅ SDK SUCCESS. Items: ${data?.length || 'N/A'}`);
                 return data;
-            } catch (downloadError) {
-                console.warn(`[SYNC-${id}] ❌ Download/Parse ERROR:`, downloadError.message);
-                throw downloadError;
             }
         } catch (error) {
             console.warn(`[SYNC-${id}] ❌ FAILED:`, error.message);
@@ -454,31 +462,31 @@ export const SyncEngine = {
                     // The admin bundler dumps ALL templates.
                     const typeTemplates = allTemplates.filter(t => t.type === type);
 
-                    // Note: We might want to save ALL templates since we have them, but function asks for 'type'.
-                    // Let's save filtered ones or everything? 
                     // To keep it simple and consistent with local request, let's just save what we need or maybe everything is better.
                     // Saving everything avoids re-downloading for other types.
 
-                    await this.saveTemplatesToIDB(allTemplates, type, serverTime); // Save ALL
+                    await this.saveTemplatesToIDB(allTemplates, serverTime); // Save ALL
                     return typeTemplates;
                 } catch (e) {
                     console.warn("Templates bundle failed, falling back to Firestore", e);
                 }
             }
 
-            // 3. Simple Full Sync for Templates (They are small, delta complex not needed yet)
-            const q = query(collection(firestoreDb, 'templates'), where('type', '==', type));
-            const snapshot = await monitoredGetDocs(q, `templates/ (Sync ${type})`);
+            // 3. Simple Full Sync for Templates 
+            // We fetch ALL templates, not just the requested type, to make sure 
+            // the IndexedDB cache is fully overwritten and we don't end up with stale deleted items of other types
+            // since we only have one global last_templates_update timestamp.
+            const q = collection(firestoreDb, 'templates');
+            const snapshot = await monitoredGetDocs(q, `templates/ (Full Sync)`);
 
-            // if (window.trackUsage) window.trackUsage('read', `[sync] [templates: ${type}]`, snapshot.size, 'templates/');
+            const allTemplates = [];
+            snapshot.forEach(doc => allTemplates.push({ id: doc.id, ...doc.data() }));
 
-            const templates = [];
-            snapshot.forEach(doc => templates.push({ id: doc.id, ...doc.data() }));
+            // 4. Save ALL templates to IDB, which also clears the old ones
+            await this.saveTemplatesToIDB(allTemplates, serverTime);
 
-            // 4. Save to IDB
-            await this.saveTemplatesToIDB(templates, type, serverTime);
-
-            return templates;
+            const typeTemplates = allTemplates.filter(t => t.type === type);
+            return typeTemplates;
 
         } catch (e) {
             console.error("❌ SyncTemplates Error:", e);
@@ -497,24 +505,30 @@ export const SyncEngine = {
         });
     },
 
-    async saveTemplatesToIDB(templates, type, timestamp) {
+    async saveTemplatesToIDB(templates, timestamp) {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(['templates', METADATA_STORE], 'readwrite');
             const store = tx.objectStore('templates');
 
-            // Basic overwrite logic (put)
-            templates.forEach(t => store.put(t));
+            // Clear ALL existing templates first to remove deleted ones
+            const clearReq = store.clear();
 
-            // Update Metadata (merge with existing)
-            const metaStore = tx.objectStore(METADATA_STORE);
-            const metaReq = metaStore.get('current_state');
+            clearReq.onsuccess = () => {
+                // Once cleared, put the new ones
+                templates.forEach(t => store.put(t));
 
-            metaReq.onsuccess = () => {
-                const data = metaReq.result || { id: 'current_state' };
-                data.last_templates_update = timestamp;
-                metaStore.put(data);
+                // Update Metadata (merge with existing)
+                const metaStore = tx.objectStore(METADATA_STORE);
+                const metaReq = metaStore.get('current_state');
+
+                metaReq.onsuccess = () => {
+                    const data = metaReq.result || { id: 'current_state' };
+                    data.last_templates_update = timestamp;
+                    metaStore.put(data);
+                };
             };
-
+            
+            clearReq.onerror = (e) => reject(e);
             tx.oncomplete = () => resolve();
             tx.onerror = (e) => reject(e);
         });

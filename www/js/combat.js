@@ -1027,8 +1027,19 @@ export function fleeCombat() {
     }
 
     // 1 Hour Cooldown
-    if (monsterId) {
+    if (monsterId && !gameState.combat.monster?.isPlayer) {
         setMonsterInactive(monsterId, 60 * 60 * 1000); // 1 hour
+    }
+
+    if (gameState.combat.monster?.isPlayer) {
+        const battleId = gameState.combat.logic?.battleId;
+        if (battleId) {
+             import('./firebase-service.js').then(s => {
+                 if (s.updateBattleRequestStatus) {
+                     s.updateBattleRequestStatus(battleId, { status: 'fled' });
+                 }
+             });
+        }
     }
 
     document.getElementById('combat-screen').classList.add('hidden');
@@ -1129,6 +1140,20 @@ function setMonsterInactive(monsterId, durationMs = 5 * 60 * 1000) {
  * Очистити арену та повернути статус гравця
  */
 function _cleanupCombatState() {
+    if (gameState.combat) {
+        // Clear Active Subscriptions
+        if (typeof gameState.combat.unsub === 'function') {
+            gameState.combat.unsub();
+            gameState.combat.unsub = null;
+        }
+        
+        // Clear logic timer to prevent zombie loops
+        if (gameState.combat.logic && gameState.combat.logic.timer) {
+            clearInterval(gameState.combat.logic.timer);
+            gameState.combat.logic.timer = null;
+        }
+    }
+
     const arena = gameState.combat?.arena;
     if (arena) {
         removeArenaRTDB(arena.id);
@@ -1153,6 +1178,17 @@ export function arenaDefeat() {
 
     showNotification('🚫 You left the arena! Auto-defeat!', 'error');
     addEventLog('Left the arena — auto-defeat', 'error');
+
+    if (gameState.combat.monster?.isPlayer) {
+        const battleId = gameState.combat.logic?.battleId;
+        if (battleId) {
+             import('./firebase-service.js').then(s => {
+                 if (s.updateBattleRequestStatus) {
+                     s.updateBattleRequestStatus(battleId, { status: 'fled' });
+                 }
+             });
+        }
+    }
 
     defeat();
 }
@@ -1224,8 +1260,8 @@ export async function startPvPCombat(battleId) {
         battleId: battleId, // Для використання в спільному arenaId
         name: opponent.name || "Unknown",
         level: opponent.level || 1,
-        // Use exact maxHp from source or calc fallback
-        hp: s.maxHp || (100 + ((s.vitality || 5) * 10)),
+        // Use exact hp from source or fallback
+        hp: s.hp !== undefined ? s.hp : (s.maxHp || (100 + ((s.vitality || 5) * 10))),
         maxHp: s.maxHp || (100 + ((s.vitality || 5) * 10)),
         // Use exact damage or calc fallback
         damage: s.derivedDamage || (5 + ((s.strength || 5) * 2)),
@@ -1278,7 +1314,9 @@ export async function startPvPCombat(battleId) {
                 btn.innerHTML = `⚔️`;
             }
 
-            gameState.combat.isWaiting = true;
+            if (gameState.combat) {
+                gameState.combat.isWaiting = true;
+            }
             document.querySelectorAll('.combat-zone').forEach(b => b.classList.add('opacity-50', 'pointer-events-none'));
         },
         onRoundResult: (result) => {
@@ -1296,8 +1334,9 @@ export async function startPvPCombat(battleId) {
     gameState.combat.unsub = subscribeToPath(roundPath, (roundsData) => {
         if (!roundsData) return;
 
+        if (!gameState.combat || !gameState.combat.logic) return;
+        
         const logic = gameState.combat.logic;
-        if (!logic) return;
 
         // 1. Fast-forward completed rounds (Catch-up)
         let safety = 0;
@@ -1388,14 +1427,19 @@ function handlePvPRoundResult(result) {
 
     // Check Win/Loss/Draw
     // DRAW перевіряємо ПЕРШИМ — якщо обидва HP <= 0 одночасно
+    let isGameOver = false;
     if (enemy.hp <= 0 && currentHp <= 0) {
         pvpDraw();
+        isGameOver = true;
     } else if (enemy.hp <= 0) {
         victory();
+        isGameOver = true;
     } else if (currentHp <= 0) {
-        document.getElementById('combat-screen').classList.add('hidden');
-        document.getElementById('defeat-screen').classList.remove('hidden');
+        defeat();
+        isGameOver = true;
     }
+
+    return isGameOver;
 }
 
 // Global exports for HTML onclick handlers
