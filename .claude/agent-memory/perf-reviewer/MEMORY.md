@@ -1,0 +1,1 @@
+- [Project Performance State](project_performance_state.md) — Known bottlenecks: RTDB O(N^2) listener, redundant Firebase reads, and dual intervals.

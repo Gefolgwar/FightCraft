@@ -346,6 +346,26 @@ export async function onBattleAction(action) {
             }
         });
     }
+    else if (action === 'group') {
+        // Запросити опонента до групи замість бою
+        const battleId = activeBattleRequestId;
+        if (!battleId) return;
+
+        // Отримуємо дані ДО того як скасуємо бій, щоб вони точно були в базі
+        import('./firebase-service.js').then(async (service) => {
+            const battleData = await service.getBattleRequest(battleId);
+            const myUid = user.uid;
+            const targetCharId = battleData?.attackerId === myUid ? battleData.targetCharId : battleData.attackerCharId;
+
+            closeBattleDialog();
+            service.updateBattleRequestStatus(battleId, { status: 'cancelled' });
+            activeBattleRequestId = null;
+
+            if (targetCharId && window.invitePlayerToGroup) {
+                window.invitePlayerToGroup(targetCharId);
+            }
+        });
+    }
 }
 
 // Initializer

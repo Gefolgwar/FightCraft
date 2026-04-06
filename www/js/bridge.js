@@ -1,8 +1,9 @@
 import { openMenu, closeMenu, toggleSetting, showNotification, addEventLog, updateCharacterPanel, allocateStat, handleEquipSlot, showItemDetails, equipItem, useItem, closeItemModal, filterInventory, toggleEventLog, clearEventLog } from './ui-controller.js';
-import { selectAttackZone, selectDefense, executeAttack, fleeCombat, closeVictory, closeDefeat, startCombat } from './combat.js';
+import { selectAttackZone, selectDefense, executeAttack, fleeCombat, closeVictory, closeDefeat, startCombat, startGroupCombat, checkArenaBoundary } from './combat.js';
 import { centerOnPlayer, updatePlayerPosition, getDistance, updateOtherPlayers } from './map.js';
 import { resetGame, saveGame, updateQuestProgress } from './app.js';
 import { recalculateStats } from './gameState.js';
+import { createGroup, invitePlayerToGroup, acceptGroupInvite, leaveGroup, disbandGroup } from './groups.js';
 
 // Export all functions to window
 window.openMenu = openMenu;
@@ -38,5 +39,13 @@ window.resetGame = resetGame;
 window.saveGame = saveGame;
 window.getPlayerStats = recalculateStats;
 window.updateQuestProgress = updateQuestProgress;
+
+window.startGroupCombat = startGroupCombat;
+window.checkArenaBoundary = checkArenaBoundary;
+window.createGroup = createGroup;
+window.invitePlayerToGroup = invitePlayerToGroup;
+window.acceptGroupInvite = acceptGroupInvite;
+window.leaveGroup = leaveGroup;
+window.disbandGroup = disbandGroup;
 
 console.log('✅ Global bridge loaded - all functions available');

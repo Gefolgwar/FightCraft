@@ -3,7 +3,7 @@ import { gameState, updatePlayer, setStaticMonsters, getStaticMonsters, STATIC_M
 import { ITEMS_DB, MONSTER_LIBRARY, CITY_ANCHORS } from './data.js';
 import { initFirebase, savePlayerToCloud, loadPlayerFromCloud, getCurrentUser, subscribeToPlayersRTDB, saveCharacter, getCharacter, logout, subscribeToSpawnedObjects, registerPlayerInRTDB } from './firebase-service.js';
 import { updateHUD, showNotification, addEventLog, updateEventLogDisplay, renderInventory, updateAdminPlayersList, renderOnlinePlayersList } from './ui-controller.js';
-import { initMap, updatePlayerPosition, getDistance, updateOtherPlayers, renderStaticMonsters, updateDebugCoords, centerOnPlayer } from './map.js';
+import { initMap, updatePlayerPosition, getDistance, updateOtherPlayers, renderStaticMonsters, updateDebugCoords, centerOnPlayer, updateArenas } from './map.js';
 import { loadStaticMonsters, buildStaticMonsters } from './monsters.js';
 import { initCharacterSelection } from './character-selection.js';
 import './combat.js'; // Combat system (exports to window)
@@ -180,6 +180,15 @@ async function init() {
         // Initialize PvP & Stats
         initPvP();
         initKingdom();
+
+        // Initialize Groups & Arenas
+        const { initGroups } = await import('./groups.js');
+        initGroups();
+
+        const { subscribeToArenas } = await import('./firebase-service.js');
+        subscribeToArenas((arenasData) => {
+            updateArenas(arenasData);
+        });
     }
 
     const p = recalculateStats();

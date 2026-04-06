@@ -895,6 +895,11 @@ export function renderOnlinePlayersList(players) {
                         title="Focus on map">
                         🔍
                     </button>
+                    <button onclick="window.invitePlayerToGroup('${player.id}')"
+                        class="w-7 h-7 rounded bg-cyan-600/30 hover:bg-cyan-500/50 flex items-center justify-center text-xs border border-cyan-500/30 transition-colors"
+                        title="Invite to group">
+                        👥
+                    </button>
                     <button onclick="window.challengePlayer('${player.id}', '${name}')"
                         class="w-7 h-7 rounded bg-red-600/30 hover:bg-red-500/50 flex items-center justify-center text-xs border border-red-500/30 transition-colors"
                         title="Challenge to PvP">
@@ -934,6 +939,45 @@ window.challengePlayer = function(playerId, playerName) {
         showNotification(`⚔️ PvP challenge sent to ${playerName}!`, 'warning');
     }
 };
+
+// ==================== GROUP INVITE DIALOG ====================
+
+/**
+ * Показати діалог запрошення до групи
+ */
+export function showGroupInviteDialog(groupId, inviterName, groupColor) {
+    let dialog = document.getElementById('group-invite-dialog');
+    if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.id = 'group-invite-dialog';
+        dialog.className = 'fixed inset-0 z-[4500] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(dialog);
+    }
+
+    dialog.innerHTML = `
+        <div class="menu-panel rounded-2xl p-6 w-full max-w-sm text-center border-2 bg-gray-900" style="border-color: ${groupColor || '#22d3ee'}">
+            <div class="text-5xl mb-4">👥</div>
+            <h2 class="text-xl font-bold mb-2 text-cyan-400">Group Invite!</h2>
+            <p class="text-gray-400 text-sm mb-4">
+                <span class="text-white font-bold">${inviterName}</span> invites you to join their group
+            </p>
+            <div class="w-full h-1 rounded mb-4" style="background: ${groupColor || '#22d3ee'}"></div>
+            <div class="flex gap-3">
+                <button onclick="window.acceptGroupInvite('${groupId}'); document.getElementById('group-invite-dialog').classList.add('hidden')"
+                    class="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold transition-all">
+                    ✅ Join
+                </button>
+                <button onclick="document.getElementById('group-invite-dialog').classList.add('hidden')"
+                    class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold transition-all">
+                    ❌ Decline
+                </button>
+            </div>
+        </div>
+    `;
+
+    dialog.classList.remove('hidden');
+}
+window.showGroupInviteDialog = showGroupInviteDialog;
 
 // ==================== MULTIPLAYER DEBUG UI ====================
 

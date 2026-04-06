@@ -26,6 +26,7 @@ export let gameState = {
     settings: { sound: true, notifications: true, fog: true, vibration: true },
     inactiveMonsters: {}, // {monsterId: cooldownEndTime}
     currentDistrict: null, // Current District info for UI
+    currentGroup: null, // Current group (RTDB-synced)
     storage: [], // Safe storage items
     storageGold: 0 // Safe storage gold
 };

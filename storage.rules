@@ -5,14 +5,13 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Bundles folder - authenticated users can read, admins can write
+    // Bundles folder - authenticated users can read, only admins can write
     match /bundles/{fileName} {
       // Anyone authenticated can read bundles (for game loading)
       allow read: if request.auth != null;
-      
-      // Only authenticated users can write (admin check happens in client)
-      // Ideally you'd check admin role here too, but Storage doesn't have easy access to Firestore
-      allow write: if request.auth != null;
+
+      // Only admins can write bundles (requires custom claim set via Admin SDK)
+      allow write: if request.auth != null && request.auth.token.admin == true;
     }
     
     // Default: deny all other access

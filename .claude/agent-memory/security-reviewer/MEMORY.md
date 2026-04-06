@@ -1,0 +1,5 @@
+- [Architecture Trust Model](arch_trust_model.md) — FightCraft is a fully client-authoritative MVP.
+- [GPS Privacy Model](gps_privacy_model.md) — GPS coordinates are shared globally in RTDB without rounding.
+- [Firebase Rules Gaps](firebase_rules_gaps.md) — Critical vulnerabilities in rules allowing admin escalation and takeover.
+- [PvP Flee and Battle Mechanics](pvp_flee_mechanic.md) — PvP battle logic, including the flee penalty, is fully client-side and can be bypassed.
+- [Stored XSS in Leaderboard](xss_leaderboard.md) — Character names are rendered into innerHTML without sanitization.

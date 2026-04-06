@@ -390,6 +390,9 @@ export async function registerPlayerInRTDB(lat, lng) {
                 typeof value === 'bigint' ? value.toString() : value
             )),
             position: { lat, lng },
+            status: 'idle',
+            groupId: null,
+            combatId: null,
             updatedAt: rtdbTimestamp()
         });
         console.log(`📡 RTDB: Player ${gameState.player.name} registered at ${path}`);
@@ -453,8 +456,10 @@ export function subscribeToPlayersRTDB(onUpdate) {
 
         const players = Object.values(data).map(p => ({
             ...p,
+            lat: p.position?.lat,
+            lng: p.position?.lng,
             isSelf: p.id === currentCharId,
-            isTestPlayer: p.name.includes('TestPlayer')
+            isTestPlayer: p.name?.includes('TestPlayer')
         }));
 
         console.log(`📡 RTDB Update: ${players.length} players found in Realtime Database.`);
@@ -2470,4 +2475,296 @@ export function subscribeToPath(path, onUpdate) {
         onUpdate(val);
     });
     return () => off(dbRef, 'value', unsub);
+}
+
+// ==================== GROUP SYSTEM (RTDB) ====================
+
+/**
+ * Створити групу в RTDB
+ */
+export async function createGroupRTDB(groupId, leaderData) {
+    if (!rtdb || !currentUser) return false;
+    try {
+        await set(ref(rtdb, `groups/${groupId}`), {
+            id: groupId,
+            leaderId: leaderData.charId,
+            color: leaderData.color,
+            members: {
+                [leaderData.charId]: {
+                    name: leaderData.name,
+                    level: leaderData.level,
+                    avatar: leaderData.avatar,
+                    userId: currentUser.uid,
+                    joinedAt: rtdbTimestamp()
+                }
+            },
+            status: 'active',
+            createdAt: rtdbTimestamp()
+        });
+        // Оновити статус гравця
+        await updatePlayerStatus(leaderData.charId, 'idle', { groupId });
+        console.log(`👥 Group ${groupId} created`);
+        return true;
+    } catch (e) {
+        console.error('❌ createGroupRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Запросити гравця до групи
+ */
+export async function inviteToGroup(groupId, targetCharId, inviterName, groupColor) {
+    if (!rtdb) return false;
+    try {
+        await set(ref(rtdb, `group_invites/${targetCharId}/${groupId}`), {
+            groupId,
+            inviterName,
+            inviterCharId: window._currentCharacterId,
+            groupColor,
+            createdAt: rtdbTimestamp()
+        });
+        console.log(`👥 Invite sent to ${targetCharId} for group ${groupId}`);
+        return true;
+    } catch (e) {
+        console.error('❌ inviteToGroup error:', e);
+        return false;
+    }
+}
+
+/**
+ * Прийняти запрошення до групи
+ */
+export async function acceptGroupInviteRTDB(groupId, myData) {
+    if (!rtdb || !currentUser) return false;
+    try {
+        // Додати себе до членів групи
+        await set(ref(rtdb, `groups/${groupId}/members/${myData.charId}`), {
+            name: myData.name,
+            level: myData.level,
+            avatar: myData.avatar,
+            userId: currentUser.uid,
+            joinedAt: rtdbTimestamp()
+        });
+        // Видалити запрошення
+        await remove(ref(rtdb, `group_invites/${myData.charId}/${groupId}`));
+        // Оновити статус гравця
+        await updatePlayerStatus(myData.charId, 'idle', { groupId });
+        console.log(`👥 Joined group ${groupId}`);
+        return true;
+    } catch (e) {
+        console.error('❌ acceptGroupInviteRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Покинути групу
+ */
+export async function leaveGroupRTDB(groupId, charId) {
+    if (!rtdb) return false;
+    try {
+        await remove(ref(rtdb, `groups/${groupId}/members/${charId}`));
+        await updatePlayerStatus(charId, 'idle', { groupId: null });
+
+        // Перевірити, чи група пуста
+        const snapshot = await new Promise(resolve => {
+            onValue(ref(rtdb, `groups/${groupId}/members`), resolve, { onlyOnce: true });
+        });
+        if (!snapshot.val() || Object.keys(snapshot.val()).length === 0) {
+            await remove(ref(rtdb, `groups/${groupId}`));
+            console.log(`👥 Group ${groupId} disbanded (empty)`);
+        }
+        return true;
+    } catch (e) {
+        console.error('❌ leaveGroupRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Розпустити групу (тільки лідер)
+ */
+export async function disbandGroupRTDB(groupId) {
+    if (!rtdb) return false;
+    try {
+        // Видаляємо групу — члени отримають null через onValue підписку
+        // і самостійно очистять свій статус (groupId: null, status: 'idle')
+        await remove(ref(rtdb, `groups/${groupId}`));
+        console.log(`👥 Group ${groupId} disbanded`);
+        return true;
+    } catch (e) {
+        console.error('❌ disbandGroupRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Підписка на групу (real-time)
+ */
+export function subscribeToGroupRTDB(groupId, callback) {
+    if (!rtdb) return () => {};
+    const groupRef = ref(rtdb, `groups/${groupId}`);
+    const unsub = onValue(groupRef, (snapshot) => {
+        callback(snapshot.val());
+    });
+    return () => off(groupRef, 'value', unsub);
+}
+
+/**
+ * Підписка на запрошення до груп
+ */
+export function subscribeToGroupInvites(charId, callback) {
+    if (!rtdb) return () => {};
+    const invitesRef = ref(rtdb, `group_invites/${charId}`);
+    const unsub = onValue(invitesRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            Object.values(data).forEach(invite => callback(invite));
+        }
+    });
+    return () => off(invitesRef, 'value', unsub);
+}
+
+/**
+ * Оновити статус гравця в RTDB (idle, in_combat, etc.)
+ */
+export async function updatePlayerStatus(charId, status, extras = {}) {
+    if (!rtdb) return;
+    try {
+        const updates = { status, ...extras };
+        await update(ref(rtdb, `live_players/${charId}`), updates);
+    } catch (e) {
+        console.error(`❌ updatePlayerStatus error for ${charId}:`, e);
+    }
+}
+
+// ==================== UNIFIED COMBAT SYSTEM (RTDB) ====================
+
+/**
+ * Create a new unified combat session in RTDB
+ */
+export async function createUnifiedCombatRTDB(combatId, combatData) {
+    if (!rtdb) return false;
+    try {
+        await set(ref(rtdb, `combats/${combatId}`), {
+            ...combatData,
+            createdAt: rtdbTimestamp()
+        });
+        console.log(`⚔️ Unified Combat ${combatId} created`);
+        return true;
+    } catch (e) {
+        console.error('❌ createUnifiedCombatRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Set the active combat for a group
+ */
+export async function setGroupActiveCombatRTDB(groupId, combatId) {
+    if (!rtdb) return false;
+    try {
+        await update(ref(rtdb, `groups/${groupId}`), {
+            activeCombat: combatId
+        });
+        console.log(`👥 Group ${groupId} active combat set to ${combatId || 'none'}`);
+        return true;
+    } catch (e) {
+        console.error('❌ setGroupActiveCombatRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Subscribe to a unified combat session
+ */
+export function subscribeToUnifiedCombat(combatId, callback) {
+    if (!rtdb) return () => {};
+    const combatRef = ref(rtdb, `combats/${combatId}`);
+    const unsub = onValue(combatRef, (snapshot) => {
+        callback(snapshot.val());
+    });
+    return () => off(combatRef, 'value', unsub);
+}
+
+/**
+ * Submit a move for the current round in a unified combat
+ */
+export async function submitUnifiedCombatMove(combatId, currentRound, charId, moveData) {
+    if (!rtdb) return false;
+    try {
+        await update(ref(rtdb, `combats/${combatId}/moves/${currentRound}/${charId}`), {
+            ...moveData,
+            timestamp: rtdbTimestamp()
+        });
+        console.log(`⚔️ Move submitted for round ${currentRound}`);
+        return true;
+    } catch (e) {
+        console.error('❌ submitUnifiedCombatMove error:', e);
+        return false;
+    }
+}
+
+/**
+ * Bulk update unified combat fields (for resolving rounds)
+ */
+export async function updateUnifiedCombatRTDB(combatId, updates) {
+    if (!rtdb) return false;
+    try {
+        await update(ref(rtdb, `combats/${combatId}`), updates);
+        return true;
+    } catch (e) {
+        console.error('❌ updateUnifiedCombatRTDB error:', e);
+        return false;
+    }
+}
+
+// ==================== ARENA SYSTEM (RTDB) ====================
+
+/**
+ * Створити арену бою
+ */
+export async function createArenaRTDB(arenaId, center, radius, participants, type) {
+    if (!rtdb) return false;
+    try {
+        await set(ref(rtdb, `arenas/${arenaId}`), {
+            id: arenaId,
+            center,
+            radius,
+            participants,
+            type,
+            startedAt: rtdbTimestamp()
+        });
+        console.log(`🏟️ Arena ${arenaId} created`);
+        return true;
+    } catch (e) {
+        console.error('❌ createArenaRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Видалити арену
+ */
+export async function removeArenaRTDB(arenaId) {
+    if (!rtdb) return;
+    try {
+        await remove(ref(rtdb, `arenas/${arenaId}`));
+        console.log(`🏟️ Arena ${arenaId} removed`);
+    } catch (e) {
+        console.error('❌ removeArenaRTDB error:', e);
+    }
+}
+
+/**
+ * Підписка на арени (для відображення на мапі)
+ */
+export function subscribeToArenas(callback) {
+    if (!rtdb) return () => {};
+    const arenasRef = ref(rtdb, 'arenas');
+    const unsub = onValue(arenasRef, (snapshot) => {
+        callback(snapshot.val() || {});
+    });
+    return () => off(arenasRef, 'value', unsub);
 }

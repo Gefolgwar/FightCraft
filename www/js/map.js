@@ -13,8 +13,11 @@ export let poiCluster;
 let currentCityId = null;
 let lastPlayerPos = null;
 export let otherPlayerMarkers = {};  // Export for character switching
+// Also expose to window for group proximity checks
+window._otherPlayerMarkers = otherPlayerMarkers;
 let controlledPlayerCircle = null;   // Range circle for controlled player
 let lastKnownOtherPlayers = [];      // Track other players for debug logging
+let arenaLayers = {};                // Active arena circles on map
 
 // Sync Throttling — Leading + Trailing Edge
 // Leading: миттєва відправка першого руху (швидкий відгук)
@@ -80,6 +83,10 @@ export function updateOtherPlayers(players) {
                 return;
             }
 
+            const myGroupId = gameState.currentGroup?.id;
+            const isGroupMember = p.groupId && p.groupId === myGroupId;
+            const isInCombat = p.status === 'in_combat';
+
             if (otherPlayerMarkers[p.id]) {
                 const marker = otherPlayerMarkers[p.id];
                 marker.setLatLng([p.position.lat, p.position.lng]);
@@ -87,12 +94,29 @@ export function updateOtherPlayers(players) {
                 // Update level/visuals if changed
                 const currentLevel = Number(p.level || 1);
                 const lastLevel = Number(marker.options.lastLevel || 0);
+                const lastStatus = marker.options.playerData?.status;
+                const lastGroupId = marker.options.playerData?.groupId;
 
-                if (currentLevel !== lastLevel) {
+                // Reconstruct icon if level, status, or group changed
+                if (currentLevel !== lastLevel || p.status !== lastStatus || p.groupId !== lastGroupId) {
+                    let borderStyle = 'border-yellow-500/50';
+                    let extraClass = '';
+                    let borderCss = '';
+
+                    if (isInCombat) {
+                        borderStyle = 'border-red-500';
+                        extraClass = 'combat-marker-pulse';
+                    } else if (isGroupMember) {
+                        const groupColor = gameState.currentGroup?.color || '#22d3ee';
+                        borderStyle = '';
+                        extraClass = 'group-member-glow';
+                        borderCss = `border-color: ${groupColor}; box-shadow: 0 0 8px ${groupColor}80;`;
+                    }
+
                     const iconHtml = `<div class="relative">
-                        <div class="player-marker">${p.avatar || '🧙'}</div>
-                        <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/60 text-yellow-300 text-[10px] px-2 py-0.5 rounded-full border border-yellow-500/50 whitespace-nowrap shadow-sm font-bold backdrop-blur-sm" style="z-index: 1000;">
-                            ${p.name} (Lv.${currentLevel})
+                        <div class="player-marker ${extraClass}" style="${borderCss}">${p.avatar || '🧙'}</div>
+                        <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/60 text-yellow-300 text-[10px] px-2 py-0.5 rounded-full border ${borderStyle} whitespace-nowrap shadow-sm font-bold backdrop-blur-sm" style="z-index: 1000; ${borderCss}">
+                            ${p.name} (Lv.${currentLevel})${isInCombat ? ' ⚔️' : ''}
                         </div>
                     </div>`;
 
@@ -103,6 +127,7 @@ export function updateOtherPlayers(players) {
                         iconAnchor: [20, 20]
                     }));
                     marker.options.lastLevel = currentLevel;
+                    marker.options.playerData = { status: p.status, groupId: p.groupId };
                 }
             } else {
                 // CREATE NEW MARKER
@@ -114,7 +139,8 @@ export function updateOtherPlayers(players) {
                     p.id,
                     p.level || 1,
                     p.isTestPlayer,
-                    p.userId
+                    p.userId,
+                    { groupId: p.groupId, status: p.status }
                 );
 
                 if (newMarker) {
@@ -130,14 +156,35 @@ export function updateOtherPlayers(players) {
 /**
  * Create a player marker on the map (for test players or newly spawned players)
  */
-export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, isTestPlayer = false, userId = null) {
+export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, isTestPlayer = false, userId = null, playerData = {}) {
     if (!map) return null;
+
+    // Визначити стилі на основі статусу
+    const groupId = playerData.groupId || null;
+    const status = playerData.status || 'idle';
+    const myGroupId = gameState.currentGroup?.id;
+    const isGroupMember = groupId && groupId === myGroupId;
+    const isInCombat = status === 'in_combat';
+
+    // Колір рамки: група → зелений/кольоровий, бій → червоний, звичайний → жовтий
+    let borderStyle = 'border-yellow-500/50';
+    let extraClass = '';
+    if (isInCombat) {
+        borderStyle = 'border-red-500';
+        extraClass = 'combat-marker-pulse';
+    } else if (isGroupMember) {
+        borderStyle = '';
+        extraClass = 'group-member-glow';
+    }
+
+    const groupColor = isGroupMember ? (gameState.currentGroup?.color || '#22d3ee') : '';
+    const borderCss = groupColor ? `border-color: ${groupColor}; box-shadow: 0 0 8px ${groupColor}80;` : '';
 
     const icon = L.divIcon({
         html: `<div class="relative">
-                <div class="player-marker" style="width: 40px; height: 40px;">${avatar || '🧙'}</div>
-                <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/60 text-yellow-300 text-[10px] px-2 py-0.5 rounded-full border border-yellow-500/50 whitespace-nowrap shadow-sm font-bold backdrop-blur-sm" style="z-index: 1000;">
-                    ${name} (Lv.${level})
+                <div class="player-marker ${extraClass}" style="width: 40px; height: 40px; ${borderCss}">${avatar || '🧙'}</div>
+                <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/60 text-yellow-300 text-[10px] px-2 py-0.5 rounded-full border ${borderStyle} whitespace-nowrap shadow-sm font-bold backdrop-blur-sm" style="z-index: 1000; ${borderCss}">
+                    ${name} (Lv.${level})${isInCombat ? ' ⚔️' : ''}
                 </div>
                </div>`,
         className: 'custom-div-icon',
@@ -148,30 +195,31 @@ export function createPlayerMarker(lat, lng, name, avatar, playerId, level = 1, 
     const marker = L.marker([lat, lng], {
         icon: icon,
         zIndexOffset: 500,
-        isTestPlayer: isTestPlayer,  // Mark as test player for protection from removal
-        lastLevel: Number(level)     // Store level for real-time updates
+        isTestPlayer: isTestPlayer,
+        lastLevel: Number(level),
+        playerData: playerData
     }).addTo(map);
 
-    // PvP Interaction
-    // PvP Interaction (RTDB)
+    // Popup для взаємодії (Challenge / Group)
     marker.on('click', async () => {
+        // Якщо гравець в бою — не дозволяти взаємодію
+        if (isInCombat) {
+            import('./ui-controller.js').then(m => m.showNotification('⚔️ This player is in combat!', 'warning'));
+            return;
+        }
+
         const curPos = marker.getLatLng();
         const from = turf.point([gameState.player.position.lng, gameState.player.position.lat]);
         const to = turf.point([curPos.lng, curPos.lat]);
-        const dist = turf.distance(from, to, { units: 'kilometers' }) * 1000; // to meters
+        const dist = turf.distance(from, to, { units: 'kilometers' }) * 1000;
 
-        if (dist <= 50) { // 50 meters radius
-            const { createBattleRequest } = await import('./firebase-service.js');
-            const { showNotification } = await import('./ui-controller.js');
-
-            showNotification(`⚔️ Sending challenge to ${name}...`, 'info');
-
-            // Create RTDB request
-            await createBattleRequest(userId, playerId);
-
-        } else {
+        if (dist > 50) {
             import('./ui-controller.js').then(m => m.showNotification(`❌ Too far! (${Math.round(dist)}m)`, 'warning'));
+            return;
         }
+
+        // Замість popup, одразу викликаємо Challenge (Encounter)
+        window._onPlayerAction('challenge', userId, playerId, name);
     });
 
     if (name.includes('TestPlayer103')) {
@@ -452,6 +500,13 @@ export function updatePlayerPosition(lat, lng) {
     // Check for new POIs (Castles/Shops)
     checkAndFetchPOIs();
 
+    // Arena boundary check during combat
+    if (gameState.combat && gameState.combat.arena) {
+        import('./combat.js').then(({ checkArenaBoundary }) => {
+            checkArenaBoundary(lat, lng);
+        });
+    }
+
     // LIVE MOVEMENT SYNC (RTDB — Leading + Trailing throttle)
     _syncPositionToRTDB(lat, lng);
 }
@@ -686,7 +741,10 @@ export function renderStaticMonsters(force = false, center) {
 
             const dist = getDistance(gameState.player.position.lat, gameState.player.position.lng, monster.lat, monster.lng);
             if (dist <= gameState.player.interactionRadius) {
-                if (window.showPreCombatDialog) {
+                // Якщо є група — використати груповий бій
+                if (gameState.currentGroup && window.startGroupCombat) {
+                    window.startGroupCombat(monster, true);
+                } else if (window.showPreCombatDialog) {
                     window.showPreCombatDialog(monster, true);
                 } else {
                     window.startCombat(monster, true);
@@ -924,3 +982,78 @@ window.updatePlayerInteractionRadius = function (newRadius) {
         }).addTo(map);
     }
 };
+
+// ==================== PLAYER INTERACTION ====================
+
+window._onPlayerAction = async function (action, targetId, charOrUserId, name) {
+    if (action === 'challenge') {
+        const { createBattleRequest } = await import('./firebase-service.js');
+        showNotification(`⚔️ Sending challenge to ${name}...`, 'info');
+        await createBattleRequest(targetId, charOrUserId);
+    } else if (action === 'group') {
+        if (window.invitePlayerToGroup) {
+            window.invitePlayerToGroup(targetId);
+            showNotification(`👥 Inviting ${name} to group...`, 'info');
+        }
+    }
+};
+
+// ==================== ARENA RENDERING ====================
+
+/**
+ * Відобразити арену на мапі
+ */
+export function renderArena(arenaId, center, radius) {
+    if (!map) return;
+    removeArenaFromMap(arenaId);
+
+    const arenaCircle = L.circle([center.lat, center.lng], {
+        radius: radius,
+        className: 'arena-circle',
+        color: '#ef4444',
+        weight: 3,
+        fillColor: '#ef4444',
+        fillOpacity: 0.08,
+        dashArray: '8, 4',
+        interactive: false
+    }).addTo(map);
+
+    arenaLayers[arenaId] = arenaCircle;
+}
+
+/**
+ * Видалити арену з мапи
+ */
+export function removeArenaFromMap(arenaId) {
+    if (arenaLayers[arenaId]) {
+        arenaLayers[arenaId].remove();
+        delete arenaLayers[arenaId];
+    }
+}
+
+/**
+ * Перевірити, чи гравець всередині арени
+ */
+export function isInsideArena(lat, lng, arenaCenter, arenaRadius) {
+    const dist = getDistance(lat, lng, arenaCenter.lat, arenaCenter.lng);
+    return dist <= arenaRadius;
+}
+
+/**
+ * Оновити всі арени з RTDB
+ */
+export function updateArenas(arenasData) {
+    // Видалити зниклі арени
+    Object.keys(arenaLayers).forEach(id => {
+        if (!arenasData[id]) {
+            removeArenaFromMap(id);
+        }
+    });
+
+    // Додати/оновити арени
+    Object.entries(arenasData).forEach(([id, arena]) => {
+        if (!arenaLayers[id] && arena.center) {
+            renderArena(id, arena.center, arena.radius || 50);
+        }
+    });
+}

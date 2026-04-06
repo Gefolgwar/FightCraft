@@ -1,21 +1,110 @@
 {
     "rules": {
         "live_players": {
-            ".read": "auth != null",
-            ".write": "auth != null"
+            "$charId": {
+                ".read": "auth != null",
+                ".write": "auth != null && (
+                    (!data.exists() && newData.child('userId').val() === auth.uid) ||
+                    (data.exists() && data.child('userId').val() === auth.uid)
+                )",
+                ".validate": "newData.hasChildren(['id', 'userId', 'name', 'position']) && newData.child('userId').isString() && newData.child('name').isString()",
+                "position": {
+                    ".validate": "newData.hasChildren(['lat', 'lng']) && newData.child('lat').isNumber() && newData.child('lng').isNumber()"
+                }
+            }
         },
         "battle_requests": {
-            ".read": "auth != null",
-            ".write": "auth != null"
+            "$battleId": {
+                ".read": "auth != null",
+                ".write": "auth != null && (
+                    (!data.exists() && newData.child('attackerId').val() === auth.uid) ||
+                    (data.exists() && (data.child('attackerId').val() === auth.uid || data.child('targetId').val() === auth.uid))
+                )",
+                ".validate": "newData.hasChildren(['battleId', 'attackerId', 'targetId', 'status'])",
+                "moves": {
+                    "$uid": {
+                        ".write": "auth != null && $uid === auth.uid",
+                        ".validate": "newData.hasChild('timestamp')"
+                    }
+                }
+            }
         },
         "battles": {
-            ".read": "auth != null",
-            ".write": "auth != null"
+            "$battleId": {
+                ".read": "auth != null",
+                ".write": "auth != null",
+                "rounds": {
+                    "$roundNumber": {
+                        ".validate": "true",
+                        "player1_choice": {
+                            ".validate": "newData.hasChildren(['attack', 'defense', 'ready'])"
+                        },
+                        "player2_choice": {
+                            ".validate": "newData.hasChildren(['attack', 'defense', 'ready'])"
+                        },
+                        "result": {
+                            ".validate": "newData.hasChildren(['round', 'p1_damage', 'p2_damage'])"
+                        }
+                    }
+                }
+            }
+        },
+        "combats": {
+            "$combatId": {
+                ".read": "auth != null",
+                ".write": "auth != null && (
+                    !data.exists() ||
+                    data.child('initiatorId').exists()
+                )",
+                ".validate": "newData.hasChildren(['type', 'status'])",
+                "moves": {
+                    "$round": {
+                        "$charId": {
+                            ".validate": "true"
+                        }
+                    }
+                }
+            }
         },
         "players": {
             "$uid": {
                 ".read": "auth != null",
                 ".write": "$uid === auth.uid"
+            }
+        },
+        "groups": {
+            "$groupId": {
+                ".read": "auth != null",
+                ".write": "auth != null && (
+                    !data.exists() ||
+                    data.child('leaderId').exists()
+                )",
+                ".validate": "newData.hasChildren(['id', 'leaderId', 'status'])",
+                "members": {
+                    "$charId": {
+                        ".write": "auth != null",
+                        ".validate": "newData.hasChildren(['name', 'userId']) && newData.child('userId').isString()"
+                    }
+                }
+            }
+        },
+        "group_invites": {
+            "$targetCharId": {
+                ".read": "auth != null",
+                ".write": "auth != null",
+                "$groupId": {
+                    ".validate": "newData.hasChildren(['groupId', 'inviterName', 'inviterCharId'])"
+                }
+            }
+        },
+        "arenas": {
+            "$arenaId": {
+                ".read": "auth != null",
+                ".write": "auth != null",
+                ".validate": "newData.hasChildren(['id', 'center', 'type'])",
+                "center": {
+                    ".validate": "newData.hasChildren(['lat', 'lng']) && newData.child('lat').isNumber() && newData.child('lng').isNumber()"
+                }
             }
         }
     }

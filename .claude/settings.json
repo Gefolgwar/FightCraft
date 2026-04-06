@@ -1,0 +1,21 @@
+{
+    "env": {
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+        "CLAUDE_CODE_ENABLE_TASKS": "1",
+        "CLAUDE_CODE_TEAMS": "1",
+        "CLAUDE_CODE_DISABLE_LOGIN": "true"
+    },
+    "mcpServers": {
+        "firebase": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-firebase"
+            ],
+            "env": {
+                "FIREBASE_PROJECT_ID": "fight-craft-3c3f0",
+                "GOOGLE_APPLICATION_CREDENTIALS": "/mnt/d/Project/FightCraft/firebase-key.json"
+            }
+        }
+    }
+}

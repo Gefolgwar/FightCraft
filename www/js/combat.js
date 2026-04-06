@@ -2,8 +2,8 @@
 import { gameState, updatePlayer, getStaticMonsters, setStaticMonsters, STATIC_MONSTER_KEY, recalculateStats } from './gameState.js';
 import { ITEMS_DB, AFFIXES, GRID_SETTINGS } from './data.js';
 import { showNotification, addEventLog, updateHUD } from './ui-controller.js';
-import { getDistance, renderStaticMonsters } from './map.js';
-import { claimCastle, getCurrentUser } from './firebase-service.js';
+import { getDistance, renderStaticMonsters, isInsideArena } from './map.js';
+import { claimCastle, getCurrentUser, createArenaRTDB, removeArenaRTDB, updatePlayerStatus } from './firebase-service.js';
 import { saveGame } from './app.js';
 
 // ==================== COMBAT STATE ====================
@@ -54,7 +54,12 @@ export function showPreCombatDialog(monster, isStatic = false) {
 
     document.getElementById('start-combat-btn').onclick = () => {
         dialog.classList.add('hidden');
-        startCombat(monster, isStatic);
+        // Якщо є група — використати груповий бій з перевіркою досяжності
+        if (gameState.currentGroup) {
+            startGroupCombat(monster, isStatic);
+        } else {
+            startCombat(monster, isStatic);
+        }
     };
 
     document.getElementById('flee-combat-btn').onclick = () => {
@@ -121,23 +126,49 @@ export function startCombat(monster, isStatic = false) {
         turn: 'player',
         isStatic,
         resolved: false,
-        log: []
+        log: [],
+        arena: null // Arena data for boundary enforcement
     };
 
     // Populate allies from group if nearby
     if (gameState.currentGroup && gameState.currentGroup.members) {
-        gameState.currentGroup.members.forEach(member => {
-            if (member.id !== window._currentCharacterId) {
-                // Simplified: Assume allies are within range for now
+        const myCharId = window._currentCharacterId;
+        Object.entries(gameState.currentGroup.members).forEach(([charId, member]) => {
+            if (charId !== myCharId) {
                 gameState.combat.allies.push({
-                    id: member.id,
+                    id: charId,
                     name: member.name,
-                    level: member.level,
-                    hp: 100 + (member.level * 10), // Estimate or fetch
-                    maxHp: 100 + (member.level * 10)
+                    level: member.level || 1,
+                    hp: 100 + ((member.level || 1) * 10),
+                    maxHp: 100 + ((member.level || 1) * 10)
                 });
             }
         });
+    }
+
+    // Create arena if in a group or PvP
+    const hasAllies = gameState.combat.allies.length > 0;
+    if (hasAllies || combatMonster.isPlayer) {
+        const arenaId = 'arena_' + Date.now();
+        const arenaCenter = { ...gameState.player.position };
+        const arenaRadius = 50; // 50 meters
+        gameState.combat.arena = { id: arenaId, center: arenaCenter, radius: arenaRadius };
+
+        // Створити арену в RTDB (видима всім)
+        const participants = [window._currentCharacterId];
+        if (hasAllies) {
+            gameState.combat.allies.forEach(a => participants.push(a.id));
+        }
+        createArenaRTDB(arenaId, arenaCenter, arenaRadius, participants, combatMonster.isPlayer ? 'pvp' : 'pve');
+
+        // Оновити статус гравця
+        const charId = window._currentCharacterId;
+        if (charId) {
+            updatePlayerStatus(charId, 'in_combat', { combatId: arenaId });
+        }
+
+        // Рендер арени на локальній мапі
+        import('./map.js').then(m => m.renderArena(arenaId, arenaCenter, arenaRadius));
     }
 
     selectedAttackZone = null;
@@ -162,6 +193,308 @@ export function startCombat(monster, isStatic = false) {
 
 
 
+
+// ==================== GROUP COMBAT ====================
+
+/**
+ * Розпочати груповий бій з перевіркою досяжності всіх членів групи.
+ */
+export async function startGroupCombat(monster, isStatic = false) {
+    if (!gameState.currentGroup) {
+        // Немає групи — звичайний бій
+        startCombat(monster, isStatic);
+        return;
+    }
+
+    const { checkGroupProximity } = await import('./groups.js');
+    const result = checkGroupProximity(monster.lat, monster.lng);
+
+    if (!result.canAttack) {
+        showNotification(`⚠️ Group members too far: ${result.outOfRange.join(', ')}`, 'warning');
+        addEventLog(`Group attack failed — ${result.outOfRange.length} member(s) out of range`, 'warning');
+        return;
+    }
+
+    // Формуємо дані для Уніфікованого Бою (Фаза 1)
+    const charId = window._currentCharacterId;
+    const groupId = gameState.currentGroup.id;
+    const combatId = 'combat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+
+    // Підготовка учасників команди А (Група)
+    const teamAParticipants = {};
+    for (const [mId, mData] of Object.entries(gameState.currentGroup.members || {})) {
+        teamAParticipants[mId] = {
+            hp: 100, // TODO: брати реальні HP
+            maxHp: 100,
+            name: mData.name,
+            avatar: mData.avatar || '🧙'
+        };
+    }
+
+    // Підготовка учасників команди B (Монстр)
+    const monsterId = monster.id || ('monster_' + Date.now());
+    const teamBParticipants = {
+        [monsterId]: {
+            hp: monster.hp || 100,
+            maxHp: monster.hp || 100,
+            name: monster.name || 'Monster',
+            avatar: monster.avatar || '👹',
+            level: monster.level || 1,
+            class: monster.class || 'Monster',
+            xpReward: monster.xpReward || 10,
+            goldReward: monster.goldReward || 5,
+            isStatic: isStatic
+        }
+    };
+
+    const combatData = {
+        type: "pve",
+        status: "active",
+        initiatorId: charId,
+        teams: {
+            teamA: {
+                entityType: "group",
+                entityId: groupId,
+                participants: teamAParticipants
+            },
+            teamB: {
+                entityType: "monster",
+                entityId: monsterId,
+                participants: teamBParticipants
+            }
+        },
+        currentRound: 1,
+        moves: {}
+    };
+
+    const { createUnifiedCombatRTDB, setGroupActiveCombatRTDB } = await import('./firebase-service.js');
+
+    showNotification("⚔️ Initiating Unified Group Combat...", "info");
+
+    // 1. Створюємо кімнату бою
+    const created = await createUnifiedCombatRTDB(combatId, combatData);
+    if (created) {
+        // 2. Встановлюємо activeCombat для групи (це буде тригером для Фази 2)
+        await setGroupActiveCombatRTDB(groupId, combatId);
+
+        // Більше не викликаємо локальний startCombat. Тепер все йде через joinUnifiedCombat
+        joinUnifiedCombat(combatId);
+    } else {
+        showNotification("❌ Failed to initiate unified combat", "error");
+    }
+}
+
+let _unifiedCombatUnsub = null;
+
+/**
+ * Приєднатися до уніфікованого бою (Фаза 2 та 3)
+ */
+export async function joinUnifiedCombat(combatId) {
+    console.log(`⚔️ Joining Unified Combat: ${combatId}`);
+
+    // Закриваємо інші модалки (інвентар, магазин, зустрічі тощо)
+    const encounterDialog = document.getElementById('encounter-dialog');
+    if (encounterDialog) encounterDialog.classList.add('hidden');
+
+    // Підписуємося на оновлення бою
+    const { subscribeToUnifiedCombat, updatePlayerStatus } = await import('./firebase-service.js');
+
+    if (_unifiedCombatUnsub) _unifiedCombatUnsub();
+
+    _unifiedCombatUnsub = subscribeToUnifiedCombat(combatId, (data) => {
+        if (!data) {
+            console.log("Combat ended or deleted.");
+            closeVictory(); // Або інша логіка закриття
+            return;
+        }
+
+        const myCharId = window._currentCharacterId;
+
+        // Мапінг даних RTDB на існуючий формат gameState.combat для відображення в UI
+        const isPvE = data.type === 'pve';
+
+        // Знаходимо основну ціль (монстра або гравця-противника)
+        const enemiesDict = data.teams.teamB.participants || {};
+        const enemyKeys = Object.keys(enemiesDict);
+        const mainEnemyId = enemyKeys[0];
+        const mainEnemyData = mainEnemyId ? enemiesDict[mainEnemyId] : null;
+
+        if (!mainEnemyData) return; // Чекаємо на валідні дані
+
+        // Збираємо союзників (усіх з teamA крім нас)
+        const allies = [];
+        const teamADict = data.teams.teamA.participants || {};
+
+        // Синхронізуємо локальне HP гравця з сервером
+        if (teamADict[myCharId]) {
+            gameState.player.hp = teamADict[myCharId].hp;
+        }
+
+        for (const [id, participant] of Object.entries(teamADict)) {
+            if (id !== myCharId) {
+                allies.push({ id, ...participant });
+            }
+        }
+
+        gameState.combat = {
+            id: combatId,
+            isUnified: true,
+            status: data.status,
+            initiatorId: data.initiatorId,
+            currentRound: data.currentRound || 1,
+            monster: { id: mainEnemyId, ...mainEnemyData, isPlayer: !isPvE },
+            enemies: Object.entries(enemiesDict).map(([id, p]) => ({ id, ...p })),
+            allies: allies,
+            turn: 'player', // Завжди показуємо UI для ходу, поки статус active
+            resolved: data.status === 'finished',
+            log: data.log || [], // Беремо лог з сервера
+            arena: gameState.combat?.arena || null
+        };
+
+        // Оновлюємо статус гравця
+        updatePlayerStatus(myCharId, 'in_combat', { combatId });
+
+        // Відображаємо екран бою
+        document.getElementById('combat-screen').classList.remove('hidden');
+
+        const logEl = document.getElementById('combat-log');
+        if (!gameState.combat.log.length) {
+            logEl.innerHTML = '<p class="text-yellow-400">⚔️ Unified Combat started!</p>';
+        } else {
+            logEl.innerHTML = gameState.combat.log.map(msg => `<p class="text-sm">${msg}</p>`).join('');
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Оновлюємо UI за допомогою існуючих функцій
+        updateCombatUI();
+
+        // Керування кнопкою атаки
+        const myMove = data.moves?.[data.currentRound]?.[myCharId];
+        const attackBtn = document.getElementById('attack-btn');
+        if (attackBtn) {
+            // Якщо гравець мертвий, гра закінчена або хід зроблено
+            if (myMove || data.status === 'finished' || gameState.player.hp <= 0) {
+                attackBtn.disabled = true;
+                attackBtn.innerHTML = gameState.player.hp <= 0 ? `<span>💀 Dead</span>` : `<span>⏳ Waiting...</span>`;
+            } else {
+                attackBtn.disabled = false;
+                attackBtn.innerHTML = `<span>⚔️ Attack</span>`;
+            }
+        }
+
+        // Якщо бій завершено — показуємо екран перемоги/поразки через паузу
+        if (data.status === 'finished') {
+            const lastLog = data.log ? data.log[data.log.length - 1] : '';
+            const isVictory = lastLog.includes('Victory');
+
+            setTimeout(() => {
+                if (gameState.combat && gameState.combat.id === combatId) {
+                    if (isVictory) {
+                        victory();
+                    } else {
+                        defeat();
+                    }
+                }
+            }, 2000); // 2 сек щоб прочитати лог
+            return;
+        }
+
+        // Фаза 4: Якщо я ініціатор, перевіряю чи всі живі здали хід
+        if (data.initiatorId === myCharId && data.status === 'active') {
+            const round = data.currentRound || 1;
+            const currentMoves = (data.moves && data.moves[round]) ? data.moves[round] : {};
+
+            // Рахуємо тільки ЖИВИХ гравців
+            const alivePlayersCount = Object.values(teamADict).filter(p => p.hp > 0).length;
+
+            if (Object.keys(currentMoves).length === alivePlayersCount && alivePlayersCount > 0) {
+                // ПРЕДОТВРАЩЕНИЕ ДАБЛ-ВЫЗОВА (Дебаунс)
+                if (window._resolvingRound === round) return;
+                window._resolvingRound = round;
+                resolveUnifiedRound(combatId, data);
+            }
+        }
+    });
+}
+
+/**
+ * Серверна логіка (виконується на клієнті ініціатора)
+ */
+async function resolveUnifiedRound(combatId, data) {
+    console.log(`⚔️ Resolving round ${data.currentRound}`);
+    const round = data.currentRound || 1;
+    const moves = data.moves[round];
+    const log = data.log || [];
+    const teamA = data.teams.teamA.participants;
+    const teamB = data.teams.teamB.participants;
+
+    const mainEnemyId = Object.keys(teamB)[0];
+    const monster = teamB[mainEnemyId];
+
+    if (monster.hp <= 0) return; // Уже мертвий
+
+    // 1. Атаки гравців
+    for (const [charId, move] of Object.entries(moves)) {
+        const player = teamA[charId];
+        if (player.hp <= 0) continue; // Мертві не б'ють
+
+        const targetId = move.targetId || mainEnemyId;
+        const target = teamB[targetId];
+
+        if (target && target.hp > 0) {
+            // MVP: Проста математика шкоди (15-25). Можна інтегрувати calculateDamage пізніше
+            const dmg = Math.floor(Math.random() * 10) + 15;
+            target.hp -= dmg;
+            if (target.hp < 0) target.hp = 0;
+            log.push(`${player.name} hit ${target.name} for ${dmg} dmg`);
+        }
+    }
+
+    // 2. Атаки монстра
+    if (monster.hp > 0) {
+        const alivePlayers = Object.keys(teamA).filter(id => teamA[id].hp > 0);
+        if (alivePlayers.length > 0) {
+            // Монстр б'є один раз випадкового живого гравця
+            const randomTargetId = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+            const target = teamA[randomTargetId];
+            const dmg = Math.floor(Math.random() * 8) + 10;
+            target.hp -= dmg;
+            if (target.hp < 0) target.hp = 0;
+            log.push(`💥 ${monster.name} hit ${target.name} for ${dmg} dmg`);
+        }
+    }
+
+    // 3. Статус
+    const isMonsterDead = monster.hp <= 0;
+    const allPlayersDead = Object.keys(teamA).every(id => teamA[id].hp <= 0);
+
+    let newStatus = data.status;
+    if (isMonsterDead || allPlayersDead) {
+        newStatus = 'finished';
+        log.push(isMonsterDead ? '✨ Victory!' : '💀 Defeat!');
+    }
+
+    const { updateUnifiedCombatRTDB } = await import('./firebase-service.js');
+    await updateUnifiedCombatRTDB(combatId, {
+        'teams/teamA/participants': teamA,
+        'teams/teamB/participants': teamB,
+        status: newStatus,
+        currentRound: round + 1,
+        log: log.slice(-20) // Залишаємо останні 20 логів
+    });
+}
+
+/**
+ * Розподілити шкоду рандомно серед групи.
+ * Один удар монстра потрапляє в одного випадкового члена групи.
+ * @param {Array} targetGroup - масив [{type, name, data}]
+ * @param {number} damage - шкода за удар
+ * @returns {{ victim: object, damage: number }}
+ */
+export function distributeDamage(targetGroup, damage) {
+    const victim = targetGroup[Math.floor(Math.random() * targetGroup.length)];
+    return { victim, damage };
+}
 
 // ==================== ZONE SELECTION ====================
 export function selectAttackZone(zone) {
@@ -207,6 +540,35 @@ export async function executeAttack() {
 
     if (combat.resolved) return;
 
+    // --- UNIFIED GROUP COMBAT (RTDB SYNC) ---
+    if (combat.isUnified) {
+        const { submitUnifiedCombatMove } = await import('./firebase-service.js');
+        const myCharId = window._currentCharacterId;
+
+        console.log(`⚔️ Executing Unified Combat Move. Zone: ${selectedAttackZone}`);
+
+        const success = await submitUnifiedCombatMove(combat.id, combat.currentRound, myCharId, {
+            attack: selectedAttackZone,
+            defend: selectedDefenseZone,
+            targetId: selectedTargetId || combat.monster.id
+        });
+
+        if (success) {
+            // UI feedback: Disable attack button, show waiting
+            const attackBtn = document.getElementById('attack-btn');
+            if (attackBtn) {
+                attackBtn.disabled = true;
+                attackBtn.innerHTML = `<span>⏳ Waiting for group...</span>`;
+            }
+            const logEl = document.getElementById('combat-log');
+            logEl.innerHTML += `<p class="text-gray-400">Move submitted. Waiting for others...</p>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        } else {
+            showNotification("❌ Error submitting move", "error");
+        }
+        return;
+    }
+
     const p = recalculateStats();
     const logEl = document.getElementById('combat-log');
 
@@ -233,23 +595,28 @@ export async function executeAttack() {
     });
 
     // --- 3. Monster(s) Response ---
+    // Monster gets N attacks (one per group participant: player + allies)
     if (target.hp > 0) {
         const participants = [{ type: 'player', name: 'You', data: gameState.player }, ...combat.allies.map(a => ({ type: 'ally', name: a.name, data: a }))];
-        const victim = participants[Math.floor(Math.random() * participants.length)];
+        const numAttacks = participants.length; // 1 attack per group member
 
-        const mAttackZone = ['head', 'body', 'belt', 'legs'][Math.floor(Math.random() * 4)];
-        const mResult = calculateDamage({ derivedDamage: target.damage, hitChance: 75, critChance: 5 }, victim.data, mAttackZone, true);
+        for (let i = 0; i < numAttacks; i++) {
+            if (target.hp <= 0) break;
+            const { victim } = distributeDamage(participants, 0);
+            const mAttackZone = ['head', 'body', 'belt', 'legs'][Math.floor(Math.random() * 4)];
+            const mResult = calculateDamage({ derivedDamage: target.damage, hitChance: 75, critChance: 5 }, victim.data, mAttackZone, true);
 
-        if (mResult.hit) {
-            if (victim.type === 'player' && Math.random() * 100 < (p.dodgeChance || 0)) {
-                logEl.innerHTML += `<p class="text-blue-400">🏃 You DODGED ${target.name}'s attack!</p>`;
+            if (mResult.hit) {
+                if (victim.type === 'player' && Math.random() * 100 < (p.dodgeChance || 0)) {
+                    logEl.innerHTML += `<p class="text-blue-400">🏃 You DODGED ${target.name}'s attack!</p>`;
+                } else {
+                    victim.data.hp -= mResult.damage;
+                    if (victim.type === 'player') gameState.player.lastDamageTime = Date.now();
+                    logEl.innerHTML += `<p class="text-red-400">👹 ${target.name} hit ${victim.name} (${mAttackZone}): ${mResult.damage}</p>`;
+                }
             } else {
-                victim.data.hp -= mResult.damage;
-                if (victim.type === 'player') gameState.player.lastDamageTime = Date.now();
-                logEl.innerHTML += `<p class="text-red-400">👹 ${target.name} hit ${victim.name} (${mAttackZone}): ${mResult.damage}</p>`;
+                logEl.innerHTML += `<p class="text-blue-400">🛡️ ${victim.name} blocked ${target.name}'s attack!</p>`;
             }
-        } else {
-            logEl.innerHTML += `<p class="text-blue-400">🛡️ ${victim.name} blocked ${target.name}'s attack!</p>`;
         }
     }
 
@@ -458,6 +825,9 @@ export function victory() {
     const m = gameState.combat.monster;
     m.hp = 0;
 
+    // Очистити арену та статус
+    _cleanupCombatState();
+
     document.getElementById('combat-screen').classList.add('hidden');
 
     // --- PVP VICTORY ---
@@ -563,6 +933,9 @@ export function defeat() {
     const monsterId = gameState.combat?.monster?.id;
     const isPvP = gameState.combat?.monster?.isPlayer;
 
+    // Очистити арену та статус
+    _cleanupCombatState();
+
     document.getElementById('combat-screen').classList.add('hidden');
     document.getElementById('defeat-screen').classList.remove('hidden');
 
@@ -612,6 +985,9 @@ export function fleeCombat() {
     const monsterName = gameState.combat.monster?.name || 'monster';
 
     console.log(`🏃 Fleeing from ${monsterName} (ID: ${monsterId})`);
+
+    // Очистити арену та статус
+    _cleanupCombatState();
 
     // 5% XP Penalty
     const xpPenalty = BigInt(Math.floor(Number(gameState.player.xp) * 0.05));
@@ -677,6 +1053,9 @@ export function closeDefeat() {
  * Відновлює HP до 30%, не нараховує перемог/поразок
  */
 export function pvpDraw() {
+    // Очистити арену та статус
+    _cleanupCombatState();
+
     document.getElementById('combat-screen').classList.add('hidden');
     document.getElementById('draw-screen').classList.remove('hidden');
 
@@ -711,6 +1090,52 @@ function setMonsterInactive(monsterId, durationMs = 5 * 60 * 1000) {
 // getPlayerStats removed and centralized in gameState.js
 
 
+
+// ==================== ARENA & COMBAT STATE CLEANUP ====================
+
+/**
+ * Очистити арену та повернути статус гравця
+ */
+function _cleanupCombatState() {
+    const arena = gameState.combat?.arena;
+    if (arena) {
+        removeArenaRTDB(arena.id);
+        import('./map.js').then(m => m.removeArenaFromMap(arena.id));
+    }
+
+    const charId = window._currentCharacterId;
+    if (charId) {
+        const newStatus = gameState.currentGroup ? 'idle' : 'idle';
+        updatePlayerStatus(charId, newStatus, {
+            combatId: null,
+            groupId: gameState.currentGroup?.id || null
+        });
+    }
+}
+
+/**
+ * Авто-поразка за вихід з арени
+ */
+export function arenaDefeat() {
+    if (!gameState.combat) return;
+
+    showNotification('🚫 You left the arena! Auto-defeat!', 'error');
+    addEventLog('Left the arena — auto-defeat', 'error');
+
+    defeat();
+}
+
+/**
+ * Перевірка межі арени (викликається при русі гравця)
+ */
+export function checkArenaBoundary(lat, lng) {
+    if (!gameState.combat || !gameState.combat.arena) return;
+
+    const arena = gameState.combat.arena;
+    if (!isInsideArena(lat, lng, arena.center, arena.radius)) {
+        arenaDefeat();
+    }
+}
 
 // ==================== PVP HANDLERS ====================
 
@@ -952,3 +1377,5 @@ window.closeDraw = closeDraw;
 window.startCombat = startCombat;
 window.startPvPCombat = startPvPCombat;
 window.showPreCombatDialog = showPreCombatDialog;
+window.startGroupCombat = startGroupCombat;
+window.checkArenaBoundary = checkArenaBoundary;
