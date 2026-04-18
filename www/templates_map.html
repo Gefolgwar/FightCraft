@@ -191,10 +191,10 @@
 
     <!-- Scripts -->
     <script type="module">
-        import { initFirebase, isAdmin, getCurrentUser, getWorldSnapshots, getSnapshotById, applyWorldSnapshot, deleteSnapshot } from './js/firebase-service.js';
-        import { CITY_ANCHORS } from './js/data.js';
-        import { OverpassService } from './js/overpass-service.js';
-        import { regenerateCityTerritory, getTerritoryZones } from './js/territory-service.js';
+        import { initFirebase, isAdmin, getCurrentUser, getWorldSnapshots, getSnapshotById, applyWorldSnapshot, deleteSnapshot } from './js/firebase/firebase-service.js';
+        import { CITY_ANCHORS } from './js/gameplay/data.js';
+        import { OverpassService } from './js/map/overpass-service.js';
+        import { regenerateCityTerritory, getTerritoryZones } from './js/map/territory-service.js';
 
         let map;
         let currentSnapshot = null;
