@@ -1,14 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -c www/js/bridge.js)",
-      "Bash(node -c www/js/combat.js)",
-      "Bash(node -c www/js/map.js)",
-      "Bash(node -c www/js/pvp.js)",
-      "Bash(node -c www/js/firebase-service.js)",
-      "Bash(node -c www/js/app.js)",
-      "Bash(node -c www/js/gameState.js)",
-      "Bash(node -c www/js/ui-controller.js)",
+      "Bash(node -c www/core/bridge.js)",
+      "Bash(node -c www/gameplay/combat.js)",
+      "Bash(node -c www/map/map.js)",
+      "Bash(node -c www/gameplay/pvp.js)",
+      "Bash(node -c www/firebase/firebase-service.js)",
+      "Bash(node -c www/core/app.js)",
+      "Bash(node -c www/core/gameState.js)",
       "Bash(npx -y @modelcontextprotocol/server-firebase)",
       "Bash(claude mcp list)",
       "Bash(claude mcp status)",
@@ -17,11 +16,13 @@
       "Bash(ls -R)",
       "Bash(dir /s /b)",
       "WebSearch",
-      "Bash(tmux split-window:*)"
+      "Bash(tmux split-window:*)",
+      "Bash(sudo -n true)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "firebase"
   ],
-  "enableAllProjectMcpServers": true
+  "enabledPlugins": {}
 }

@@ -1,1 +1,0 @@
-- [combat_exploit_vectors](combat_exploit_vectors.md) — Known client-side authority vulnerabilities, combat exploits, and trust boundary issues discovered in gameplay logic.

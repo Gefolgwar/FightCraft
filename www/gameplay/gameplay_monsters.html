@@ -1,0 +1,342 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin: Monster Generation</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+</head>
+
+<body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center shadow-md z-10">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-purple-400"><i class="fas fa-dragon mr-2"></i>Monster Admin</h1>
+            <nav class="flex gap-2">
+                <a href="../map/templates_map.html" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-map-marked-alt mr-1"></i> Map
+                </a>
+                <a href="./gameplay_monsters.html"
+                    class="px-3 py-1 bg-purple-700 text-white rounded text-sm font-bold shadow-inner">
+                    <i class="fas fa-skull mr-1"></i> Monsters
+                </a>
+                <a href="./gameplay_shops.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-store mr-1"></i> Shops
+                </a>
+                <a href="./gameplay_vaults.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-box mr-1"></i> Vaults
+                </a>
+                <a href="./gameplay_castle.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-chess-rook mr-1"></i> Castles
+                </a>
+                <a href="./gameplay_citadels.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-mountain-city mr-1"></i> Citadels
+                </a>
+                <a href="./gameplay_leveling.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-chart-line mr-1"></i> Leveling
+                </a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="admin-status" class="text-xs text-gray-400">Checking permissions...</span>
+            <button onclick="window.location.reload()" class="text-gray-400 hover:text-white"><i
+                    class="fas fa-sync"></i></button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Sidebar: Templates -->
+        <aside class="w-80 bg-gray-800/50 border-r border-gray-700 flex flex-col">
+            <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+                <h2 class="font-bold text-gray-300">Templates</h2>
+                <div class="flex gap-1">
+                    <button onclick="window.createDefaultMonsterTemplates?.().then(() => window.location.reload())"
+                        class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-400"
+                        title="Add Defaults">
+                        <i class="fas fa-magic"></i>
+                    </button>
+                    <button onclick="openTemplateModal()"
+                        class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                </div>
+            </div>
+            <div class="p-2">
+                <input type="text" id="template-search" placeholder="Search templates..."
+                    class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm text-gray-300 focus:outline-none focus:border-purple-500">
+            </div>
+            <div id="template-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+                <!-- Template Items Injected Here -->
+                <div class="text-center text-gray-500 text-sm mt-4">Loading templates...</div>
+            </div>
+        </aside>
+
+        <!-- Main Content: Generation Dashboard -->
+        <main class="flex-1 flex flex-col p-6 overflow-y-auto bg-gray-900" id="main-content">
+
+            <!-- Security Warning Overlay (if not admin) -->
+            <div id="admin-lock" class="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center">
+                <i class="fas fa-lock text-6xl text-red-500 mb-4"></i>
+                <h2 class="text-2xl font-bold text-red-400">Admin Access Required</h2>
+                <p class="text-gray-400 mt-2">Please log in as an administrator to access this panel.</p>
+                <a href="../core/index.html" class="mt-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded">Return to Map</a>
+            </div>
+
+            <!-- Content (Hidden until verified) -->
+            <div id="admin-panel" class="hidden flex-1 flex flex-col gap-6">
+
+                <!-- Generation Controls -->
+                <div class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg">
+                    <h2 class="text-lg font-bold text-purple-300 mb-4 flex items-center">
+                        <i class="fas fa-globe-europe mr-2"></i> World Generation
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- Location Selector -->
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Target Location</label>
+                            <select id="gen-city"
+                                class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                                <option value="berlin">Berlin</option>
+                                <option value="london">London</option>
+                                <option value="paris">Paris</option>
+                                <option value="rome">Rome</option>
+                                <option value="kyiv">Kyiv</option>
+                            </select>
+                        </div>
+
+                        <!-- Target Template Selector -->
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Target Map
+                                Template</label>
+                            <div class="flex gap-2">
+                                <select id="gen-template"
+                                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                                    <option value="new">+ Create New Map Template</option>
+                                </select>
+                                <button onclick="window.location.reload()"
+                                    class="px-3 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
+                                    title="Refresh templates">
+                                    <i class="fas fa-sync-alt text-gray-400"></i>
+                                </button>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-1">Existing templates will be OVERWRITTEN</div>
+                        </div>
+
+                        <!-- Capacity -->
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Total Capacity</label>
+                            <input type="number" id="gen-capacity" value="1000" min="100" max="5000"
+                                class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                            <div class="text-[10px] text-gray-500 mt-1">Rec: 800-1500 for large cities</div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-end gap-2">
+                            <button onclick="startGeneration(true)"
+                                class="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded font-bold text-sm relative overflow-hidden group border border-purple-400 shadow-lg text-white">
+                                <span class="relative z-10"><i class="fas fa-magic mr-2"></i> Create / Del +
+                                    Create</span>
+                            </button>
+                            <button onclick="startGeneration(false)"
+                                class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm relative overflow-hidden group border border-blue-400 shadow-lg">
+                                <span class="relative z-10"><i class="fas fa-plus mr-2"></i> Add if exist</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Options -->
+                    <div class="mb-4 p-3 bg-gray-900 rounded border border-gray-700">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm">
+                            <input type="checkbox" id="use-osm" checked
+                                class="w-4 h-4 text-purple-600 rounded bg-gray-800 border-gray-600">
+                            <span class="text-gray-300">Use <b>OpenStreetMap</b> Smart Placement</span>
+                            <span class="text-xs text-gray-500 ml-2">(Requires Internet)</span>
+                        </label>
+                    </div>
+
+                    <!-- Distribution Table -->
+                    <div class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+                                <tr>
+                                    <th class="px-4 py-2">Monster Template</th>
+                                    <th class="px-4 py-2 w-24 text-center">Weight %</th>
+                                    <th class="px-4 py-2 w-24 text-center">Count</th>
+                                    <th class="px-4 py-2 w-16"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="distribution-table" class="divide-y divide-gray-800">
+                                <!-- Existing Rules will be populated here -->
+                                <tr>
+                                    <td colspan="4" class="p-4 text-center text-gray-500 italic">
+                                        Select templates from sidebar to add to distribution
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-800/50 text-xs font-bold">
+                                <tr>
+                                    <td class="px-4 py-2 text-right text-gray-400">Total:</td>
+                                    <td class="px-4 py-2 text-center" id="total-weight">0%</td>
+                                    <td class="px-4 py-2 text-center" id="total-count">0</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="mt-2 text-xs text-yellow-500 hidden" id="dist-warning">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Total weight must equal 100%
+                    </div>
+                </div>
+
+                <!-- Existing Objects Preview -->
+                <div class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg flex-1">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-purple-300">
+                            <i class="fas fa-database mr-2"></i> Current Map Data
+                        </h2>
+                        <button onclick="clearMapData()"
+                            class="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-300 rounded text-xs border border-red-800">
+                            <i class="fas fa-trash-alt mr-1"></i> Clear Zone
+                        </button>
+                    </div>
+                    <div class="bg-black/50 rounded-lg p-2 h-64 overflow-y-auto font-mono text-xs text-green-400"
+                        id="console-log">
+                        <div class="text-gray-500">System ready. Waiting for commands...</div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Template Edit Modal -->
+    <div id="template-modal" class="fixed inset-0 z-[100] bg-black/80 hidden flex items-center justify-center p-4">
+        <div
+            class="bg-gray-800 rounded-xl w-full max-w-2xl shadow-2xl border border-gray-600 flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white"><i class="fas fa-edit text-purple-400 mr-2"></i>Edit Template
+                </h3>
+                <button onclick="closeTemplateModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
+                <input type="hidden" id="tpl-id">
+
+                <!-- Basic Info -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-text">Name</label>
+                        <input type="text" id="tpl-name" class="input-field" placeholder="e.g. Goblin Warrior">
+                    </div>
+                    <div>
+                        <label class="label-text">Icon (Emoji/URL)</label>
+                        <input type="text" id="tpl-icon" class="input-field" placeholder="👹">
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <h4 class="text-sm font-bold text-purple-300 mt-2">Base Stats</h4>
+                <div class="grid grid-cols-4 gap-3">
+                    <div>
+                        <label class="label-text">Base HP</label>
+                        <input type="number" id="tpl-hp" class="input-field" value="100">
+                    </div>
+                    <div>
+                        <label class="label-text">Damage</label>
+                        <input type="number" id="tpl-dmg" class="input-field" value="10">
+                    </div>
+                    <div>
+                        <label class="label-text">Defense</label>
+                        <input type="number" id="tpl-def" class="input-field" value="0">
+                    </div>
+                    <div>
+                        <label class="label-text">XP Reward</label>
+                        <input type="number" id="tpl-xp" class="input-field" value="50">
+                    </div>
+                </div>
+
+                <!-- Generation Rules -->
+                <h4 class="text-sm font-bold text-purple-300 mt-2">Generation Rules</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-text">Default Weight %</label>
+                        <input type="number" id="tpl-weight" class="input-field" value="10" min="0" max="100">
+                    </div>
+                    <div>
+                        <label class="label-text">Biome / Tag</label>
+                        <select id="tpl-tag" class="input-field bg-gray-900 text-white">
+                            <option value="generic">Generic (Anywhere)</option>
+                            <option value="park">Nature/Park</option>
+                            <option value="water">Waterfront</option>
+                            <option value="city">Urban Center</option>
+                            <option value="dungeon">Dungeon/Historic</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Loot Drop (Visual only for now) -->
+                <div>
+                    <label class="label-text">Loots (Comma separated IDs)</label>
+                    <input type="text" id="tpl-loot" class="input-field" placeholder="potion_small, gold_coin_small">
+                </div>
+
+            </div>
+
+            <div class="p-4 border-t border-gray-700 bg-gray-800/50 flex justify-end gap-3 rounded-b-xl">
+                <button onclick="deleteTemplate()"
+                    class="px-4 py-2 bg-red-900/50 text-red-400 hover:bg-red-900 rounded border border-red-800 text-sm mr-auto hidden"
+                    id="btn-delete">Delete</button>
+                <button onclick="closeTemplateModal()"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm text-white">Cancel</button>
+                <button onclick="saveTemplateForm()"
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold text-white shadow-lg">Save
+                    Template</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Styles for inputs -->
+    <style>
+        .label-text {
+            display: block;
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .input-field {
+            width: 100%;
+            background-color: #111827;
+            border: 1px solid #374151;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            color: white;
+            font-size: 0.875rem;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+    </style>
+
+    <!-- Scripts -->
+    <script type="module" src="../maintenance/admin-monsters.js"></script>
+</body>
+
+</html>

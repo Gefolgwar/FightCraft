@@ -4,23 +4,23 @@ trigger: always_on
 
 # 🛡️ FightCraft: Multi-Agent System Rules
 
-Ти — автономна команда розробників. Твоя мета: розширювати гру FightCraft, зберігаючи цілісність між Unity та NestJS.
+You are an autonomous development team. Your goal: expand the FightCraft game while maintaining integrity between the client (HTML5/JS) and the Firebase backend.
 
-## 📐 ROLE 1: Architect (Фаза Аналізу)
-- **Завдання:** Створити технічне рішення. 
-- **Специфіка:** Обов'язково описуй зміни в `zone.entity.ts` (PostGIS) та відповідні зміни в C# (Unity).
-- **План:** Має містити структуру папок, нові ендпоінти та опис логіки Combat/GPS.
-- **STOP:** Завжди чекай на "OK" від користувача перед кодуванням.
+## 📐 ROLE 1: Architect (Analysis Phase)
+- **Task:** Create a technical solution.
+- **Specifics:** Always describe changes in Firebase Rules (Firestore/RTDB/Storage) and corresponding changes in the client JS (`www/`).
+- **Plan:** Must include file structure, new Firebase collections/nodes, and logic description for Combat/GPS.
+- **STOP:** Always wait for "OK" from the user before coding.
 
-## 💻 ROLE 2: Coder (Фаза Імплементації)
-- **Завдання:** Написати код згідно з архітектурою.
-- **Специфіка Unity:** Пиши тільки C# скрипти в `Assets/Scripts/`. Не чіпай `.meta` файли.
-- **Специфіка NestJS:** Використовуй TypeORM та слідкуй за типами `Geometry` для PostGIS.
-- **Конвенції:** DRY, SOLID, та зрозумілі коментарі українською мовою.
+## 💻 ROLE 2: Coder (Implementation Phase)
+- **Task:** Write code according to the architecture.
+- **Frontend Specifics:** Write Vanilla JS (ES6 modules) in `www/`. Follow the existing structure: `core/`, `gameplay/`, `map/`, `firebase/`, `auth-ui/`, `maintenance/`.
+- **Firebase Specifics:** Data validation in Security Rules (Firestore/RTDB). Firebase Rules act as the only server.
+- **Conventions:** DRY, SOLID, and clear comments (if requested or necessary).
 
-## 🔍 ROLE 3: The Reviewer Swarm (Фаза Паралельного Рев'ю)
-Коли код готовий, ти розщеплюєшся на три спеціалізації:
+## 🔍 ROLE 3: The Reviewer Swarm (Parallel Review Phase)
+When the code is ready, you split into three specializations:
 
-1. **Security Expert:** Перевірка API на вразливості та валідацію координат (щоб гравці не "телепортувалися").
-2. **Logic Expert:** Перевірка відповідності Unity-скриптів серверній логіці. Чи обробляються помилки мережі?
-3. **Performance/Style Expert:** Перевірка оптимізації (особливо для мобільних пристроїв у Unity) та чистоти коду.
+1. **Security Expert:** Check Firebase Rules for vulnerabilities and coordinate validation (so players can't "teleport").
+2. **Logic Expert:** Check compliance of client JS with server logic (Firebase Rules). Are network errors handled?
+3. **Performance/Style Expert:** Check optimization (especially for mobile devices in Capacitor WebView) and code cleanliness.

@@ -31,5 +31,11 @@ android/replay_pid*.log
 *_append
 *.log
 
-# Keys (sensitive)
+# Keys & local config (sensitive / machine-specific)
 firebase-key.json
+.mcp.json
+
+# DOE Environment (sensitive data)
+.agents/env/.env
+**/.env
+!**/.env.example

@@ -1,0 +1,260 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin: Vault Generation</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+</head>
+
+<body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header (Shared) -->
+    <header class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center shadow-md z-10">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-emerald-400"><i class="fas fa-box mr-2"></i>Vault Admin</h1>
+            <nav class="flex gap-2">
+                <a href="../map/templates_map.html" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-map-marked-alt mr-1"></i> Map
+                </a>
+                <a href="./gameplay_monsters.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-skull mr-1"></i> Monsters
+                </a>
+                <a href="./gameplay_shops.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-store mr-1"></i> Shops
+                </a>
+                <a href="./gameplay_vaults.html"
+                    class="px-3 py-1 bg-emerald-700 text-white rounded text-sm font-bold shadow-inner">
+                    <i class="fas fa-box mr-1"></i> Vaults
+                </a>
+                <a href="./gameplay_castle.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-chess-rook mr-1"></i> Castles
+                </a>
+                <a href="./gameplay_citadels.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-mountain-city mr-1"></i> Citadels
+                </a>
+                <a href="./gameplay_leveling.html"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">
+                    <i class="fas fa-chart-line mr-1"></i> Leveling
+                </a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="admin-status" class="text-xs text-gray-400">Checking permissions...</span>
+            <button onclick="window.location.reload()" class="text-gray-400 hover:text-white"><i
+                    class="fas fa-sync"></i></button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Sidebar: Templates -->
+        <aside class="w-80 bg-gray-800/50 border-r border-gray-700 flex flex-col">
+            <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+                <h2 class="font-bold text-gray-300">Vault Templates</h2>
+                <div class="flex gap-1">
+                    <button onclick="window.createDefaultVaultTemplates?.().then(() => window.location.reload())"
+                        class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-400"
+                        title="Add Defaults">
+                        <i class="fas fa-magic"></i>
+                    </button>
+                    <button onclick="openTemplateModal()"
+                        class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                </div>
+            </div>
+            <div id="template-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+                <!-- Template Items Injected Here -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col p-6 overflow-y-auto bg-gray-900" id="main-content">
+
+            <!-- Security Overlay -->
+            <div id="admin-lock" class="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center">
+                <i class="fas fa-lock text-6xl text-red-500 mb-4"></i>
+                <h2 class="text-2xl font-bold text-red-400">Admin Access Required</h2>
+            </div>
+
+            <div id="admin-panel" class="hidden flex-1 flex flex-col gap-6">
+
+                <!-- Overpass Control -->
+                <div class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg">
+                    <h2 class="text-lg font-bold text-emerald-300 mb-4">
+                        <i class="fas fa-globe-europe mr-2"></i> World Generation
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- Location Selector -->
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Target Location</label>
+                            <select id="gen-city"
+                                class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                                <option value="berlin">Berlin</option>
+                                <option value="london">London</option>
+                                <option value="paris">Paris</option>
+                                <option value="kyiv">Kyiv</option>
+                            </select>
+                        </div>
+
+                        <!-- Target Template Selector -->
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Target Map
+                                Template</label>
+                            <div class="flex gap-2">
+                                <select id="gen-template"
+                                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                                    <option value="new">+ Create New Map Template</option>
+                                </select>
+                                <button onclick="window.location.reload()"
+                                    class="px-3 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
+                                    title="Refresh templates">
+                                    <i class="fas fa-sync-alt text-gray-400"></i>
+                                </button>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-1">Existing templates will be OVERWRITTEN</div>
+                        </div>
+
+                        <!-- Scan Radius -->
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Total Capacity</label>
+                            <input type="number" id="gen-capacity" value="100" min="10" max="1000"
+                                class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                            <div class="text-[10px] text-gray-500 mt-1">Rec: 50-200 for vaults</div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-end gap-2">
+                            <button onclick="startGeneration(true)"
+                                class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 rounded font-bold text-sm relative overflow-hidden group border border-emerald-400 shadow-lg text-white">
+                                <span class="relative z-10"><i class="fas fa-magic mr-2"></i> Create / Del +
+                                    Create</span>
+                            </button>
+                            <button onclick="startGeneration(false)"
+                                class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 rounded font-bold text-sm relative overflow-hidden group border border-indigo-400 shadow-lg">
+                                <span class="relative z-10"><i class="fas fa-plus mr-2"></i> Add if exist</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Active Mapping Rules -->
+                    <div class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+                                <tr>
+                                    <th class="px-4 py-2">Vault Type</th>
+                                    <th class="px-4 py-2 w-24 text-center">Weight %</th>
+                                    <th class="px-4 py-2 w-24 text-center">Count</th>
+                                    <th class="px-4 py-2">OSM Match Tag</th>
+                                    <th class="px-4 py-2 w-16"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="rules-table" class="divide-y divide-gray-800">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                            <tfoot class="bg-gray-800/50 text-xs font-bold">
+                                <tr>
+                                    <td class="px-4 py-2 text-right text-gray-400">Total:</td>
+                                    <td class="px-4 py-2 text-center" id="total-weight">0%</td>
+                                    <td class="px-4 py-2 text-center" id="total-count">0</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div id="rules-empty" class="p-4 text-center text-gray-500 italic hidden">
+                            Click vault templates in the sidebar to add them here.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results / Console -->
+            <div class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg flex-1 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-emerald-300">Scan Results</h2>
+                    <button onclick="saveScannedVaults()" id="btn-save-vaults"
+                        class="px-4 py-1 bg-green-600 hover:bg-green-500 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                        <i class="fas fa-save mr-1"></i> Save to Database
+                    </button>
+                </div>
+                <div class="bg-black/50 rounded-lg p-2 flex-1 overflow-y-auto font-mono text-xs" id="console-log">
+                    <div class="text-gray-500">Ready to scan.</div>
+                </div>
+            </div>
+
+    </div>
+    </main>
+    </div>
+
+    <!-- Template Modal -->
+    <div id="template-modal" class="fixed inset-0 z-[100] bg-black/80 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-xl w-full max-w-lg shadow-2xl border border-gray-600">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white">Edit Vault Template</h3>
+                <button onclick="closeTemplateModal()" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="tpl-id">
+                <div>
+                    <label class="label-text">Vault Name</label>
+                    <input type="text" id="tpl-name" class="input-field" placeholder="e.g. Vault">
+                </div>
+                <div>
+                    <label class="label-text">Icon</label>
+                    <input type="text" id="tpl-icon" class="input-field" placeholder="📦">
+                </div>
+                <div>
+                    <label class="label-text">OSM Tag Match</label>
+                    <input type="text" id="tpl-osm" class="input-field" placeholder="amenity=post_box">
+                    <p class="text-[10px] text-gray-500 mt-1">Key=Value pair to match from OpenStreetMap</p>
+                </div>
+                <div>
+                    <label class="label-text">Slots (JSON)</label>
+                    <textarea id="tpl-inventory" class="input-field h-24 font-mono text-xs" placeholder='20'></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-700 flex justify-end gap-3">
+                <button onclick="deleteTemplate()" class="px-4 py-2 bg-red-900/50 text-red-400 rounded text-sm hidden"
+                    id="btn-delete">Delete</button>
+                <button onclick="saveTemplateForm()"
+                    class="px-4 py-2 bg-emerald-600 rounded text-sm font-bold text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .label-text {
+            display: block;
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .input-field {
+            width: 100%;
+            background-color: #111827;
+            border: 1px solid #374151;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            color: white;
+            font-size: 0.875rem;
+        }
+    </style>
+
+    <script type="module" src="../maintenance/admin-vaults.js"></script>
+</body>
+
+</html>

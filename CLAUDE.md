@@ -1,84 +1,372 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding assistants when working with code in this repository.
 
 ## Build & Run Commands
 
-- **Install dependencies:** `npm install`
-- **Start local server:** `npx firebase serve --only hosting --port 5000` → http://localhost:5000
-- **Deploy to production:** `npx firebase deploy --only hosting`
-- **Sync Capacitor (Android):** `npx cap sync android`
-- **Open in Android Studio:** `npx cap open android`
-- **Build Android APK (debug):** `npm run android:build`
-- **Build Android AAB (release):** `npm run android:release`
-- No build step — there is no bundler. JS files are served directly as ES6 modules.
-- No test framework is configured. Manual testing via browser console (see DEV-QUICK-REFERENCE.md).
+```bash
+npm install                                    # Install dependencies
+npx firebase serve --only hosting --port 5000  # Start local server → http://localhost:5000
+npx firebase deploy --only hosting             # Deploy to production
+npx cap sync android                           # Sync Capacitor (Android)
+npx cap open android                           # Open in Android Studio
+npm run android:build                          # Build debug APK
+npm run android:release                        # Build release AAB
+```
+
+- **No bundler** — JS files are served directly as ES6 modules. No build step.
+- **No test framework** — Manual testing via browser console. See `docs/DEV-QUICK-REFERENCE.md`.
+- **Hot reload** — Hard-refresh (Ctrl+F5). No HMR.
+
+---
 
 ## High-Level Architecture
 
-FightCraft is a geolocation RPG (HTML5/JS/TailwindCSS) wrapped in Capacitor for Android, using Firebase as its backend.
+FightCraft is a geolocation RPG (HTML5/JS/TailwindCSS) wrapped in Capacitor for Android, using Firebase as a serverless backend.
 
 ### Module Loading & Entry Points
 
-- `www/index.html` loads external libs as global scripts (Leaflet, Turf.js, TailwindCSS CDN), then:
-  1. `www/js/ui-loader.js` (regular script) — dynamically injects `character-selection-ui.html` into the DOM before modules run.
-  2. `www/js/app.js` (ES6 module, `type="module"`) — main entry point. Orchestrates the init sequence: Firebase auth → character selection → GPS → map → monsters → world sync.
-- `www/js/bridge.js` — central re-export file that imports functions from all modules and attaches them to `window.*` for use in inline `onclick` handlers throughout the HTML.
+`www/index.html` redirects to `www/core/index.html`, the true entry point. It loads:
 
-### Firebase Architecture (three services, two rule files)
+1. **Global scripts** (Leaflet, Turf.js, TailwindCSS CDN, MarkerCluster)
+2. `auth-ui/ui-loader.js` (regular script) — injects HTML templates (character selection, map templates, gameplay templates) into the DOM before modules run
+3. `core/app.js` (ES6 module, `type="module"`) — main entry point
 
-- **Firestore** (`firestore.rules`) — persistent storage: user profiles, characters, game templates, city zones, spawned objects. Characters stored at `users/{uid}/characters/{charId}`.
-- **Realtime Database** (`database.rules.json`) — live/ephemeral state: player positions on the map, PvP battle requests and battle state. Player presence uses `onDisconnect` for auto-cleanup.
-- **Storage** (`storage.rules`) — static bundles for the SyncEngine optimization.
-- Firebase SDK is loaded via ESM CDN imports in `firebase-service.js` (not from `index.html`).
+### Init Sequence (app.js)
 
-### Key Module Responsibilities
+```
+1. initLogger()          → intercept console.* for debug overlay
+2. initCharacterSelection() → Firebase auth → character picker → load/create
+3. Object.assign(gameState, data) → merge character data into state
+4. BigInt restore        → convert XP strings from Firestore back to BigInt
+5. GPS acquisition       → real coords or fallback to Berlin (52.484512, 13.449876)
+6. registerPlayerInRTDB()→ set position + onDisconnect cleanup
+7. PvP reconnect check   → localStorage.activePvPBattleId + RTDB in_combat status
+8. subscribeToPlayersRTDB() → live player markers + online list
+9. initMap()             → Leaflet map init
+10. loadStaticMonsters() → parse + render from Firestore spawned_objects
+11. fetchSpawnedObjectsOnce() + getCityZones() + getTemplates() → parallel
+12. checkAndFetchPOIs()  → Points of Interest
+13. initPvP() + initKingdom() + initGroups() → subsystems
+14. subscribeToArenas()  → RTDB arena listeners
+15. recalculateStats()   → derive all stats from base attributes + equipment
+16. updateHUD()          → render all UI
+17. Game loops start     → regen (1s), income, world sync
+18. triggerSave debounce → 5s inactivity → Firestore write
+```
 
-| Module | Role |
-|--------|------|
-| `app.js` | Init sequence, GPS acquisition, world sync loop |
-| `firebase-service.js` | All Firebase CRUD, auth, RTDB subscriptions, admin helpers |
-| `gameState.js` | In-memory game state singleton (`gameState` object), stat recalculation |
-| `ui-controller.js` | Panel/modal management, HUD updates, notification system, online player list |
-| `map.js` | Leaflet map init, player/monster/POI markers, debug joystick movement |
-| `combat.js` | PvE zone-based combat (head/body/belt/legs attack/defense system) |
-| `pvp.js` | PvP via RTDB — battle requests, real-time fight sync, leaderboards |
-| `sync-engine.js` | IndexedDB caching layer to minimize Firestore reads (Static Bundles strategy) |
-| `data.js` | Static item/monster databases |
-| `bridge.js` | Window-global function registry for inline HTML handlers |
-| `kingdom.js` | District/citadel capture system |
-| `districts.js` | Geographic district definitions and lookup |
-| `poi.js` | Points of Interest — fetches real-world POIs via Overpass API |
-| `logger.js` | Intercepts `console.*` calls and mirrors them to an on-screen debug console |
-| `character-selection.js` | Multi-character management (create/select/delete per Firebase user) |
-| `firebase-monitor.js` | Wraps Firestore reads to count/track API usage |
+---
+
+## Project Structure
+
+```
+www/                         ← Firebase Hosting root
+├── core/                    ← Application core
+│   ├── index.html           ← TRUE entry point (~1100 lines, all game UI)
+│   ├── app.js               ← Init sequence, save/load, debug, game loops (35KB)
+│   ├── bridge.js            ← window.* function registry for inline onclick
+│   ├── gameState.js         ← In-memory state singleton + recalculateStats()
+│   ├── logger.js            ← console.* interceptor → on-screen debug console
+│   ├── diagnostics.js       ← Runtime diagnostics (runs 10s after boot)
+│   ├── capacitor.js         ← Capacitor integration stub
+│   └── geometry-utils.js    ← Spatial calculation helpers
+├── auth-ui/                 ← Authentication & UI management
+│   ├── login.html           ← Firebase Auth login page
+│   ├── character-selection-ui.html ← Character picker template
+│   ├── character-selection.js ← Multi-character CRUD (create/select/delete/switch)
+│   ├── ui-controller.js     ← Panel/modal/HUD management (77KB, largest UI file)
+│   ├── ui-loader.js         ← Dynamic HTML template injection at startup
+│   └── ui.js                ← UI utilities
+├── firebase/                ← Firebase integration
+│   ├── firebase-service.js  ← ALL Firebase CRUD, auth, RTDB (103KB, largest file)
+│   ├── firebase-monitor.js  ← Firestore read/write counter
+│   ├── db-usage.js          ← Database usage tracking UI
+│   └── emergency-monitor.js ← Emergency monitoring
+├── gameplay/                ← Game mechanics
+│   ├── combat.js            ← PvE + PvP + Group combat system (64KB)
+│   ├── battle-logic.js      ← Extracted combat math — pure functions (testable)
+│   ├── pvp.js               ← PvP: battle requests, leaderboards, RTDB sync
+│   ├── data.js              ← Static databases: ITEMS_DB, MONSTER_LIBRARY, CITY_ANCHORS
+│   ├── monsters.js          ← Monster generation/rendering logic
+│   ├── groups.js            ← RTDB-synced group/party system
+│   ├── sync-engine.js       ← IndexedDB caching layer for Firestore (27KB)
+│   ├── generation-service.js← World object generation
+│   └── gameplay_*.html      ← 6 admin gameplay templates
+├── map/                     ← Map & geography
+│   ├── map.js               ← Leaflet map, player/monster/POI markers (48KB)
+│   ├── districts.js         ← Geographic district boundaries + point-in-polygon
+│   ├── kingdom.js           ← Citadel capture + passive income system
+│   ├── poi.js               ← Points of Interest rendering
+│   ├── overpass-service.js  ← Overpass API integration (currently disabled)
+│   ├── territory-service.js ← Territory management
+│   └── templates_map.html   ← Map UI templates (66KB)
+├── maintenance/             ← Admin & utility tools (25 files)
+│   ├── admin.html           ← Admin panel
+│   ├── admin-*.js           ← Admin modules (monsters, shops, castles, citadels, vaults, leveling)
+│   ├── admin-bundler.js     ← Static bundle generator for SyncEngine
+│   ├── backup-firestore.js / restore-firestore.js ← Firestore backup/restore
+│   └── *-cleanup.js         ← Database cleanup utilities
+├── css/style.css            ← Custom styles (14KB)
+└── assets/                  ← Static assets
+```
+
+### Firebase Rules (in `firebase/` directory, NOT project root)
+
+```
+firebase/
+├── firestore.rules          ← Firestore Security Rules
+├── database.rules.json      ← RTDB Security Rules
+├── storage.rules            ← Storage Security Rules
+└── cors.json                ← CORS configuration
+```
+
+`firebase.json` points to these: `"rules": "firebase/firestore.rules"`, etc.
+
+---
+
+## Firebase Architecture
+
+### Three Services, Three Rule Files
+
+| Service | Purpose | Rules File | SDK Loading |
+|---------|---------|------------|-------------|
+| **Firestore** | Persistent game state | `firebase/firestore.rules` | ESM CDN in `firebase-service.js` |
+| **RTDB** | Real-time ephemeral state | `firebase/database.rules.json` | ESM CDN in `firebase-service.js` |
+| **Storage** | Static bundles for SyncEngine | `firebase/storage.rules` | ESM CDN in `firebase-service.js` |
+
+Firebase SDK is loaded via ESM CDN imports in `firebase-service.js` (not from `index.html`).
+
+### Firestore Collections
+
+| Collection | Purpose | Client Access |
+|------------|---------|---------------|
+| `users/{uid}` | Player profiles, metadata | Self-write (protected: `role`, `uid`), public read |
+| `users/{uid}/characters/{charId}` | Character data (stats, equipment, inventory) | Owner read/write |
+| `users/{uid}/invites/{inviteId}` | Inbox pattern — anyone can create, only owner reads | Create: any auth; R/U/D: owner |
+| `spawned_objects/{objectId}` | Monsters, shops, castles on the map | Read: any auth; Update: only `defeatedAt` field; Write: admin |
+| `templates/{templateId}` | Monster/shop/castle templates for world gen | Read: any auth; Write: admin |
+| `world_chunks/{chunkId}` | Compressed binary payloads for city zones | Read: any auth; Write: admin |
+| `world_metadata/{docId}` | Sync metadata (versions, timestamps) | Read: any auth; Write: admin |
+| `city_zones/{cityId}` | City zone definitions | Read: any auth; Write: admin |
+| `castles/{castleId}` | Persistent territorial data | Read: any auth; Write: admin |
+| `combats/{combatId}` | Combat records | Read: any auth; Create: any auth; Update: participants or admin |
+| `world_snapshots/{snapshotId}` | World state snapshots | Read: any auth; Write: admin |
+| `players/{playerId}` | **Legacy** — being deprecated | Self-write, public read |
+
+### RTDB Nodes
+
+| Node | Purpose | Write Rules |
+|------|---------|-------------|
+| `live_players/{charId}` | GPS position sync (`lat`, `lng`), online status | Owner only (validated via `userId`) |
+| `battle_requests/{battleId}` | PvP matchmaking handshakes | Creator or participants |
+| `battles/{battleId}` | Real-time PvP turn sync (rounds, choices, results) | ⚠️ Any authenticated user |
+| `combats/{combatId}` | Live combat instances (PvE/group) | ⚠️ Partially restricted |
+| `groups/{groupId}` | Ephemeral party state | ⚠️ Partially restricted |
+| `group_invites/{targetCharId}` | Group invitation delivery | ⚠️ Any authenticated user |
+| `arenas/{arenaId}` | 50m combat boundary zones on the map | ⚠️ Any authenticated user |
+| `players/{uid}` | Legacy player data mirror | Owner only |
+
+> ⚠️ Nodes marked with ⚠️ have overly permissive write rules. See Security Model below.
+
+---
+
+## Key Module Responsibilities
+
+| Module | Path | Role | Testability |
+|--------|------|------|-------------|
+| `app.js` | `core/` | Init sequence, save/load, GPS, game loops | Low — orchestration |
+| `gameState.js` | `core/` | State singleton, `recalculateStats()`, mutations | **High** — pure functions |
+| `bridge.js` | `core/` | Window-global function registry for `onclick` | N/A — glue code |
+| `firebase-service.js` | `firebase/` | ALL Firebase CRUD, auth, RTDB subscriptions | Low — side effects |
+| `ui-controller.js` | `auth-ui/` | Panel/modal/HUD, notifications, online player list | Low — DOM-coupled |
+| `combat.js` | `gameplay/` | PvE + PvP + group combat, zone-based resolution | Medium |
+| `battle-logic.js` | `gameplay/` | Extracted combat math (damage, hit, dodge, crit) | **High** — pure computation |
+| `pvp.js` | `gameplay/` | PvP: battle requests, fight sync, leaderboards | Low — RTDB + DOM |
+| `data.js` | `gameplay/` | `ITEMS_DB`, `MONSTER_LIBRARY`, `CITY_ANCHORS`, `AFFIXES` | **High** — pure data |
+| `monsters.js` | `gameplay/` | Monster generation + rendering logic | **High** — computational |
+| `groups.js` | `gameplay/` | Group CRUD, invite flow, RTDB sync | Low — RTDB-dependent |
+| `sync-engine.js` | `gameplay/` | IndexedDB caching for Firestore (Static Bundles) | Medium |
+| `map.js` | `map/` | Leaflet map, player/monster/arena markers, fog | Low — DOM + Leaflet |
+| `districts.js` | `map/` | Geographic district boundaries, point-in-polygon | Medium — geometry testable |
+| `kingdom.js` | `map/` | Citadel capture, passive income, district king | Low |
+| `poi.js` | `map/` | Points of Interest rendering + income processing | Low |
+| `character-selection.js` | `auth-ui/` | Multi-character management (create/select/delete) | Low — DOM |
+| `firebase-monitor.js` | `firebase/` | Firestore read/write/delete counter | **High** — mockable |
+| `logger.js` | `core/` | `console.*` interceptor → on-screen debug console | Medium |
 
 ### Global Function Pattern
 
-Functions needed by inline `onclick` handlers must be attached to `window`. This is done in two places:
-- `bridge.js` — the main registry (UI, combat, map, game functions)
-- Individual modules (e.g., `combat.js`, `pvp.js`, `app.js`) also attach some globals directly
+Functions used in inline `onclick` handlers must be attached to `window`. Two mechanisms:
+- **`core/bridge.js`** — primary registry; imports from all modules and exports to `window.*`
+- **Individual modules** — some attach globals directly (e.g., `app.js`, `combat.js`)
 
-Use `window.__checkGlobalFunctions()` in the browser console to audit which globals are registered.
+Diagnostic: `window.__checkGlobalFunctions()` in browser console.
 
-### Styling & Z-Index Layers
+---
 
-TailwindCSS is loaded from CDN (not compiled). Custom styles are in `www/css/style.css`. Z-index layering:
-- `z-[1000]` HUD → `z-[2000]` Panels → `z-[3000]` Item Modal → `z-[4000]` Combat → `z-[5000]` Victory/Defeat → `z-[99999]` Loading Screen
+## Key Data Patterns
 
-### Data Flow: XP Uses BigInt
+### XP Uses BigInt
 
-`gameState.player.xp` and `gameState.player.xpToNext` are stored as `BigInt`. Firestore serializes them as strings; `app.js` reconverts on load. Any code touching XP values must use BigInt arithmetic.
+`gameState.player.xp` and `gameState.player.xpToNext` are **BigInt**. Firestore serializes as strings; `app.js` reconverts on load. All XP arithmetic must use BigInt operators. Level curve: `500 * level²`.
 
-### Admin & Utility Scripts
+### Save System
 
-`www/` contains several standalone utility scripts (not part of the main app): `backup-firestore.js`, `restore-firestore.js`, `deep-nuke.js`, `global-cleanup.js`, etc. These are one-off maintenance tools.
+- `gameState.js` mutations call `window.triggerSave()` (debounced 5s → single Firestore write)
+- XP is serialized to string before Firestore save: `xp.toString()`
+- Position updates use RTDB `set()` (NOT Firestore) to avoid cost
+- `onDisconnect` auto-removes player from `live_players` on disconnect
+
+### Combat Reconnection
+
+On page refresh, combat state is recovered via:
+1. `localStorage.getItem('activePvPBattleId')` → PvP battle reconnect
+2. RTDB `live_players/{charId}.status === 'in_combat'` → group/unified combat reconnect
+3. `combatId` prefix routing: `combat_*` → `joinUnifiedCombat()`, `arena_*` → `startPvPCombat()`
+
+### Character Storage
+
+Characters stored at `users/{uid}/characters/{charId}` in Firestore. Selection persists via `localStorage('lastCharacterId')`. The `gameState` singleton is populated via `Object.assign(gameState, characterData)`.
+
+---
+
+## Combat System
+
+Zone-based tactical combat with 4 attack zones and 4 defense combos:
+
+| Attack Zones | Defense Combos |
+|-------------|----------------|
+| Head, Body, Belt, Legs | Head+Body, Body+Belt, Belt+Legs, Head+Legs |
+
+Resolution: attack zone matched against defense zones → hit/miss → crit roll → damage calc → defense reduction.
+
+- **Monster classes:** Normal, Champion, Unique, Super Unique
+- **Monster affixes:** Stone Skin, Extra Strong, Teleport, Cursed, Mana Burn
+- **Flee penalty:** -30% Gold, -5% XP, lose 1 random item, monster gets 1hr cooldown
+- **Arena boundary:** 50m radius — leaving = auto-defeat
+
+---
+
+## Security Model
+
+### Admin Verification (3-tier, being consolidated)
+
+```
+1. Custom claim: request.auth.token.admin == true  ← preferred
+2. Hardcoded UID: 'YshG61RxTIczGXOfFqiu2wqC63r2'  ← fallback, to be removed
+3. Firestore role: users/{uid}.role == 'admin'      ← legacy, to be deprecated
+```
+
+Storage rules are strictest: only accept custom claim.
+
+### Key Security Rules
+
+- **Protected fields:** `role` and `uid` on user documents cannot be self-modified
+- **Field-level restriction:** `spawned_objects` updates limited to `defeatedAt` field only (must be number)
+- **Inbox pattern:** `users/{userId}/invites` — any auth user can create, only owner can read/modify
+- **Catch-all deny:** `match /{document=**} { allow read, write: if false; }` at bottom of Firestore rules
+
+### Known Security Gaps
+
+1. **RTDB permissive writes:** `battles`, `group_invites`, `arenas` accept writes from any authenticated user without ownership validation
+2. **GPS validation:** RTDB validates data type only (number), no range bounds (-90..90, -180..180), no spoofing/teleportation detection
+3. **isAdmin() recursive read:** Still includes Firestore `get()` fallback for role-based admin check — planned for removal after custom claims migration
+4. **Client-side combat:** All combat resolution happens client-side; no server-authoritative validation
+
+---
+
+## Styling & Z-Index Layers
+
+TailwindCSS loaded from CDN (~300KB, ~5% utilized — accepted trade-off for bundler-free arch). Custom styles in `www/css/style.css`.
+
+| Z-Index | Layer |
+|---------|-------|
+| `z-[1000]` | HUD (top bar, bottom nav) |
+| `z-[1001]` | FAB buttons, debug elements |
+| `z-[1002]` | Event log, online players panel |
+| `z-[2000]` | Menu panels (character, inventory, quests, settings) |
+| `z-[3000]` | Item detail modal |
+| `z-[4000]` | Combat screen, encounter dialog |
+| `z-[5000]` | Victory / Defeat / Draw screens |
+| `z-[99999]` | Loading screen |
+
+---
 
 ## Development Context
 
-- **Language:** Code comments and UI text are primarily in Ukrainian. README and docs are also in Ukrainian.
-- **No linter/formatter** is configured.
+- **Language:** English for all docs and agent files. Code comments mixed (Ukrainian migration in progress).
 - **Live URL:** https://fight-craft-3c3f0.web.app
 - **Firebase project ID:** `fight-craft-3c3f0`
-- **Default fallback coordinates:** Berlin (52.484512, 13.449876) when GPS is unavailable.
-- **Hot reload:** Just hard-refresh the browser (Ctrl+F5). No HMR.
+- **Android package:** `com.fightcraft.game`
+- **Default fallback coordinates:** Berlin (52.484512, 13.449876) when GPS is unavailable
+- **Multi-city support:** 6 city anchors (Berlin, Kyiv, Lviv, Warsaw, Prague, Vienna) — defined in `CITY_ANCHORS` in `gameplay/data.js`
+- **Design system:** Penpot-managed UI tokens (37 color rules, spacing/sizing tokens, 8px grid) — see `docs/SRC.md`
+- **Firestore optimization:** ~15 reads at startup (down from 2600+ via SyncEngine + IndexedDB caching)
+
+---
+
+## Known Technical Debt
+
+1. **Quest system** — `updateQuestProgress()` is a stub; quests are hardcoded in HTML
+2. **RTDB security** — `battles`, `combats`, `arenas`, `groups`, `group_invites` lack ownership validation
+3. **Tax management** — Citadel king tax shows "coming soon" notification
+4. **isAdmin() fallback** — Recursive Firestore read for role-based admin check still present
+5. **Overpass API** — POI fetching disabled; world content comes from Firestore sync only
+6. **TailwindCSS CDN** — Full ~300KB library loaded with ~5% utilization (purging would reduce to ~10KB)
+7. **firebase-service.js** — 103KB / ~2800 lines — monolith file that could be decomposed
+8. **Client-side combat** — No server-authoritative combat validation (would require Cloud Functions)
+
+---
+
+## Multi-Agent System
+
+FightCraft supports two AI agent systems sharing the same project context:
+
+### Claude Code Agents (`.claude/agents/`)
+
+6 specialized agents for Claude Code's teammate mode:
+
+| Agent | Role |
+|-------|------|
+| `system-architect.md` | Architecture planning & system design |
+| `security-reviewer.md` | Security audits, Firebase rules, GPS privacy |
+| `perf-reviewer.md` | Performance optimization, Firebase costs |
+| `logic-reviewer.md` | Logic correctness, error handling |
+| `fullstack-coder.md` | Implementation & bug fixes |
+| `fightcraft-game-dev.md` | Game-specific development |
+
+**Rules** (`.claude/rules/`):
+- `firebase-logic.md` — Always-on rule explaining all 3 Firebase rule files
+- `security-linting.md` — Security linting guidelines
+
+### Antigravity Agents (`.agents/`) — DOE Architecture
+
+Three-layer DOE (Directive → Orchestration → Execution):
+
+| Layer | Location | Purpose |
+|-------|----------|---------|
+| Orchestration | `INSTRUCTIONS.md` | Command routing, DOE algorithm, ACR role system |
+| Directives | `directives/` | 9 natural language SOPs (deploy, security, balance, etc.) |
+| Execution | `execution/` | 5 PowerShell scripts (validate-rules, drift-check, pre-deploy-gate, etc.) |
+| Protocols | `protocols/` | Self-annealing (fix-forward), parallel review (3-reviewer cycle) |
+| Rules | `rules/a-c-r.md` | ACR multi-agent system rules (Architect → Coder → Reviewer) |
+| Skills | `skills/` | 13 skills (5 custom FightCraft + 8 community) |
+| Environment | `env/` | Sensitive data isolation (.env, API keys, signing passwords) |
+
+### MCP Configuration
+
+MCP servers configured in `.claude/settings.json`. Active plugins:
+- **Firebase** — Firestore, RTDB, Auth, Storage tools. Project: `fight-craft-3c3f0`. Credentials: `firebase-key.json` (`.claude/` directory)
+- **Context7** — Up-to-date library documentation
+- **Playwright** — Browser automation and testing
+
+---
+
+## Key Documentation
+
+| Document | Location | Purpose |
+|----------|----------|---------|
+| **PRD** | `docs/PRD.md` | 104 user stories, implementation decisions, security model, testing plan |
+| **Tech Spec** | `docs/SRC.md` | System architecture, Firestore/RTDB schemas, Penpot design system |
+| **Dev Reference** | `docs/DEV-QUICK-REFERENCE.md` | HTML IDs, global functions, debugging recipes, test scripts |
+| **README** | `README.md` | Project overview, structure, quick start, gameplay summary |

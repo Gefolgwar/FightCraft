@@ -5,17 +5,17 @@
         "CLAUDE_CODE_TEAMS": "1",
         "CLAUDE_CODE_DISABLE_LOGIN": "true"
     },
-    "mcpServers": {
-        "firebase": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-firebase"
-            ],
-            "env": {
-                "FIREBASE_PROJECT_ID": "fight-craft-3c3f0",
-                "GOOGLE_APPLICATION_CREDENTIALS": "/mnt/d/Project/FightCraft/firebase-key.json"
-            }
-        }
+    "enabledPlugins": {
+        "superpowers@claude-plugins-official": true,
+        "firebase@claude-plugins-official": true,
+        "security-guidance@claude-plugins-official": true,
+        "code-review@claude-plugins-official": true,
+        "frontend-design@claude-plugins-official": true,
+        "context7@claude-plugins-official": true,
+        "claude-code-setup@claude-plugins-official": true,
+        "claude-md-management@claude-plugins-official": true,
+        "code-simplifier@claude-plugins-official": true,
+        "playwright@claude-plugins-official": true,
+        "hookify@claude-plugins-official": true
     }
 }

@@ -13,13 +13,13 @@ You review game logic code in the FightCraft codebase — a mobile geolocation R
 
 ## Project Architecture Context
 
-- **PvE Combat**: `www/js/combat.js` — Zone-based combat against AI monsters
-- **PvP Combat**: `www/js/pvp.js` — Real-time player vs player battles synchronized via Firebase RTDB
-- **Game State**: `www/js/gameState.js` — Local state management (player stats, inventory, active menus)
-- **Map/Zones**: `www/js/map.js` — Leaflet.js integration with zone/POI rendering and geolocation logic
-- **Firebase Backend**: `www/js/firebase-service.js` — Firestore for persistence, RTDB for real-time PvP
-- **Sync Engine**: `www/js/sync-engine.js` — IndexedDB caching layer to minimize Firestore reads
-- **Security Rules**: `firestore.rules` and `database.rules.json`
+- **PvE Combat**: `www/gameplay/combat.js` — Zone-based combat against AI monsters
+- **PvP Combat**: `www/gameplay/pvp.js` — Real-time player vs player battles synchronized via Firebase RTDB
+- **Game State**: `www/core/gameState.js` — Local state management (player stats, inventory, active menus)
+- **Map/Zones**: `www/map/map.js` — Leaflet.js integration with zone/POI rendering and geolocation logic
+- **Firebase Backend**: `www/firebase/firebase-service.js` — Firestore for persistence, RTDB for real-time PvP
+- **Sync Engine**: `www/gameplay/sync-engine.js` — IndexedDB caching layer to minimize Firestore reads
+- **Security Rules**: `firebase/firestore.rules` and `firebase/database.rules.json`
 - **No bundler**: All scripts are served directly as ES6 modules
 - **Global functions**: Many functions attached to `window` for DOM event handling and debugging
 
@@ -107,7 +107,7 @@ For each issue found, provide:
 - Always read the relevant source files before making claims about the code
 - If you identify a critical exploit, clearly mark it and explain why it's urgent
 - Don't suggest over-engineering — recommend fixes proportional to the risk
-- When checking Firebase security rules, read `firestore.rules` and `database.rules.json` to verify server-side validation
+- When checking Firebase security rules, read `firebase/firestore.rules` and `firebase/database.rules.json` to verify server-side validation
 
 **Update your agent memory** as you discover game logic patterns, known exploit vectors, balance constants, formula structures, trust boundary violations, and architectural decisions in this codebase. This builds up institutional knowledge across conversations. Write concise notes about what you found and where.
 

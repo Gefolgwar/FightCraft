@@ -1,9 +1,14 @@
 {
   "name": "fightcraft",
   "version": "1.0.0",
-  "description": "Геолокаційна RPG гра - досліджуй світ, бийся з монстрами!",
+  "description": "Geolocation RPG game - explore the world, fight monsters!",
   "main": "index.js",
   "scripts": {
+    "test": "npx vitest run --config tests/vitest.config.js",
+    "test:watch": "npx vitest --config tests/vitest.config.js",
+    "test:ui": "npx vitest --ui --config tests/vitest.config.js",
+    "test:coverage": "npx vitest run --coverage --config tests/vitest.config.js",
+    "start": "npx http-server ./ -p 8080 -c1",
     "build": "echo 'No build needed' && exit 0",
     "cap:init": "cap init FightCraft com.fightcraft.game --web-dir www",
     "cap:add": "cap add android",
@@ -13,7 +18,12 @@
     "android:build": "cd android && ./gradlew assembleDebug",
     "android:release": "cd android && ./gradlew bundleRelease"
   },
-  "keywords": ["game", "rpg", "geolocation", "android"],
+  "keywords": [
+    "game",
+    "rpg",
+    "geolocation",
+    "android"
+  ],
   "author": "FightCraft Team",
   "license": "MIT",
   "dependencies": {
@@ -25,6 +35,8 @@
     "@capacitor/status-bar": "^5.0.7"
   },
   "devDependencies": {
-    "@capacitor/cli": "^5.7.0"
+    "@capacitor/cli": "^5.7.0",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.4"
   }
 }

@@ -12,13 +12,13 @@ You are a Senior Game Developer and Combat Systems Architect specializing in Fig
 FightCraft is built with a Vanilla Web Stack (HTML5/ES6+ Modules/TailwindCSS) wrapped in Capacitor for Android, using Firebase as its backend. There is NO bundler—scripts are served directly from `www/`.
 
 **Key Architecture:**
-- **State Management:** `www/js/gameState.js` — local game state (player stats, inventory, active menus)
-- **UI Controller:** `www/js/ui-controller.js` — panels, modals, HUD updates, event logs. Many methods exposed globally via `window`
-- **Map:** `www/js/map.js` — Leaflet.js for geolocation, rendering markers, monsters, POIs
-- **PvE Combat:** `www/js/combat.js` — zone-based AI monster combat
-- **PvP Combat:** `www/js/pvp.js` — real-time PvP via Firebase Realtime Database
-- **Data Sync:** `www/js/sync-engine.js` — IndexedDB caching to minimize Firestore reads
-- **Firebase Service:** `www/js/firebase-service.js` — Firestore + RTDB integration
+- **State Management:** `www/core/gameState.js` — local game state (player stats, inventory, active menus)
+- **UI Controller:** `www/auth-ui/ui-controller.js` — panels, modals, HUD updates, event logs. Many methods exposed globally via `window`
+- **Map:** `www/map/map.js` — Leaflet.js for geolocation, rendering markers, monsters, POIs
+- **PvE Combat:** `www/gameplay/combat.js` — zone-based AI monster combat
+- **PvP Combat:** `www/gameplay/pvp.js` — real-time PvP via Firebase Realtime Database
+- **Data Sync:** `www/gameplay/sync-engine.js` — IndexedDB caching to minimize Firestore reads
+- **Firebase Service:** `www/firebase/firebase-service.js` — Firestore + RTDB integration
 - **Styling:** TailwindCSS utility classes; z-index layering: `z-[1000]` for HUD, `z-[4000]` for combat screens
 - **Global Functions:** Many functions on `window` for DOM event handling and console debugging
 - **Debug:** `window.__checkGlobalFunctions()` in browser console; see `DEV-QUICK-REFERENCE.md`
