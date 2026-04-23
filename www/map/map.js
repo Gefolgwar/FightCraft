@@ -1,4 +1,4 @@
-﻿// Map module - Leaflet map, markers, movement, fog of war
+// Map module - Leaflet map, markers, movement, fog of war
 import { gameState, updatePlayer, getStaticMonsters, setStaticMonsters, STATIC_MONSTER_KEY } from '../core/gameState.js';
 import { CITY_ANCHORS, GRID_SETTINGS } from '../gameplay/data.js';
 import { showNotification, addEventLog } from '../auth-ui/ui-controller.js';
@@ -849,7 +849,7 @@ export function renderStaticMonsters(force = false, center) {
                 }
                 const mins = Math.floor(remaining / 60);
                 const secs = remaining % 60;
-                showNotification(`⏳ Монстр відпочиває: ${mins}:${secs.toString().padStart(2, '0')}`, 'warning');
+                showNotification(`⏳ Monster is resting: ${mins}:${secs.toString().padStart(2, '0')}`, 'warning');
                 return;
             }
 
@@ -1125,7 +1125,7 @@ window._onPlayerAction = async function (action, targetId, charOrUserId, name) {
         const marker = otherPlayerMarkers[charOrUserId];
         const targetGroupId = marker?.options?.playerData?.groupId;
         if (targetGroupId && targetGroupId === gameState.currentGroup?.id) {
-            showNotification('❌ Не можна атакувати члена групи!', 'error');
+            showNotification('❌ Cannot attack a group member!', 'error');
             return;
         }
         const { createBattleRequest } = await import('../firebase/firebase-service.js');
@@ -1136,7 +1136,7 @@ window._onPlayerAction = async function (action, targetId, charOrUserId, name) {
         const marker = otherPlayerMarkers[charOrUserId];
         const targetGroupId = marker?.options?.playerData?.groupId;
         if (targetGroupId && targetGroupId === gameState.currentGroup?.id) {
-            showNotification('❌ Гравець вже у вашій групі!', 'error');
+            showNotification('❌ Player is already in your group!', 'error');
             return;
         }
         if (window.invitePlayerToGroup) {

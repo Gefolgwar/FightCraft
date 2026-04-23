@@ -462,7 +462,6 @@ export function subscribeToPlayersRTDB(onUpdate) {
             isTestPlayer: p.name?.includes('TestPlayer')
         }));
 
-        console.log(`📡 RTDB Update: ${players.length} players found in Realtime Database.`);
         onUpdate(players);
     }, (error) => {
         console.warn("RTDB Subscription error:", error);
@@ -1139,10 +1138,6 @@ export async function updateUserProfile(name) {
 export async function getTemplates(type) {
     if (_templatesCache[type]) return _templatesCache[type];
 
-    if (!isAdmin()) {
-        console.warn('⛔ Permission denied: getTemplates');
-        return [];
-    }
     try {
         console.log(`🌍 Using SyncEngine for Templates (${type})...`);
         const templates = await SyncEngine.syncTemplates(db, type);
@@ -2633,7 +2628,7 @@ export async function disbandGroupRTDB(groupId) {
  * Підписка на групу (real-time)
  */
 export function subscribeToGroupRTDB(groupId, callback) {
-    if (!rtdb) return () => {};
+    if (!rtdb) return () => { };
     const groupRef = ref(rtdb, `groups/${groupId}`);
     const unsub = onValue(groupRef, (snapshot) => {
         callback(snapshot.val());
@@ -2645,7 +2640,7 @@ export function subscribeToGroupRTDB(groupId, callback) {
  * Підписка на запрошення до груп
  */
 export function subscribeToGroupInvites(charId, callback) {
-    if (!rtdb) return () => {};
+    if (!rtdb) return () => { };
     const invitesRef = ref(rtdb, `group_invites/${charId}`);
     const unsub = onValue(invitesRef, (snapshot) => {
         const data = snapshot.val();
@@ -2654,6 +2649,46 @@ export function subscribeToGroupInvites(charId, callback) {
         }
     });
     return () => off(invitesRef, 'value', unsub);
+}
+
+/**
+ * Відхилити запрошення до групи
+ */
+export async function declineGroupInviteRTDB(groupId, targetCharId, inviterCharId) {
+    if (!rtdb) return false;
+    try {
+        await remove(ref(rtdb, `group_invites/${targetCharId}/${groupId}`));
+        
+        await set(ref(rtdb, `group_declines/${inviterCharId}/${groupId}`), {
+            groupId,
+            timestamp: rtdbTimestamp()
+        });
+        
+        console.log(`👥 Invite from ${inviterCharId} declined`);
+        return true;
+    } catch (e) {
+        console.error('❌ declineGroupInviteRTDB error:', e);
+        return false;
+    }
+}
+
+/**
+ * Підписка на відхилені запрошення
+ */
+export function subscribeToGroupDeclines(charId, callback) {
+    if (!rtdb) return () => { };
+    const declinesRef = ref(rtdb, `group_declines/${charId}`);
+    const unsub = onValue(declinesRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            Object.values(data).forEach(decline => {
+                callback(decline);
+                // Clean up the notification immediately
+                remove(ref(rtdb, `group_declines/${charId}/${decline.groupId}`)).catch(e => console.error(e));
+            });
+        }
+    });
+    return () => off(declinesRef, 'value', unsub);
 }
 
 /**
@@ -2710,7 +2745,7 @@ export async function setGroupActiveCombatRTDB(groupId, combatId) {
  * Subscribe to a unified combat session
  */
 export function subscribeToUnifiedCombat(combatId, callback) {
-    if (!rtdb) return () => {};
+    if (!rtdb) return () => { };
     const combatRef = ref(rtdb, `combats/${combatId}`);
     const unsub = onValue(combatRef, (snapshot) => {
         callback(snapshot.val());
@@ -2791,7 +2826,7 @@ export async function removeArenaRTDB(arenaId) {
  * Підписка на арени (для відображення на мапі)
  */
 export function subscribeToArenas(callback) {
-    if (!rtdb) return () => {};
+    if (!rtdb) return () => { };
     const arenasRef = ref(rtdb, 'arenas');
     const unsub = onValue(arenasRef, (snapshot) => {
         callback(snapshot.val() || {});

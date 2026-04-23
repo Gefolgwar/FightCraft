@@ -947,7 +947,7 @@ window.challengePlayer = function(playerId, playerName) {
 /**
  * Показати діалог запрошення до групи
  */
-export function showGroupInviteDialog(groupId, inviterName, groupColor) {
+export function showGroupInviteDialog(groupId, inviterName, groupColor, inviterCharId) {
     let dialog = document.getElementById('group-invite-dialog');
     if (!dialog) {
         dialog = document.createElement('div');
@@ -969,7 +969,7 @@ export function showGroupInviteDialog(groupId, inviterName, groupColor) {
                     class="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold transition-all">
                     ✅ Join
                 </button>
-                <button onclick="document.getElementById('group-invite-dialog').classList.add('hidden')"
+                <button onclick="window.declineGroupInvite('${groupId}', '${inviterCharId}'); document.getElementById('group-invite-dialog').classList.add('hidden')"
                     class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold transition-all">
                     ❌ Decline
                 </button>

@@ -85,31 +85,31 @@
         </div>
 
         <!-- Login Form -->
-        <div id="login-form" class="glass rounded-2xl p-8">
+        <form id="login-form" class="glass rounded-2xl p-8" onsubmit="event.preventDefault(); handleLogin();">
             <h2 class="text-xl font-bold text-white mb-6 text-center">Welcome Back</h2>
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Email</label>
-                    <input type="email" id="login-email" class="w-full px-4 py-3 rounded-lg text-white input-field"
-                        placeholder="your@email.com">
+                    <label class="block text-sm text-gray-400 mb-1" for="login-email">Email</label>
+                    <input type="email" id="login-email" name="email" class="w-full px-4 py-3 rounded-lg text-white input-field"
+                        placeholder="your@email.com" autocomplete="username">
                 </div>
 
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Password</label>
-                    <input type="password" id="login-password"
-                        class="w-full px-4 py-3 rounded-lg text-white input-field" placeholder="••••••••">
+                    <label class="block text-sm text-gray-400 mb-1" for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password"
+                        class="w-full px-4 py-3 rounded-lg text-white input-field" placeholder="••••••••" autocomplete="current-password">
                 </div>
 
                 <div id="login-error"
                     class="hidden p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-400 text-sm"></div>
 
-                <button onclick="handleLogin()" class="w-full py-3 rounded-lg font-bold text-white btn-primary">
+                <button type="submit" class="w-full py-3 rounded-lg font-bold text-white btn-primary">
                     🔓 Login
                 </button>
 
                 <div class="text-center">
-                    <button onclick="showForgotPassword()" class="text-sm text-purple-400 hover:text-purple-300">
+                    <button type="button" onclick="showForgotPassword()" class="text-sm text-purple-400 hover:text-purple-300">
                         Forgot password?
                     </button>
                 </div>
@@ -117,58 +117,58 @@
                 <hr class="border-gray-700 my-4">
 
                 <p class="text-center text-gray-400 text-sm">Don't have an account?</p>
-                <button onclick="showRegisterForm()" class="w-full py-3 rounded-lg font-bold text-white btn-secondary">
+                <button type="button" onclick="showRegisterForm()" class="w-full py-3 rounded-lg font-bold text-white btn-secondary">
                     📝 Create Account
                 </button>
             </div>
-        </div>
+        </form>
 
         <!-- Register Form -->
-        <div id="register-form" class="glass rounded-2xl p-8 hidden">
+        <form id="register-form" class="glass rounded-2xl p-8 hidden" onsubmit="event.preventDefault(); handleRegister();">
             <h2 class="text-xl font-bold text-white mb-6 text-center">Create Account</h2>
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Nickname (Visible to others)</label>
-                    <input type="text" id="register-name" class="w-full px-4 py-3 rounded-lg text-white input-field"
-                        placeholder="Your username">
+                    <label class="block text-sm text-gray-400 mb-1" for="register-name">Nickname (Visible to others)</label>
+                    <input type="text" id="register-name" name="name" class="w-full px-4 py-3 rounded-lg text-white input-field"
+                        placeholder="Your username" autocomplete="nickname">
                 </div>
 
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Email (Login)</label>
-                    <input type="email" id="register-email" class="w-full px-4 py-3 rounded-lg text-white input-field"
-                        placeholder="your@email.com">
+                    <label class="block text-sm text-gray-400 mb-1" for="register-email">Email (Login)</label>
+                    <input type="email" id="register-email" name="email" class="w-full px-4 py-3 rounded-lg text-white input-field"
+                        placeholder="your@email.com" autocomplete="username">
                 </div>
 
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Password</label>
-                    <input type="password" id="register-password"
-                        class="w-full px-4 py-3 rounded-lg text-white input-field" placeholder="Min 6 characters">
+                    <label class="block text-sm text-gray-400 mb-1" for="register-password">Password</label>
+                    <input type="password" id="register-password" name="password"
+                        class="w-full px-4 py-3 rounded-lg text-white input-field" placeholder="Min 6 characters" autocomplete="new-password">
                 </div>
 
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Confirm Password</label>
-                    <input type="password" id="register-confirm"
-                        class="w-full px-4 py-3 rounded-lg text-white input-field" placeholder="••••••••">
+                    <label class="block text-sm text-gray-400 mb-1" for="register-confirm">Confirm Password</label>
+                    <input type="password" id="register-confirm" name="confirm-password"
+                        class="w-full px-4 py-3 rounded-lg text-white input-field" placeholder="••••••••" autocomplete="new-password">
                 </div>
 
                 <div id="register-error"
                     class="hidden p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-400 text-sm"></div>
 
-                <button onclick="handleRegister()" class="w-full py-3 rounded-lg font-bold text-white btn-primary">
+                <button type="submit" class="w-full py-3 rounded-lg font-bold text-white btn-primary">
                     ✨ Create Account
                 </button>
 
                 <hr class="border-gray-700 my-4">
 
-                <button onclick="showLoginForm()" class="w-full py-3 rounded-lg font-bold text-white btn-secondary">
+                <button type="button" onclick="showLoginForm()" class="w-full py-3 rounded-lg font-bold text-white btn-secondary">
                     ← Back to Login
                 </button>
             </div>
-        </div>
+        </form>
 
         <!-- Forgot Password Form -->
-        <div id="forgot-form" class="glass rounded-2xl p-8 hidden">
+        <form id="forgot-form" class="glass rounded-2xl p-8 hidden" onsubmit="event.preventDefault(); handleForgotPassword();">
             <h2 class="text-xl font-bold text-white mb-6 text-center">Reset Password</h2>
 
             <div class="space-y-4">
@@ -177,25 +177,25 @@
                 </p>
 
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Email</label>
-                    <input type="email" id="forgot-email" class="w-full px-4 py-3 rounded-lg text-white input-field"
-                        placeholder="your@email.com">
+                    <label class="block text-sm text-gray-400 mb-1" for="forgot-email">Email</label>
+                    <input type="email" id="forgot-email" name="email" class="w-full px-4 py-3 rounded-lg text-white input-field"
+                        placeholder="your@email.com" autocomplete="email">
                 </div>
 
                 <div id="forgot-message" class="hidden p-3 rounded-lg text-sm"></div>
 
-                <button onclick="handleForgotPassword()"
+                <button type="submit"
                     class="w-full py-3 rounded-lg font-bold text-white btn-primary">
                     📧 Send Reset Link
                 </button>
 
                 <hr class="border-gray-700 my-4">
 
-                <button onclick="showLoginForm()" class="w-full py-3 rounded-lg font-bold text-white btn-secondary">
+                <button type="button" onclick="showLoginForm()" class="w-full py-3 rounded-lg font-bold text-white btn-secondary">
                     ← Back to Login
                 </button>
             </div>
-        </div>
+        </form>
 
         <!-- Loading overlay -->
         <div id="loading-overlay" class="hidden fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50">

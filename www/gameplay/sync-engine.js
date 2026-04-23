@@ -146,46 +146,38 @@ export const SyncEngine = {
 
     /**
      * Download JSON bundle using Firebase Storage SDK (bypasses CORS)
+     * Strategy: SDK first (no CORS issues) -> raw fetch fallback
      */
     async downloadBundle(url) {
         const id = Math.random().toString(36).substring(7);
         console.warn(`[SYNC-${id}] 🔽 START: ${url.substring(0, 60)}...`);
 
+        // Extract storage path from URL for SDK usage
+        let storagePath = null;
         try {
-            console.warn(`[SYNC-${id}] 📡 Downloading via fetch...`);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            const urlObj = new URL(url);
+            const encodedPath = urlObj.pathname.split('/o/')[1];
+            if (encodedPath) {
+                storagePath = decodeURIComponent(encodedPath.split('?')[0]);
+            }
+        } catch (e) {
+            // URL parsing failed, will try raw fetch
+        }
 
+        // STRATEGY 1: Firebase SDK (bypasses CORS entirely)
+        if (storagePath) {
             try {
-                const response = await fetch(url, { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                console.warn(`[SYNC-${id}] ✅ SUCCESS. Items: ${data?.length || 'N/A'}`);
-                return data;
-            } catch (err) {
-                clearTimeout(timeoutId);
-                console.warn(`[SYNC-${id}] ⚠️ Fetch failed: ${err.message}. Trying Firebase SDK fallback...`);
-
-                // Fallback to Firebase Storage SDK
-                const urlObj = new URL(url);
-                const encodedPath = urlObj.pathname.split('/o/')[1];
-                if (!encodedPath) throw new Error('Invalid Storage URL format for fallback');
-                const path = decodeURIComponent(encodedPath.split('?')[0]);
-
+                console.warn(`[SYNC-${id}] 📡 Downloading via Firebase SDK...`);
                 const { ref, getBytes, getStorage } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
                 const { getApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
 
                 let storage;
                 try {
-                    const { getStorageInstance } = await import('./firebase-service.js');
-                    storage = getStorageInstance();
-                } catch(e) {}
-                
+                    // Use the already-initialized storage instance
+                    const mod = await import('../firebase/firebase-service.js');
+                    storage = mod.getStorageInstance();
+                } catch(e) { /* ignore */ }
+
                 if (!storage) {
                     try {
                         const app = getApp();
@@ -195,26 +187,45 @@ export const SyncEngine = {
                     }
                 }
 
-                const fileRef = ref(storage, path);
-                
-                // Add short timeout for fallback
+                const fileRef = ref(storage, storagePath);
+
                 const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('SDK fallback timeout (5s)')), 5000)
+                    setTimeout(() => reject(new Error('SDK timeout (15s)')), 15000)
                 );
 
                 const bytes = await Promise.race([
                     getBytes(fileRef),
                     timeoutPromise
                 ]);
-                
+
                 const text = new TextDecoder().decode(bytes);
                 const data = JSON.parse(text);
                 console.warn(`[SYNC-${id}] ✅ SDK SUCCESS. Items: ${data?.length || 'N/A'}`);
                 return data;
+            } catch (sdkErr) {
+                console.warn(`[SYNC-${id}] ⚠️ SDK failed: ${sdkErr.message}. Trying raw fetch...`);
             }
-        } catch (error) {
-            console.warn(`[SYNC-${id}] ❌ FAILED:`, error.message);
-            throw error;
+        }
+
+        // STRATEGY 2: Raw fetch fallback (works when CORS is configured)
+        try {
+            console.warn(`[SYNC-${id}] 📡 Downloading via fetch...`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.warn(`[SYNC-${id}] ✅ Fetch SUCCESS. Items: ${data?.length || 'N/A'}`);
+            return data;
+        } catch (fetchErr) {
+            console.warn(`[SYNC-${id}] ❌ FAILED:`, fetchErr.message);
+            throw fetchErr;
         }
     },
 

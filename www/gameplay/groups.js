@@ -1,15 +1,16 @@
-﻿// Group System — RTDB-synced real-time groups
+// Group System — RTDB-synced real-time groups
 import { gameState } from '../core/gameState.js';
 import { showNotification, addEventLog } from '../auth-ui/ui-controller.js';
 import {
     createGroupRTDB, inviteToGroup, acceptGroupInviteRTDB,
     leaveGroupRTDB, disbandGroupRTDB, subscribeToGroupRTDB,
-    subscribeToGroupInvites, updatePlayerStatus, getCurrentUser
+    subscribeToGroupInvites, subscribeToGroupDeclines, declineGroupInviteRTDB, updatePlayerStatus, getCurrentUser
 } from '../firebase/firebase-service.js';
 
 const GROUP_COLORS = ['#22c55e']; // Завжди зелений
 let _groupUnsubscribe = null;
 let _inviteUnsubscribe = null;
+let _declineUnsubscribe = null;
 
 // ==================== INIT ====================
 
@@ -19,13 +20,23 @@ export function initGroups() {
 
     // Підписка на запрошення
     _inviteUnsubscribe = subscribeToGroupInvites(charId, handleGroupInvite);
+    _declineUnsubscribe = subscribeToGroupDeclines(charId, handleGroupDecline);
+
+    // Відновлення підписки на активну групу
+    if (gameState.currentGroup && gameState.currentGroup.id) {
+        _subscribeToGroupUpdates(gameState.currentGroup.id);
+    }
+
     console.log('👥 Group system initialized');
 }
 
 export function cleanupGroups() {
     if (_groupUnsubscribe) { _groupUnsubscribe(); _groupUnsubscribe = null; }
     if (_inviteUnsubscribe) { _inviteUnsubscribe(); _inviteUnsubscribe = null; }
+    if (_declineUnsubscribe) { _declineUnsubscribe(); _declineUnsubscribe = null; }
 }
+
+window.addEventListener('beforeunload', cleanupGroups);
 
 // ==================== GROUP CRUD ====================
 
@@ -145,6 +156,13 @@ export async function disbandGroup() {
     showNotification('👥 Group disbanded', 'info');
 }
 
+export async function declineGroupInvite(groupId, inviterCharId) {
+    const myCharId = window._currentCharacterId;
+    if (!myCharId) return;
+    
+    await declineGroupInviteRTDB(groupId, myCharId, inviterCharId);
+}
+
 // ==================== GROUP PROXIMITY CHECK ====================
 
 /**
@@ -259,13 +277,32 @@ function _cleanupLocalGroup() {
 function handleGroupInvite(invite) {
     if (!invite || !invite.groupId) return;
 
+    // Якщо гравець вже в групі, автоматично відхиляємо нові запрошення
+    if (gameState.currentGroup) {
+        console.log(`👥 Auto-declining invite from ${invite.inviterName} because already in a group`);
+        declineGroupInvite(invite.groupId, invite.inviterCharId);
+        return;
+    }
+
     // Показати діалог запрошення
     if (window.showGroupInviteDialog) {
-        window.showGroupInviteDialog(invite.groupId, invite.inviterName, invite.groupColor);
+        window.showGroupInviteDialog(invite.groupId, invite.inviterName, invite.groupColor, invite.inviterCharId);
     } else {
         // Фолбек — автоприйняття для тестування
         console.log(`👥 Group invite from ${invite.inviterName} — auto-accepting`);
         acceptGroupInvite(invite.groupId);
+    }
+}
+
+function handleGroupDecline(declineData) {
+    if (gameState.currentGroup && gameState.currentGroup.id === declineData.groupId) {
+        const membersCount = Object.keys(gameState.currentGroup.members || {}).length;
+        showNotification('❌ Group invite was declined', 'warning');
+        
+        // Return game to original state if only leader was in group
+        if (membersCount < 2) {
+            disbandGroup();
+        }
     }
 }
 
@@ -308,3 +345,4 @@ window.invitePlayerToGroup = invitePlayerToGroup;
 window.acceptGroupInvite = acceptGroupInvite;
 window.leaveGroup = leaveGroup;
 window.disbandGroup = disbandGroup;
+window.declineGroupInvite = declineGroupInvite;

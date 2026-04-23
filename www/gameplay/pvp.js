@@ -1,4 +1,4 @@
-﻿
+
 import { gameState } from '../core/gameState.js';
 import { subscribeToPlayers, loadPlayerDataById } from '../firebase/firebase-service.js';
 import { showPreCombatDialog, startCombat } from './combat.js';
@@ -234,7 +234,7 @@ function showBattleRequestDialog(data, amIAttacker) {
         footer.innerHTML = `
             <button onclick="onBattleAction('cancel')" id="btn-pvp-cancel"
                 class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold transition-all">
-                ❌ Скасувати (Cancel)
+                ❌ Cancel
             </button>
         `;
     } else {
@@ -297,7 +297,7 @@ export async function onBattleAction(action) {
         // Just cancel the request, no penalty for the attacker
         updateBattleRequestStatus(activeBattleRequestId, { status: 'cancelled' });
         closeBattleDialog();
-        showNotification("Запит скасовано.", "info");
+        showNotification("Request cancelled.", "info");
     }
     else if (action === 'fight') {
         // Disable button
@@ -405,7 +405,7 @@ export function showPlayerInteractionMenu(targetUserId, targetCharId, name, leve
     
     const challengeDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-red-500';
     const inviteDisabled = isSameGroup ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:bg-cyan-500';
-    const sameGroupNote = isSameGroup ? `<div class="text-sm text-cyan-300 text-center mb-4">👥 В вашій групі</div>` : '';
+    const sameGroupNote = isSameGroup ? `<div class="text-sm text-cyan-300 text-center mb-4">👥 In your group</div>` : '';
 
     modal.innerHTML = `
         <div class="menu-panel rounded-2xl p-6 w-full max-w-sm relative text-center border border-gray-700 bg-gray-900 shadow-2xl">
@@ -421,10 +421,10 @@ export function showPlayerInteractionMenu(targetUserId, targetCharId, name, leve
             
             <div class="flex flex-col gap-3">
                 <button id="btn-interaction-challenge" class="py-3 bg-red-600 ${challengeDisabled} text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2" ${isSameGroup ? 'disabled' : ''}>
-                    <span class="text-xl">⚔️</span> Напасти
+                    <span class="text-xl">⚔️</span> Attack
                 </button>
                 <button id="btn-interaction-invite" class="py-3 bg-cyan-600 ${inviteDisabled} text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2" ${isSameGroup ? 'disabled' : ''}>
-                    <span class="text-xl">👥</span> Запросити в групу
+                    <span class="text-xl">👥</span> Invite to Group
                 </button>
             </div>
         </div>

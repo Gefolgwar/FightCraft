@@ -1,4 +1,4 @@
-﻿// Main application initialization
+// Main application initialization
 import { gameState, updatePlayer, setStaticMonsters, getStaticMonsters, STATIC_MONSTER_KEY, recalculateStats } from './gameState.js';
 import { ITEMS_DB, MONSTER_LIBRARY, CITY_ANCHORS } from '../gameplay/data.js';
 import { initFirebase, savePlayerToCloud, loadPlayerFromCloud, getCurrentUser, subscribeToPlayersRTDB, saveCharacter, getCharacter, logout, subscribeToSpawnedObjects, registerPlayerInRTDB } from '../firebase/firebase-service.js';
@@ -134,7 +134,7 @@ async function init() {
             console.log('🔄 Found active PvP battle in localStorage:', savedBattleId);
             _pendingPvPReconnect = savedBattleId;
         }
-    } catch(e) {}
+    } catch (e) { }
 
     await registerPlayerInRTDB(gameState.player.position.lat, gameState.player.position.lng);
     console.log('📡 Player registered in RTDB');
@@ -444,8 +444,21 @@ window.startGameWithCharacter = async function (characterId, data) {
         localStorage.removeItem(STATIC_MONSTER_KEY);
         loadStaticMonsters();
         renderStaticMonsters();
+
+        // Start World Sync (renders spawned objects on map)
+        setupWorldSync();
+
         initPvP();
         initKingdom();
+
+        // Initialize Groups & Arenas
+        const { initGroups } = await import('../gameplay/groups.js');
+        initGroups();
+
+        const { subscribeToArenas } = await import('../firebase/firebase-service.js');
+        subscribeToArenas((arenasData) => {
+            updateArenas(arenasData);
+        });
     }
 
     const p = recalculateStats();

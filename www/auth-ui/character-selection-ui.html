@@ -26,47 +26,47 @@
             </button>
 
             <!-- Create Form (hidden by default) -->
-            <div id="char-create-form" class="hidden menu-panel rounded-xl p-4 space-y-3">
+            <form id="char-create-form" class="hidden menu-panel rounded-xl p-4 space-y-3" onsubmit="event.preventDefault(); createNewCharacter();">
                 <h3 class="font-bold text-purple-300">Create Character</h3>
-                <input type="text" id="char-name-input" placeholder="Character name" maxlength="20"
-                    class="w-full px-3 py-2 bg-gray-800 border border-purple-900 rounded-lg focus:border-purple-500 outline-none">
+                <input type="text" id="char-name-input" name="char-name" placeholder="Character name" maxlength="20"
+                    class="w-full px-3 py-2 bg-gray-800 border border-purple-900 rounded-lg focus:border-purple-500 outline-none" autocomplete="off">
 
                 <!-- Avatar Selection -->
                 <div>
                     <p class="text-sm text-gray-400 mb-2">Choose avatar:</p>
                     <div class="grid grid-cols-6 gap-2">
-                        <button onclick="selectAvatar('🧙')"
+                        <button type="button" onclick="selectAvatar('🧙')"
                             class="avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 border-transparent"
                             data-avatar="🧙">🧙</button>
-                        <button onclick="selectAvatar('⚔️')"
+                        <button type="button" onclick="selectAvatar('⚔️')"
                             class="avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 border-transparent"
                             data-avatar="⚔️">⚔️</button>
-                        <button onclick="selectAvatar('🛡️')"
+                        <button type="button" onclick="selectAvatar('🛡️')"
                             class="avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 border-transparent"
                             data-avatar="🛡️">🛡️</button>
-                        <button onclick="selectAvatar('🏹')"
+                        <button type="button" onclick="selectAvatar('🏹')"
                             class="avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 border-transparent"
                             data-avatar="🏹">🏹</button>
-                        <button onclick="selectAvatar('🧝')"
+                        <button type="button" onclick="selectAvatar('🧝')"
                             class="avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 border-transparent"
                             data-avatar="🧝">🧝</button>
-                        <button onclick="selectAvatar('🧛')"
+                        <button type="button" onclick="selectAvatar('🧛')"
                             class="avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 border-transparent"
                             data-avatar="🧛">🧛</button>
                     </div>
                 </div>
 
                 <div class="flex gap-2">
-                    <button onclick="createNewCharacter()"
+                    <button type="submit"
                         class="flex-1 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold">
                         ✅ Create
                     </button>
-                    <button onclick="hideCreateCharacterForm()"
+                    <button type="button" onclick="hideCreateCharacterForm()"
                         class="flex-1 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg">
                         Cancel
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
 
         <!-- Error Message -->

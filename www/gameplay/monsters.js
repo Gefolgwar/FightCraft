@@ -165,7 +165,7 @@ export function saveStaticMonsters() {
         const monsters = getStaticMonsters();
         localStorage.setItem(STATIC_MONSTER_KEY, JSON.stringify(monsters));
     } catch (err) {
-        console.warn('⚠️ Неможливо зберегти монстрів у localStorage (перевищено ліміт). Дані будуть згенеровані знову при наступному запуску.', err);
+        console.warn('⚠️ Cannot save monsters to localStorage (quota exceeded). Data will be generated again on next launch.', err);
     }
 }
 

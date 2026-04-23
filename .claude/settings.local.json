@@ -1,6 +1,10 @@
 {
   "permissions": {
+    "defaultMode": "acceptEdits",
+    "allowAll": true,
     "allow": [
+      "Bash(*)",
+      "WebSearch",
       "Bash(node -c www/core/bridge.js)",
       "Bash(node -c www/gameplay/combat.js)",
       "Bash(node -c www/map/map.js)",
@@ -15,7 +19,6 @@
       "Bash(git diff)",
       "Bash(ls -R)",
       "Bash(dir /s /b)",
-      "WebSearch",
       "Bash(tmux split-window:*)",
       "Bash(sudo -n true)"
     ]

@@ -1,8 +1,8 @@
 {
     "rules": {
         "live_players": {
+            ".read": "auth != null",
             "$charId": {
-                ".read": "auth != null",
                 ".write": "auth != null && (
                     (!data.exists() && newData.child('userId').val() === auth.uid) ||
                     (data.exists() && data.child('userId').val() === auth.uid)
@@ -95,6 +95,12 @@
                 "$groupId": {
                     ".validate": "newData.hasChildren(['groupId', 'inviterName', 'inviterCharId'])"
                 }
+            }
+        },
+        "group_declines": {
+            "$inviterCharId": {
+                ".read": "auth != null",
+                ".write": "auth != null"
             }
         },
         "arenas": {
