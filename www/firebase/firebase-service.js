@@ -1536,6 +1536,7 @@ export async function saveWorldSnapshot(snapshotData) {
 
         // Remove the id from data if it's there to avoid overlap issues
         const { id: _, ...cleanedData } = snapshotData;
+        cleanedData.isActive = false; // Initialize as inactive
 
         // Check for total size (approximate)
         const sizeApprox = JSON.stringify(cleanedData).length;
@@ -1626,7 +1627,7 @@ export async function getSnapshotById(id) {
     }
 }
 
-export async function applyWorldSnapshot(snapshotId, merge = false) {
+export async function applyWorldSnapshot(snapshotId) {
     if (!isAdmin()) return false;
 
     // 1. Get Snapshot
@@ -1636,30 +1637,79 @@ export async function applyWorldSnapshot(snapshotId, merge = false) {
     const { cityId, type, objects } = snap;
     if (!cityId || !type || !objects) return false;
 
-    // 2. Clear Live Data (Only if NOT merging)
-    if (!merge) {
-        console.log(`ðŸ§¹ Cleaning up existing ${type}s in ${cityId}...`);
-        // For mixed templates, we clear all categories. For others, only the specific one.
-        if (type === 'mixed') {
-            await clearLocationObjects(cityId, 'monster');
-            await clearLocationObjects(cityId, 'shop');
-            await clearLocationObjects(cityId, 'castle');
-        } else {
-            await clearLocationObjects(cityId, type);
-        }
-    } else {
-        console.log(`âž• Merging: Skipping cleanup, appending ${objects.length} objects.`);
-    }
+    console.log(`➕ Activating template: adding ${objects.length} objects.`);
+
+    // 2. Inject sourceTemplateId into objects
+    const taggedObjects = objects.map(obj => ({
+        ...obj,
+        sourceTemplateId: snapshotId
+    }));
 
     // 3. Save Objects to Live
-    return await saveGeneratedObjects(objects);
+    const success = await saveGeneratedObjects(taggedObjects);
+    
+    if (success) {
+        // 4. Mark snapshot as active
+        try {
+            const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            await updateDoc(doc(db, 'world_snapshots', snapshotId), { isActive: true });
+        } catch (e) {
+            console.error("Failed to update isActive flag on snapshot", e);
+        }
+    }
+    
+    return success;
+}
+
+export async function deactivateWorldSnapshot(snapshotId) {
+    if (!isAdmin()) return false;
+    try {
+        const { collection, query, where, getDocs, writeBatch, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        // 1. Find all live objects that belong to this template
+        const q = query(collection(db, 'spawned_objects'), where('sourceTemplateId', '==', snapshotId));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+            console.log(`🧹 Removing ${querySnapshot.size} objects for template ${snapshotId}...`);
+            let batch = writeBatch(db);
+            let count = 0;
+            
+            for (const document of querySnapshot.docs) {
+                batch.delete(document.ref);
+                count++;
+                if (count % 500 === 0) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                }
+            }
+            if (count % 500 !== 0) await batch.commit();
+        }
+        
+        // 2. Mark snapshot as inactive
+        await updateDoc(doc(db, 'world_snapshots', snapshotId), { isActive: false });
+        console.log(`✅ Template ${snapshotId} deactivated.`);
+        return true;
+    } catch (e) {
+        console.error('Error deactivating snapshot:', e);
+        return false;
+    }
 }
 
 export async function deleteSnapshot(snapshotId) {
     if (!isAdmin()) return false;
     try {
-        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        await deleteDoc(doc(db, 'world_snapshots', snapshotId));
+        const { doc, getDoc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const snapRef = doc(db, 'world_snapshots', snapshotId);
+        
+        // Safety check: Deactivate before delete
+        const snapDoc = await getDoc(snapRef);
+        if (snapDoc.exists() && snapDoc.data().isActive === true) {
+            console.log(`⚠️ Snapshot ${snapshotId} is active. Deactivating first...`);
+            await deactivateWorldSnapshot(snapshotId);
+        }
+        
+        await deleteDoc(snapRef);
         trackUsage('delete', `[admin] [видалення знімку світу: ${snapshotId}]`, 1, `world_snapshots/${snapshotId}`);
         console.log(`ðŸ—‘ï¸ Snapshot deleted: ${snapshotId}`);
         return true;
