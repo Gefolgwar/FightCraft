@@ -1,8 +1,11 @@
+import { requireAdmin } from './admin-core.js';
+import { BulkActions } from './template-bulk-actions.js';
 import { getTemplates, saveTemplate, deleteTemplate, saveWorldSnapshot, getWorldSnapshots, getSnapshotById, isAdmin, getCurrentUser, initFirebase } from '../firebase/firebase-service.js';
 import { CITY_ANCHORS } from '../gameplay/data.js';
 import { generateCityTerritory } from '../map/territory-service.js';
 import { saveCityZones } from '../firebase/firebase-service.js';
 import { OverpassService } from '../map/overpass-service.js';
+import { generateCitadelsAndZones } from './admin-citadel-generator.js';
 
 let templates = [];
 let currentEditId = null;
@@ -11,20 +14,7 @@ let generatedCount = new Map(); // Stores Template ID -> Count of spawned entiti
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Firebase Auth & Role Sync first
-    await initFirebase();
-
-    // Check Status
-    if (!isAdmin()) {
-        document.getElementById('admin-lock').classList.remove('hidden');
-    } else {
-        document.getElementById('admin-lock').classList.add('hidden');
-        document.getElementById('admin-panel').classList.remove('hidden');
-        const user = getCurrentUser();
-        if (user) {
-            document.getElementById('admin-status').innerHTML = `<span class="text-orange-400">● Online (${user.email})</span>`;
-        }
-
+    await requireAdmin(async () => {
         // Delay heavy lifting to prevent freeze
         setTimeout(async () => {
             console.log("🚀 Starting Template Load...");
@@ -50,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => {
             if (window.loadWorldSnapshots) window.loadWorldSnapshots();
         }, 2000);
-    }
+    }, { colorClass: 'text-orange-400' });
 });
 
 // ==================== TEMPLATE MANAGEMENT ====================
@@ -159,6 +149,8 @@ window.loadWorldSnapshots = async function () {
     }
 }
 
+const bulk = new BulkActions(deleteTemplate, loadTemplates);
+
 window.renderTemplateList = function () {
     const list = document.getElementById('template-list');
     if (!list) return;
@@ -166,13 +158,16 @@ window.renderTemplateList = function () {
     const search = document.getElementById('template-search')?.value.toLowerCase() || "";
     list.innerHTML = '';
 
-    templates.forEach(t => {
-        // Filter by search and only show Citadel-like templates
+    // Filter to only citadel-type templates
+    const visible = templates.filter(t => {
         const isMatch = t.name.toLowerCase().includes(search) || t.osmTag?.toLowerCase().includes(search);
         const isCitadel = t.name.includes("Citadel") || t.name.includes("Fortress") || t.icon === "🏯";
+        return isMatch && isCitadel;
+    });
 
-        if (!isMatch || !isCitadel) return;
+    bulk.injectSelectAllHeader(list, visible.map(t => t.id));
 
+    visible.forEach(t => {
         const el = document.createElement('div');
         const isActive = activeRules.has(t.id);
         const activeClass = isActive ? 'border-orange-500 bg-orange-900/20' : 'border-gray-700 hover:border-orange-500';
@@ -196,9 +191,11 @@ window.renderTemplateList = function () {
                 </button>
             </div>
         `;
+        // Prepend bulk checkbox
+        el.querySelector('.flex.items-center.gap-2').prepend(bulk.createCheckbox(t.id));
 
         el.addEventListener('click', (e) => {
-            if (!e.target.closest('button')) {
+            if (!e.target.closest('button') && !e.target.closest('input[type=checkbox]')) {
                 toggleMappingRule(t.id);
             }
         });
@@ -372,7 +369,6 @@ window.startGeneration = async (overwrite = false) => {
     let existingObjects = [];
     let preservedCitadels = [];
 
-    // Mode Logging
     logConsole(overwrite ? "🗑️ Mode: Create / Delete + Create (Fresh Start)" : "➕ Mode: Add to Existing");
 
     if (targetTemplateId === 'new') {
@@ -386,18 +382,12 @@ window.startGeneration = async (overwrite = false) => {
 
         if (existingSnap && existingSnap.objects) {
             existingObjects = existingSnap.objects;
-
-            // Logic for 'Overwrite' vs 'Add'
             if (overwrite) {
-                // Remove ALL old citadels, keep other objects (monsters, shops)
-                // Filter OUT anything that looks like a citadel
                 existingObjects = existingObjects.filter(o => {
-                    const isCitadel = o.icon === '🏯' || (o.name && o.name.includes('Citadel')) || (o.templateId && o.templateId.includes('citadel'));
-                    return !isCitadel;
+                    return !(o.icon === '🏯' || (o.name && o.name.includes('Citadel')) || (o.templateId && o.templateId.includes('citadel')));
                 });
                 logConsole(`🧹 Cleared old citadels. Retaining ${existingObjects.length} other objects.`);
             } else {
-                // Keep everything, but separate existing Citadels for logic
                 preservedCitadels = existingObjects.filter(o =>
                     o.icon === '🏯' || (o.name && o.name.includes('Citadel')) || (o.templateId && o.templateId.includes('citadel'))
                 );
@@ -406,306 +396,40 @@ window.startGeneration = async (overwrite = false) => {
         }
     }
 
-    logConsole(`📡 Connecting to Overpass API for citadels in ${city.name}...`);
-
-    // Step 1: Resolve Area ID
-    // Step 1: Resolve Area ID using unified Context Fetcher (Matches Visualization)
-    let areaId = null;
-    let cityRelId = null;
-    let cityBoundary = null; // Will store the GeoJSON for filtering
-
     try {
-        logConsole(`🔎 Resolving strict administrative boundaries for ${city.name} (Unified Context)...`);
-        const ctx = await OverpassService.fetchCityContext(city.name, { lat: city.lat, lng: city.lng }, { includeDistricts: false });
+        logConsole(`🔎 Fetching and generating citadels via shared service...`);
+        const { finalCitadels, zonesGeoJson, cityBoundary } = await generateCitadelsAndZones(cityKey, capacity, templates, activeRules);
 
-        if (ctx.boundaryId) {
-            cityRelId = ctx.boundaryId;
-            areaId = 3600000000 + cityRelId;
-            logConsole(`🎯 Selected boundary: ${city.name} [ID: ${cityRelId}]`);
-
-            // Construct GeoJSON from rings for Filtering
-            if (ctx.boundary) {
-                // Ensure Turf is loaded
-                if (!window.turf && !window.Turf) {
-                    logConsole(`⏳ Loading Turf.js...`);
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = "https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js";
-                        script.onload = () => {
-                            if (window.turf || window.Turf) resolve();
-                            else reject(new Error("Turf script loaded but global object missing"));
-                        };
-                        script.onerror = () => reject(new Error("Failed to load Turf.js"));
-                        document.head.appendChild(script);
-                    });
-                }
-                const turf = window.turf || window.Turf;
-                if (!turf) throw new Error("Turf.js is not initialized");
-
-                // const { getCleanCityMask } = await import('../map/territory-service.js'); // Not used for strict filtering
-                // ctx.boundary is array of rings [lon, lat]
-                let rawGeo = null;
-                try {
-                    // Normalize: Always treat as MultiPolygon for robustness with disjoint islands
-                    // ctx.boundary is [ Ring1, Ring2, ... ] where each ring is [[lon, lat], ...]
-                    rawGeo = turf.multiPolygon(ctx.boundary.map(r => [r]));
-
-                    // CRITICAL: buffer(0) fixes self-intersections and other topological errors
-                    // that often cause booleanPointInPolygon to return incorrect results.
-                    cityBoundary = turf.buffer(rawGeo, 0);
-
-                    logConsole(`🏙️ High-Def boundary loaded [ID: ${cityRelId}]. Poly contains ${ctx.boundary.length} rings.`);
-                } catch (geoErr) {
-                    console.error("Boundary conversion failed:", geoErr);
-                    logConsole(`❌ Geometry error: ${geoErr.message}`);
-                }
-            }
-        } else {
-            logConsole(`⚠️ No administrative boundary found. Using simple radius fallback.`);
-        }
-    } catch (err) {
-        logConsole(`⚠️ Boundary resolution failed: ${err.message}`);
-    }
-
-    let queryFilters = "";
-    activeRules.forEach((weight, id) => {
-        if (weight <= 0) return;
-        const t = templates.find(temp => temp.id === id);
-        if (!t || !t.osmTag) return;
-
-        t.osmTag.split(';').forEach(tagSet => {
-            const trimmed = tagSet.trim();
-            if (!trimmed) return;
-            const isRegex = trimmed.includes('~');
-            const parts = trimmed.split(/[=~]/);
-            const key = parts[0].trim();
-            const val = parts[1] ? parts[1].trim() : '';
-            const op = isRegex ? '~' : '=';
-            let tagPart = (val && val !== '*') ? `["${key}"${op}"${val}"]` : `["${key}"]`;
-
-            // CRITICAL: If searching for boundaries, exclude high-level ones (countries/states)
-            // This prevents catching "Deutschland" or "Bayern" as a point-of-interest
-            if (key === 'boundary' || val === 'administrative') {
-                tagPart += '["admin_level"!~"^[1234567]$"]';
-            }
-
-            // Use Area filter if available, otherwise radius
-            if (areaId) {
-                queryFilters += `nwr${tagPart}(area:${areaId});\n`;
-            } else {
-                queryFilters += `nwr${tagPart}(around:15000,${city.lat},${city.lng});\n`;
-            }
-        });
-    });
-
-    if (!queryFilters) return logConsole('⚠️ No active rules.');
-
-    try {
-        const query = `[out:json][timeout:60]; (\n${queryFilters}); out center;`;
-        const data = await OverpassService.fetchJSON(query);
-
-        let processedCitadels = processNodesCitadel(data.elements, cityKey);
-        logConsole(`✅ Received ${processedCitadels.length} raw POIs from chosen area.`);
-
-        // --- UNIFORM DISTRIBUTION (FPS + SYNTHETIC FILLING) ---
-        logConsole(`🔄 Optimizing distribution for ${capacity} foundation points...`);
-
-        // Load Boundary Geometry for Filtering and Synthetic checks
-        // Load Boundary Geometry - ALREADY DONE ABOVE
-        if (cityBoundary) {
-            // Already loaded via fetchCityContext
-        } else if (cityRelId) {
-            // Fallback if fetchCityContext failed to populate boundary but gave ID
-            // ...existing logic skipped for cleaner flow
-        }
-
-        // STRICT FILTER: Remove any real POIs that are outside the precise administrative boundary
-        if (cityBoundary && window.turf) {
-            const initialCount = processedCitadels.length;
-            processedCitadels = processedCitadels.filter(c => {
-                try {
-                    return window.turf.booleanPointInPolygon([c.lng, c.lat], cityBoundary);
-                } catch (e) {
-                    return false;
-                }
-            });
-            const removed = initialCount - processedCitadels.length;
-            logConsole(`🧹 Filtered out ${removed} real-world POIs outside the strict city boundary.`);
-        }
-
-        // If we have fewer POIs than capacity, or they are too clustered, we fill with synthetic points
-        if (processedCitadels.length < capacity) {
-            logConsole(`✨ Supplementing with ${capacity - processedCitadels.length} synthetic points for uniform coverage...`);
-
-            // Use precise BBox of the boundary for synthetic range
-            let cityBounds;
-            if (cityBoundary && window.turf) {
-                const maskBbox = window.turf.bbox(cityBoundary);
-                cityBounds = {
-                    minLng: maskBbox[0], minLat: maskBbox[1],
-                    maxLng: maskBbox[2], maxLat: maskBbox[3]
-                };
-            } else {
-                cityBounds = {
-                    minLat: city.lat - 0.15, maxLat: city.lat + 0.15,
-                    minLng: city.lng - 0.25, maxLng: city.lng + 0.25
-                };
-            }
-
-            let attempts = 0;
-            while (processedCitadels.length < capacity && attempts < 1000) {
-                attempts++;
-                const lat = cityBounds.minLat + Math.random() * (cityBounds.maxLat - cityBounds.minLat);
-                const lng = cityBounds.minLng + Math.random() * (cityBounds.maxLng - cityBounds.minLng);
-
-                // Check if point is inside city boundary
-                let isInside = true;
-                if (cityBoundary && window.turf) {
-                    isInside = window.turf.booleanPointInPolygon([lng, lat], cityBoundary);
-                }
-
-                if (isInside) {
-                    processedCitadels.push({
-                        type: 'castle', cityId: cityKey, lat, lng,
-                        templateId: 'synthetic_citadel',
-                        name: `Point ${processedCitadels.length + 1}`,
-                        icon: "🏯", level: 15, hp: 3000, maxHp: 3000
-                    });
-                }
-            }
-        }
-
-        let finalCitadels = [];
-        if (processedCitadels.length > capacity) {
-            const selected = [];
-            const candidates = [...processedCitadels];
-
-            const firstIdx = 0; // Start with the first real POI (usually most important)
-            selected.push(candidates[firstIdx]);
-            candidates.splice(firstIdx, 1);
-
-            const distCache = new Array(candidates.length).fill(Infinity);
-            const getDistSq = (a, b) => (a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2;
-
-            while (selected.length < capacity && candidates.length > 0) {
-                const lastAdded = selected[selected.length - 1];
-                let maxDist = -1;
-                let bestIdx = -1;
-
-                for (let i = 0; i < candidates.length; i++) {
-                    const d = getDistSq(candidates[i], lastAdded);
-                    if (d < distCache[i]) distCache[i] = d;
-                    if (distCache[i] > maxDist) {
-                        maxDist = distCache[i];
-                        bestIdx = i;
-                    }
-                }
-
-                if (bestIdx !== -1) {
-                    selected.push(candidates[bestIdx]);
-                    candidates.splice(bestIdx, 1);
-                    distCache.splice(bestIdx, 1);
-                } else break;
-            }
-            finalCitadels = selected;
-        } else {
-            finalCitadels = processedCitadels;
-        }
-
-        // Additive Save: Merge logic is now handled upfront
-        // existingObjects already contains what we want to keep (based on overwrite flag)
-        const mergedObjects = [...existingObjects, ...finalCitadels];
-
-        // Recalculate Territories (Voronoi) using ALL citadels (preserved + new)
         let allCitadelsForZones = [...preservedCitadels, ...finalCitadels];
 
-        // --- FINAL RESTRAINT: Strict Filter against cleaned mask (with safety margin) ---
-        if (cityBoundary && window.turf) {
-            const initialAllCount = allCitadelsForZones.length;
-            // Shrink boundary by -10m to avoid precision artifacts at the edge
-            try {
-                const safetyMask = window.turf.buffer(cityBoundary, -0.01, { units: 'kilometers' });
-                allCitadelsForZones = allCitadelsForZones.filter(c =>
-                    window.turf.booleanPointInPolygon([c.lng, c.lat], safetyMask)
-                );
-                const lost = initialAllCount - allCitadelsForZones.length;
-                if (lost > 0) logConsole(`🛡️ Strictly enforced city boundary: Removed ${lost} leaking citadels.`);
-            } catch (e) { console.warn("Safety filter failed, using original mask."); }
-        }
+        // Final filter against preserved if needed, or re-run territory gen to merge preserved citadels
+        if (preservedCitadels.length > 0) {
+            // Re-run strictly
+            const finalZonesGeoJson = await generateCityTerritory(cityKey, allCitadelsForZones, null, cityBoundary);
 
-        // Additive Save: Update final merged objects to match filtered list
-        const finalSavedObjects = [...existingObjects, ...allCitadelsForZones.filter(c => !preservedCitadels.includes(c))];
-
-        // Fetch Boundary Geometry for Clipping (if not already fetched)
-        let cityBoundaryGeoJson = cityBoundary;
-
-        logConsole(`📍 Calculating foundation territories (Voronoi) for ${allCitadelsForZones.length} citadels...`);
-        // Pass the fetched boundary geometry as rawMask
-        const zonesGeoJson = await generateCityTerritory(cityKey, allCitadelsForZones, null, cityBoundaryGeoJson);
-
-        const snapshotData = {
-            id: finalId,
-            name: snapName,
-            cityId: cityKey,
-            type: 'mixed',
-            objects: finalSavedObjects,
-            zones: JSON.stringify(zonesGeoJson)
-        };
-
-        logConsole(`💾 Saving Snap & Territories...`);
-        const success = await saveWorldSnapshot(snapshotData);
-        if (success) {
+            const finalSavedObjects = [...existingObjects, ...finalCitadels];
+            await saveWorldSnapshot({
+                id: finalId, name: snapName, cityId: cityKey, type: 'mixed',
+                objects: finalSavedObjects, zones: JSON.stringify(finalZonesGeoJson)
+            });
+            await saveCityZones(cityKey, finalZonesGeoJson);
+        } else {
+            const finalSavedObjects = [...existingObjects, ...finalCitadels];
+            await saveWorldSnapshot({
+                id: finalId, name: snapName, cityId: cityKey, type: 'mixed',
+                objects: finalSavedObjects, zones: JSON.stringify(zonesGeoJson)
+            });
             await saveCityZones(cityKey, zonesGeoJson);
-            logConsole(`✅ Foundation & Territories Updated!`);
-            await window.loadWorldSnapshots();
-            alert(`Generation successful!\n- ${finalCitadels.length} Citadels created\n- ${zonesGeoJson.features.length} Zones defined`);
         }
+
+        logConsole(`✅ Foundation & Territories Updated!`);
+        await window.loadWorldSnapshots();
+        alert(`Generation successful!\n- ${finalCitadels.length} Citadels created`);
 
     } catch (e) {
         logConsole(`❌ Generation Error: ${e.message}`);
     }
 };
-
-function processNodesCitadel(nodes, cityId) {
-    const city = CITY_ANCHORS.find(c => c.id === cityId);
-    const results = [];
-    nodes.forEach(node => {
-        const lat = node.lat || (node.center && node.center.lat);
-        const lng = node.lon || (node.center && node.center.lon);
-        if (!lat || !lng) return;
-
-        // Safety Filter: Ignore points too far from city center (>30km)
-        // This stops "Deutschland" or other global relations that might bypass Overpass area filters
-        if (city) {
-            const dist = Math.sqrt(Math.pow(lat - city.lat, 2) + Math.pow(lng - city.lng, 2));
-            if (dist > 0.3) return; // ~33km approx
-        }
-
-        let bestMatch = null;
-        for (const t of templates) {
-            if (!activeRules.has(t.id)) continue;
-            // For foundation points, we prioritize the first active Citadel template
-            if (t.name.includes("Citadel") || t.icon === "🏯") {
-                bestMatch = t;
-                break;
-            }
-        }
-
-        if (bestMatch) {
-            results.push({
-                type: 'castle', cityId, lat, lng,
-                templateId: bestMatch.id,
-                name: node.tags.name || bestMatch.name,
-                icon: bestMatch.icon,
-                level: bestMatch.level || 15,
-                hp: (bestMatch.level || 15) * 200,
-                maxHp: (bestMatch.level || 15) * 200,
-                realWorldId: node.id
-            });
-        }
-    });
-    return results;
-}
 
 function logConsole(msg) {
     const con = document.getElementById('console-log');
