@@ -80,6 +80,9 @@
                             <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1 shadow" id="toggle-status-knob"></span>
                         </button>
                     </div>
+                    <button id="btn-force-state" onclick="window.forceCurrentSnapshotState()" class="hidden w-full py-1 text-gray-400 hover:text-white text-[10px] flex items-center justify-center gap-1 hover:bg-gray-800 rounded transition mt-0.5">
+                        <i class="fas fa-check-double"></i> Mark as Active (No Spawn)
+                    </button>
                     <button id="btn-delete-snap" onclick="deleteCurrentSnapshot()" disabled
                         class="w-full py-1 text-red-400 hover:text-red-300 text-[10px] opacity-50 cursor-not-allowed flex items-center justify-center gap-1 hover:bg-red-900/20 rounded transition mt-1">
                         <i class="fas fa-trash-alt"></i> Delete Template
@@ -165,7 +168,7 @@
 
     <!-- Scripts -->
     <script type="module">
-        import { initFirebase, isAdmin, getCurrentUser, getWorldSnapshots, getSnapshotById, applyWorldSnapshot, deactivateWorldSnapshot, deleteSnapshot } from '../firebase/firebase-service.js';
+        import { initFirebase, isAdmin, getCurrentUser, getWorldSnapshots, getSnapshotById, applyWorldSnapshot, deactivateWorldSnapshot, deleteSnapshot, forceSnapshotActiveState } from '../firebase/firebase-service.js';
         import { CITY_ANCHORS } from '../gameplay/data.js';
         import { OverpassService } from './overpass-service.js';
         import { regenerateCityTerritory, getTerritoryZones } from './territory-service.js';
@@ -691,6 +694,13 @@
             const btnDel = document.getElementById('btn-delete-snap');
             btnDel.disabled = false;
             btnDel.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            const btnForce = document.getElementById('btn-force-state');
+            if (!snap.isActive) {
+                btnForce.classList.remove('hidden');
+            } else {
+                btnForce.classList.add('hidden');
+            }
 
             logConsole(`📁 Loading template: <b>${snap.name || snap.id}</b> (${snap.objects?.length || 0} objects)`);
             renderSnapshotOnMap(snap);
@@ -1251,6 +1261,40 @@
             loadSnapshots(); // refresh the sidebar list to update badges
         };
 
+        window.forceCurrentSnapshotState = async () => {
+            if (!currentSnapshot) return;
+
+            const btn = document.getElementById('btn-force-state');
+            btn.classList.add('opacity-50', 'cursor-wait');
+            btn.disabled = true;
+
+            try {
+                if (!confirm(`Mark template "${currentSnapshot.name || currentSnapshot.id}" as ACTIVE without spawning objects?\n\nUse this only if the objects are already on the map, but the UI says INACTIVE.`)) {
+                    btn.classList.remove('opacity-50', 'cursor-wait');
+                    btn.disabled = false;
+                    return;
+                }
+
+                const statusText = document.getElementById('toggle-status-text');
+                statusText.textContent = "UPDATING...";
+
+                const success = await forceSnapshotActiveState(currentSnapshot.id, true);
+                if (success) {
+                    currentSnapshot.isActive = true;
+                    logConsole(`✅ Manually marked template active: ${currentSnapshot.name || currentSnapshot.id}`);
+                }
+            } catch (e) {
+                console.error("Force state error:", e);
+                logConsole(`❌ Error forcing template state: ${e.message}`);
+            }
+
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-wait');
+
+            selectSnapshot(currentSnapshot);
+            loadSnapshots();
+        };
+
         window.deleteCurrentSnapshot = async () => {
             if (!currentSnapshot) return;
             if (!confirm(`Delete template "${currentSnapshot.name || currentSnapshot.id}"?\n\nThis action cannot be undone.`)) return;
@@ -1277,6 +1321,7 @@
                 document.getElementById('btn-toggle-active').classList.add('opacity-50');
                 document.getElementById('btn-delete-snap').disabled = true;
                 document.getElementById('btn-delete-snap').classList.add('opacity-50');
+                document.getElementById('btn-force-state').classList.add('hidden');
 
                 loadSnapshots();
             }

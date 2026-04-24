@@ -1559,6 +1559,7 @@ export async function saveWorldSnapshot(snapshotData) {
 
         trackUsage('write', `[admin] [збереження знімку світу: ${id}]`, 1, `world_snapshots/${id}`, cleanedData);
         console.log(`ðŸ“¸ World Snapshot saved: ${id}`);
+        localStorage.removeItem("admin_snapshots_list");
         return true;
     } catch (e) {
         console.error('Snapshot save error:', e);
@@ -1696,6 +1697,20 @@ export async function deactivateWorldSnapshot(snapshotId) {
     }
 }
 
+export async function forceSnapshotActiveState(snapshotId, state = true) {
+    if (!isAdmin()) return false;
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'world_snapshots', snapshotId), { isActive: state });
+        console.log(`✅ Template ${snapshotId} active state forced to ${state}.`);
+        localStorage.removeItem("admin_snapshots_list");
+        return true;
+    } catch (e) {
+        console.error('Error forcing snapshot active state:', e);
+        return false;
+    }
+}
+
 export async function deleteSnapshot(snapshotId) {
     if (!isAdmin()) return false;
     try {
@@ -1711,6 +1726,7 @@ export async function deleteSnapshot(snapshotId) {
         
         await deleteDoc(snapRef);
         trackUsage('delete', `[admin] [видалення знімку світу: ${snapshotId}]`, 1, `world_snapshots/${snapshotId}`);
+        localStorage.removeItem("admin_snapshots_list");
         console.log(`ðŸ—‘ï¸ Snapshot deleted: ${snapshotId}`);
         return true;
     } catch (e) {
