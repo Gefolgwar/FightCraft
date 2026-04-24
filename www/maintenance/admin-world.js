@@ -35,68 +35,6 @@ async function fetchCityPopulation(city) {
     return population;
 };
 
-// ---------------------------------------------------------------------------
-// Haversine distance (meters)
-// ---------------------------------------------------------------------------
-function haversineMeters(lat1, lng1, lat2, lng2) {
-    const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2
-        + Math.cos(lat1 * Math.PI / 180)
-        * Math.cos(lat2 * Math.PI / 180)
-        * Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function metresToLatDeg(metres) {
-    return metres / 111320;
-}
-
-function metresToLngDeg(metres, lat) {
-    return metres / (111320 * Math.cos(lat * Math.PI / 180));
-}
-
-function buildCityGrid(cityAnchor, radiusMetres, spacingMetres) {
-    const cells = [];
-    const stepsPerAxis = Math.ceil(radiusMetres / spacingMetres);
-    const jitterMax = spacingMetres / 4; 
-
-    const innerRadius  = radiusMetres * 0.35;
-    const middleRadius = radiusMetres * 0.70;
-
-    for (let row = -stepsPerAxis; row <= stepsPerAxis; row++) {
-        for (let col = -stepsPerAxis; col <= stepsPerAxis; col++) {
-            const cellLatMetres = row * spacingMetres;
-            const cellLngMetres = col * spacingMetres;
-
-            const dist = Math.sqrt(cellLatMetres ** 2 + cellLngMetres ** 2);
-            if (dist > radiusMetres) continue;
-
-            const jitterLat = (Math.random() * 2 - 1) * metresToLatDeg(jitterMax);
-            const jitterLng = (Math.random() * 2 - 1) * metresToLngDeg(jitterMax, cityAnchor.lat);
-
-            const lat = cityAnchor.lat + metresToLatDeg(cellLatMetres) + jitterLat;
-            const lng = cityAnchor.lng + metresToLngDeg(cellLngMetres, cityAnchor.lat) + jitterLng;
-
-            const actualDist = haversineMeters(cityAnchor.lat, cityAnchor.lng, lat, lng);
-            const ring = actualDist <= innerRadius  ? 0
-                       : actualDist <= middleRadius ? 1
-                       :                              2;
-
-            cells.push({ lat, lng, ring, distMetres: actualDist });
-        }
-    }
-    return cells;
-}
-
-const ENTITY_RING_PREFERENCE = {
-    citadel: 2, 
-    castle:  2, 
-    vault:   1, 
-    shop:    0, 
-    monster: 0
-};
 
 // Generates objects and creates World Snapshots (Templates) for each city
 window.generateGlobalWorld = async () => {
