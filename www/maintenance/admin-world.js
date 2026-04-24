@@ -100,7 +100,13 @@ const ENTITY_RING_PREFERENCE = {
 
 // Generates objects and creates World Snapshots (Templates) for each city
 window.generateGlobalWorld = async () => {
-    if (!confirm("⚠️ This will generate a World Snapshot Template for each city based on population. These snapshots will NOT be deployed live automatically. You can review and apply them from the templates menu. Continue?")) return;
+    const maxCities = CITY_ANCHORS.length;
+    const input = prompt(`⚠️ This will generate a World Snapshot Template for each city based on population.\n\nHow many cities do you want to generate? (1-${maxCities})`, maxCities);
+    if (!input) return;
+
+    let totalCities = parseInt(input, 10);
+    if (isNaN(totalCities) || totalCities < 1) return;
+    if (totalCities > maxCities) totalCities = maxCities;
 
     const container = document.getElementById('world-progress-container');
     const text = document.getElementById('world-progress-text');
@@ -110,7 +116,6 @@ window.generateGlobalWorld = async () => {
     if (!container || !text || !bar || !status) return;
 
     container.classList.remove('hidden');
-    let totalCities = CITY_ANCHORS.length;
 
     try {
         status.textContent = "Loading templates...";
@@ -183,7 +188,16 @@ window.generateGlobalWorld = async () => {
             const gridCells = buildCityGrid(city, radiusMeters, spacingMeters);
             gridCells.sort(() => Math.random() - 0.5);
 
-            const availableRings = { 0: [], 1: [], 2: [] };
+            // Organize cells by Zone, then by Ring for even distribution
+            const zoneCells = {};
+            if (zonesGeoJson && turf) {
+                zonesGeoJson.features.forEach(f => {
+                    const zid = f.properties?.citadelId || f.id || 'default';
+                    if (!zoneCells[zid]) zoneCells[zid] = { 0: [], 1: [], 2: [] };
+                });
+            }
+            if (!zoneCells['default']) zoneCells['default'] = { 0: [], 1: [], 2: [] };
+
             for (const cell of gridCells) {
                 // If we have a true city boundary, throw away grid cells outside of it
                 if (cityBoundary && turf) {
@@ -193,14 +207,44 @@ window.generateGlobalWorld = async () => {
                         }
                     } catch(e) {}
                 }
-                availableRings[cell.ring].push(cell);
+
+                let placedInZone = false;
+                if (zonesGeoJson && turf) {
+                    for (const f of zonesGeoJson.features) {
+                        try {
+                            if (turf.booleanPointInPolygon([cell.lng, cell.lat], f)) {
+                                const zid = f.properties?.citadelId || f.id || 'default';
+                                if (zoneCells[zid]) {
+                                    zoneCells[zid][cell.ring].push(cell);
+                                    placedInZone = true;
+                                    break;
+                                }
+                            }
+                        } catch(e) {}
+                    }
+                }
+
+                if (!placedInZone) {
+                    zoneCells['default'][cell.ring].push(cell);
+                }
             }
 
+            const zoneIds = Object.keys(zoneCells);
+            let currentZoneIndex = 0;
+
             const pickCell = (preferredRing) => {
-                const searchOrder = [preferredRing, (preferredRing + 1) % 3, (preferredRing + 2) % 3];
-                for (const ring of searchOrder) {
-                    if (availableRings[ring].length > 0) return availableRings[ring].pop();
-                }
+                const startIdx = currentZoneIndex;
+                do {
+                    const zid = zoneIds[currentZoneIndex];
+                    currentZoneIndex = (currentZoneIndex + 1) % zoneIds.length;
+
+                    const rings = zoneCells[zid];
+                    const searchOrder = [preferredRing, (preferredRing + 1) % 3, (preferredRing + 2) % 3];
+                    for (const ring of searchOrder) {
+                        if (rings[ring].length > 0) return rings[ring].pop();
+                    }
+                } while (currentZoneIndex !== startIdx);
+
                 // Fallback inside city bounds
                 let randomAngle = Math.random() * Math.PI * 2;
                 let randomDist = Math.random() * radiusMeters;
