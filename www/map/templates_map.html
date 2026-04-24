@@ -169,9 +169,11 @@
         import { CITY_ANCHORS } from '../gameplay/data.js';
         import { OverpassService } from './overpass-service.js';
         import { regenerateCityTerritory, getTerritoryZones } from './territory-service.js';
+        import { BulkActions } from '../maintenance/template-bulk-actions.js';
 
         let map;
         let currentSnapshot = null;
+        let bulkActions = null;
         let markerClusterGroup = null;
         let markerLayerGroup = null;
         let districtLayerGroup = null;
@@ -230,6 +232,8 @@
         // Init
         document.addEventListener('DOMContentLoaded', async () => {
             await initFirebase();
+
+            bulkActions = new BulkActions(deleteSnapshot, loadSnapshots);
 
             if (!isAdmin()) {
                 document.getElementById('admin-lock').classList.remove('hidden');
@@ -308,6 +312,10 @@
             }
 
             list.innerHTML = '';
+
+            const visibleIds = snaps.map(s => s.id);
+            if (bulkActions) bulkActions.injectSelectAllHeader(list, visibleIds);
+
             snaps.forEach(snap => {
                 const el = document.createElement('div');
                 el.className = 'p-3 bg-gray-900 border border-gray-700 hover:border-blue-500 rounded cursor-pointer transition';
@@ -342,18 +350,45 @@
                 if (!iconsHtml) iconsHtml = '<i class="fas fa-file-alt text-gray-500"></i>';
 
                 el.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="font-bold text-xs text-gray-400">${dateStr}</div>
-                        <div class="flex gap-1 items-center">${iconsHtml}</div>
+                <div class="flex justify-between items-start mb-1">
+                    <div class="flex items-center gap-2 w-full overflow-hidden">
+                        <div class="bulk-checkbox-container"></div>
+                        <div class="flex flex-col overflow-hidden w-full">
+                            <div class="flex items-center gap-2 pr-2">
+                                <div class="font-bold text-sm text-gray-200 truncate">${snap.name || snap.id.substr(0, 15)}</div>
+                                ${snap.isActive ? '<span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded uppercase">Active</span>' : ''}
+                            </div>
+                            <div class="text-[10px] text-gray-500">${dateStr}</div>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2 mt-1">
-                        <div class="text-sm font-bold text-white truncate">${snap.cityId ? snap.cityId.toUpperCase() : 'UNKNOWN'}</div>
-                        ${snap.isActive ? '<span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded uppercase">Active</span>' : ''}
+                </div>
+                <div class="text-[10px] text-gray-400 flex items-center justify-between mt-2">
+                    <div>
+                        <i class="fas fa-globe text-blue-500/50 mr-1"></i> ${snap.cityId ? snap.cityId.toUpperCase() : 'UNKNOWN'}
                     </div>
-                    <div class="text-xs text-gray-500">${snap.objects ? snap.objects.length : 0} objects</div>
+                    <div>
+                        ${iconsHtml}
+                    </div>
+                </div>
                 `;
 
-                el.onclick = () => selectSnapshot(snap);
+                // Inject bulk checkbox
+                if (bulkActions) {
+                    const cbContainer = el.querySelector('.bulk-checkbox-container');
+                    if (cbContainer) {
+                        cbContainer.appendChild(bulkActions.createCheckbox(snap.id));
+                    }
+                }
+
+                el.addEventListener('click', (e) => {
+                    // Ignore click if clicking the checkbox
+                    if (e.target.tagName.toLowerCase() === 'input') return;
+
+                    document.querySelectorAll('#snapshot-list > div').forEach(d => d.classList.remove('border-blue-500', 'bg-gray-800'));
+                    el.classList.add('border-blue-500', 'bg-gray-800');
+                    selectSnapshot(snap);
+                });
+
                 list.appendChild(el);
             });
 
@@ -1039,6 +1074,9 @@
 
             // Clear old
             markerLayerGroup.clearLayers();
+                }
+                if (markerClusterGroup) {
+                    markerClusterGroup.clearLayers();
             markerClusterGroup.clearLayers();
 
             if (!snap.objects || !snap.objects.length) return;
@@ -1227,6 +1265,9 @@
                 // Clear markers correctly
                 if (markerLayerGroup) {
                     markerLayerGroup.clearLayers();
+                }
+                if (markerClusterGroup) {
+                    markerClusterGroup.clearLayers();
                 }
 
 
