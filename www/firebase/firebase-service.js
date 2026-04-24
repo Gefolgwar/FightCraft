@@ -1654,6 +1654,7 @@ export async function applyWorldSnapshot(snapshotId) {
         try {
             const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
             await updateDoc(doc(db, 'world_snapshots', snapshotId), { isActive: true });
+            localStorage.removeItem("admin_snapshots_list");
         } catch (e) {
             console.error("Failed to update isActive flag on snapshot", e);
         }
@@ -1689,6 +1690,7 @@ export async function deactivateWorldSnapshot(snapshotId) {
         
         // 2. Mark snapshot as inactive
         await updateDoc(doc(db, 'world_snapshots', snapshotId), { isActive: false });
+        localStorage.removeItem("admin_snapshots_list");
         console.log(`✅ Template ${snapshotId} deactivated.`);
         return true;
     } catch (e) {
