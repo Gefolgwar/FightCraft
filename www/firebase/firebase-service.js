@@ -1299,7 +1299,6 @@ export async function saveGeneratedObjects(objects) {
         // Clear Packed State (force re-pack for all cities since we don't know which changed)
         // For simplicity, we just clear 'berlin' or we could clear all. 
         // Since most current usage is Berlin:
-        const { deleteDoc, setDoc, serverTimestamp, doc: fsDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         deleteDoc(doc(db, 'world_chunks', 'berlin')).catch(err => console.error('Failed to clear packed:', err));
         deleteDoc(doc(db, "world_chunks", "kyiv")).catch(err => console.error("Failed to clear packed kyiv:", err));
         await setDoc(doc(db, "world_metadata", "current_state"), { last_global_update: serverTimestamp(), world_data: null }, { merge: true });
