@@ -12,6 +12,7 @@ export let monsterCluster;
 export let poiCluster;
 let currentCityId = null;
 let lastPlayerPos = null;
+let lastFetchedPos = null;
 export let otherPlayerMarkers = {};  // Export for character switching
 // Also expose to window for group proximity checks
 window._otherPlayerMarkers = otherPlayerMarkers;
@@ -49,6 +50,20 @@ export function getPlayerAvatar(playerId, playerName) {
 }
 
 export function updateOtherPlayers(players) {
+    if (!map) return;
+
+
+    const isAdmin = gameState.player.role === "admin";
+    const playerPos = gameState.player.position;
+    const playerPoint = turf.point([playerPos.lng, playerPos.lat]);
+
+    players = players.filter(p => {
+        if (isAdmin || p.isSelf) return true;
+        if (!p.lng || !p.lat) return false;
+        const pPoint = turf.point([p.lng, p.lat]);
+        const distance = turf.distance(playerPoint, pPoint, { units: "kilometers" });
+        return distance <= 100;
+    });
     if (!map) return;
 
     // console.log(`[MAP] 👥 updateOtherPlayers called with ${players.length} players`);
@@ -551,6 +566,23 @@ export function updatePlayerPosition(lat, lng) {
     gameState.player.position = newPos;
     gameState.position = newPos;
 
+    // 100km Proximity logic: if player moved > 5km from last fetched position, reload objects
+    if (!lastFetchedPos) {
+        lastFetchedPos = { lat, lng };
+    } else if (window.turf) {
+        const from = window.turf.point([lastFetchedPos.lng, lastFetchedPos.lat]);
+        const to = window.turf.point([lng, lat]);
+        const distKm = window.turf.distance(from, to, { units: 'kilometers' });
+        
+        if (distKm >= 5) {
+            console.log(`🌍 Player moved ${distKm.toFixed(1)}km, triggering updateVisibility()`);
+            lastFetchedPos = { lat, lng };
+            if (typeof updateVisibility === 'function') {
+                updateVisibility();
+            }
+        }
+    }
+
     // Always update playerMarker and playerRangeCircle (whoever is currently playing)
     if (playerMarker) playerMarker.setLatLng([lat, lng]);
     if (playerRangeCircle) playerRangeCircle.setLatLng([lat, lng]);
@@ -775,10 +807,16 @@ export function renderStaticMonsters(force = false, center) {
     _loadedObjectIds.clear(); // Reset tracking for re-rendering prunable objects
 
     // Filter monsters (Optimization: View-based filtering, increased to 50km to cover whole screen)
-    const MAX_RENDER_DIST = 50000;
+    const isAdmin = gameState.player.role === "admin";
+    const playerPos = gameState.player.position;
+    const playerPoint = turf.point([playerPos.lng, playerPos.lat]);
+
     const monstersToShow = staticMonsters.filter(m => {
-        const dist = getDistance(renderCenter.lat, renderCenter.lng, m.lat, m.lng);
-        return dist <= MAX_RENDER_DIST;
+        if (isAdmin) return true;
+        if (!m.lng || !m.lat) return false;
+        const mPoint = turf.point([m.lng, m.lat]);
+        const distance = turf.distance(playerPoint, mPoint, { units: "kilometers" });
+        return distance <= 100;
     });
 
     // console.log(`🌍 Viewing ${monstersToShow.length} monsters within ${MAX_RENDER_DIST}m of center`);
@@ -1237,5 +1275,28 @@ export function updateArenas(arenasData) {
         if (!arenaLayers[id] && arena.center) {
             renderArena(id, arena.center, arena.radius || 50);
         }
+    });
+}
+
+// ==================== VISIBILITY MANAGEMENT ====================
+export async function updateVisibility() {
+    console.log("🔄 Updating visibility (5km boundary crossed)");
+    // This will fetch from SyncEngine which now applies the 100km filter
+    const { fetchSpawnedObjectsOnce } = await import('../firebase/firebase-service.js');
+    const objects = await fetchSpawnedObjectsOnce(true); // force reload to apply updated 100km filter
+    
+    // Update the game state with the new filtered objects
+    import('../core/gameState.js').then(({ setStaticMonsters }) => {
+        const monsters = objects.filter(o => o.type === 'monster');
+        setStaticMonsters(monsters);
+        
+        // Re-render
+        renderStaticMonsters(true);
+    });
+
+    import('./poi.js').then(({ addExternalPOIs, renderPOIs }) => {
+        const pois = objects.filter(o => o.type === 'shop' || o.type === 'castle' || o.type === 'vault');
+        addExternalPOIs(pois);
+        if (typeof renderPOIs === 'function') renderPOIs();
     });
 }

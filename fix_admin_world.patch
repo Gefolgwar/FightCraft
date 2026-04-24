@@ -1,0 +1,108 @@
+--- www/maintenance/admin-world.js
++++ www/maintenance/admin-world.js
+@@ -1,6 +1,6 @@
+-import { getDB, getTemplates, saveCityZones } from '../firebase/firebase-service.js';
++import { getDB, getTemplates, saveCityZones, saveWorldSnapshot } from '../firebase/firebase-service.js';
+ import { CITY_ANCHORS } from '../gameplay/data.js';
+ import { generateCityTerritory } from '../map/territory-service.js';
+-import { collection, writeBatch, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
++import { collection, writeBatch, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+ 
+ // Helper for delays
+@@ -71,8 +71,8 @@
+ };
+ 
+-// Generates objects and writes them DIRECTLY to Firestore in batches
++// Generates objects and creates World Snapshots (Templates) for each city
+ window.generateGlobalWorld = async () => {
+-    if (!confirm("⚠️ This will generate and directly deploy the ENTIRE WORLD LIVE (Monsters, Shops, Vaults, Castles, Citadels, and Zones) based on city population. This will overwrite current game objects. Continue?")) return;
++    if (!confirm("⚠️ This will generate a World Snapshot Template for each city based on population. These snapshots will NOT be deployed live automatically. You can review and apply them from the templates menu. Continue?")) return;
+ 
+     const container = document.getElementById('world-progress-container');
+@@ -213,56 +213,57 @@
+             }
+ 
+-            // --- 1. GENERATE TERRITORY ZONES ---
++            // --- 1. GENERATE TERRITORY ZONES (GeoJSON) ---
++            let zonesGeoJson = null;
+             if (cityCitadels.length >= 2) {
+                 status.textContent = `Generating territory zones for ${city.name}...`;
+                 try {
+-                    const zonesGeoJson = await generateCityTerritory(city.id, cityCitadels, null);
+-                    if (zonesGeoJson) {
+-                        await saveCityZones(city.id, zonesGeoJson);
+-                    }
++                    zonesGeoJson = await generateCityTerritory(city.id, cityCitadels, null);
+                 } catch (err) {
+                     console.warn(`Failed to generate zones for ${city.id}:`, err);
+                 }
+             }
+ 
+-            // --- 2. WRITE TO FIRESTORE LIVE ---
+-            let currentBatch = writeBatch(getDB());
+-            let batchCount = 0;
+-            let totalWritten = 0;
+-
+-            for (const obj of cityObjects) {
+-                const { id, ...data } = obj;
+-                const docRef = doc(spawnedRef, id);
+-                currentBatch.set(docRef, data);
+-                batchCount++;
+-                totalWritten++;
+-
+-                if (batchCount === 400) { // Firestore limit is 500
+-                    status.textContent = `Deploying ${city.name} live (${totalWritten}/${totalCityObjects})...`;
+-                    await currentBatch.commit();
+-                    currentBatch = writeBatch(getDB());
+-                    batchCount = 0;
+-                    await delay(300); // Prevent rate limits
+-                }
+-            }
+-
+-            if (batchCount > 0) {
+-                await currentBatch.commit();
+-            }
++            // --- 2. CREATE SNAPSHOT (TEMPLATE) ---
++            // To prevent exceeding Firestore's 1MB document limit, 
++            // we chunk objects into separate snapshots if they exceed 3000 objects.
++            const CHUNK_SIZE = 3000;
++            for (let chunkIndex = 0; chunkIndex < cityObjects.length; chunkIndex += CHUNK_SIZE) {
++                const chunk = cityObjects.slice(chunkIndex, chunkIndex + CHUNK_SIZE);
++                const snapshotName = cityObjects.length <= CHUNK_SIZE 
++                    ? `Global Generation - ${city.name}` 
++                    : `Global Generation - ${city.name} (Part ${Math.floor(chunkIndex / CHUNK_SIZE) + 1})`;
++                
++                const snapshotData = {
++                    id: `GlobalGen_${city.id}_${Date.now()}_${chunkIndex}`,
++                    name: snapshotName,
++                    description: `Auto-generated from global world algorithm (${chunk.length} objects)`,
++                    cityId: city.id,
++                    type: 'mixed',
++                    objects: chunk,
++                    zones: (chunkIndex === 0 && zonesGeoJson) ? JSON.stringify(zonesGeoJson) : null
++                };
++
++                status.textContent = `Saving Snapshot Template: ${snapshotName}...`;
++                const success = await saveWorldSnapshot(snapshotData);
++                
++                if (!success) {
++                    console.error(`Failed to save snapshot for ${city.name}`);
++                }
++                
++                await delay(300); // Prevent rate limits
++            }
+ 
+             await delay(500); 
+         }
+ 
+-        // Global DB sync metadata
+-        const metaRef = doc(getDB(), 'world_metadata', 'current_state');
+-        currentBatch = writeBatch(getDB());
+-        currentBatch.set(metaRef, { last_global_update: Date.now() }, { merge: true });
+-        await currentBatch.commit();
+-
+         bar.style.width = `100%`;
+-        status.textContent = `✅ ENTIRE WORLD GENERATED LIVE!`;
++        status.textContent = `✅ GLOBAL TEMPLATES CREATED SUCCESSFULLY!`;
+         status.classList.remove('text-gray-500', 'text-gray-400');
+         status.classList.add('text-green-400');

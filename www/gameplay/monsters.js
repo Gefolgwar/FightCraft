@@ -177,9 +177,21 @@ export function loadStaticMonsters() {
             if (!Array.isArray(monsters) || monsters.length === 0) {
                 return [];
             } else {
-                setStaticMonsters(monsters);
+                const isAdmin = window.gameState && window.gameState.player && window.gameState.player.role === "admin";
+                const playerPos = window.gameState && window.gameState.player ? window.gameState.player.position : null;
+                let filteredMonsters = monsters;
+                if (!isAdmin && playerPos && window.turf) {
+                    const playerPoint = turf.point([playerPos.lng, playerPos.lat]);
+                    filteredMonsters = monsters.filter(m => {
+                        if (!m.lng || !m.lat) return false;
+                        const mPoint = turf.point([m.lng, m.lat]);
+                        return turf.distance(playerPoint, mPoint, { units: "kilometers" }) <= 100;
+                    });
+                }
+
+                setStaticMonsters(filteredMonsters);
                 console.log(`✅ Loaded ${monsters.length} monsters from cache`);
-                return monsters;
+                return filteredMonsters;
             }
         } catch (e) {
             return [];

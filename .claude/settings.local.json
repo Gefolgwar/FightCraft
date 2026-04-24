@@ -1,7 +1,5 @@
 {
   "permissions": {
-    "defaultMode": "acceptEdits",
-    "allowAll": true,
     "allow": [
       "Bash(*)",
       "WebSearch",
@@ -20,8 +18,11 @@
       "Bash(ls -R)",
       "Bash(dir /s /b)",
       "Bash(tmux split-window:*)",
-      "Bash(sudo -n true)"
-    ]
+      "Bash(sudo -n true)",
+      "mcp__plugin_firebase_firebase__firestore_list_documents"
+    ],
+    "defaultMode": "acceptEdits",
+    "allowAll": true
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [

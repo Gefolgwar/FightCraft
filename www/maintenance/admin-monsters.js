@@ -1,4 +1,6 @@
 
+import { requireAdmin } from './admin-core.js';
+import { BulkActions } from './template-bulk-actions.js';
 import { getTemplates, saveTemplate, deleteTemplate, clearLocationObjects, saveGeneratedObjects, saveWorldSnapshot, getWorldSnapshots, isAdmin, getCurrentUser, initFirebase } from '../firebase/firebase-service.js';
 import { generateMonstersFromOSM } from '../gameplay/generation-service.js';
 import { generateCityTerritory } from '../map/territory-service.js';
@@ -9,19 +11,7 @@ let currentEditId = null;
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Firebase Auth & Role Sync first
-    await initFirebase();
-
-    // Check Status
-    if (!isAdmin()) {
-        document.getElementById('admin-lock').classList.remove('hidden');
-    } else {
-        document.getElementById('admin-lock').classList.add('hidden');
-        document.getElementById('admin-panel').classList.remove('hidden');
-        const user = getCurrentUser();
-        if (user) {
-            document.getElementById('admin-status').innerHTML = `<span class="text-green-400">● Online (${user.email})</span>`;
-        }
+    await requireAdmin(async () => {
         await loadTemplates();
         // Clear previous state (ensure no restore from localStorage as per user request)
 
@@ -36,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => {
             if (window.loadWorldSnapshots) window.loadWorldSnapshots();
         }, 1200);
-    }
+    });
 });
 
 // ==================== TEMPLATE MANAGEMENT ====================
@@ -66,15 +56,18 @@ window.createDefaultMonsterTemplates = async function () {
     logConsole("Created default monster templates.");
 }
 
+const bulk = new BulkActions(deleteTemplate, loadTemplates);
+
 function renderTemplateList() {
     const list = document.getElementById('template-list');
     const search = document.getElementById('template-search').value.toLowerCase();
 
     list.innerHTML = '';
 
-    templates
-        .filter(t => t.name.toLowerCase().includes(search))
-        .forEach(t => {
+    const visible = templates.filter(t => t.name.toLowerCase().includes(search));
+    bulk.injectSelectAllHeader(list, visible.map(t => t.id));
+
+    visible.forEach(t => {
             const el = document.createElement('div');
             const isActive = selectedTemplates.has(t.id);
             const activeClass = isActive ? 'border-blue-500 bg-blue-900/20' : 'border-gray-700 hover:border-purple-500';
@@ -97,9 +90,11 @@ function renderTemplateList() {
                     </button>
                 </div>
             `;
+            // Prepend bulk checkbox
+            el.querySelector('.flex.items-center.gap-2').prepend(bulk.createCheckbox(t.id));
             // Add click listener for selection (logic for distribution later)
             el.addEventListener('click', (e) => {
-                if (!e.target.closest('button')) toggleTemplateSelection(t);
+                if (!e.target.closest('button') && !e.target.closest('input[type=checkbox]')) toggleTemplateSelection(t);
             });
             list.appendChild(el);
         });

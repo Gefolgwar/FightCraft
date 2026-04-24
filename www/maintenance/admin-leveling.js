@@ -1,33 +1,17 @@
 
+import { requireAdmin } from './admin-core.js';
 import { isAdmin, getTemplates, initFirebase } from '../firebase/firebase-service.js';
 
 async function init() {
-    // Initialize Auth first
-    await initFirebase();
+    await requireAdmin(async () => {
+        // Leveling page uses flex layout for the panel
+        const panel = document.getElementById('admin-panel');
+        if (panel) panel.classList.add('flex');
 
-    const admin = isAdmin();
-    const statusEl = document.getElementById('admin-status');
-    const panel = document.getElementById('admin-panel');
-    const loading = document.getElementById('loading');
-
-    if (admin) {
-        statusEl.textContent = '✅ Admin Access Granted';
-        statusEl.classList.add('text-green-400');
-        statusEl.classList.remove('text-gray-400');
-        panel.classList.remove('hidden');
-        panel.classList.add('flex');
-        loading.classList.add('hidden');
-    } else {
-        statusEl.textContent = '❌ Access Denied';
-        statusEl.classList.add('text-red-400');
-        statusEl.classList.remove('text-gray-400');
-        loading.innerHTML = '<p class="text-red-500">You must be an admin to view this page.</p>';
-        return;
-    }
-
-    renderLevelTable();
-    await renderMonsterTable();
-    renderCastleTable();
+        renderLevelTable();
+        await renderMonsterTable();
+        renderCastleTable();
+    });
 }
 
 function renderLevelTable() {

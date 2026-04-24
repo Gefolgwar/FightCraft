@@ -1,3 +1,5 @@
+import { requireAdmin } from './admin-core.js';
+import { BulkActions } from './template-bulk-actions.js';
 import { getTemplates, saveTemplate, deleteTemplate, clearLocationObjects, saveGeneratedObjects, saveWorldSnapshot, getWorldSnapshots, getSnapshotById, isAdmin, getCurrentUser, initFirebase } from '../firebase/firebase-service.js';
 import { CITY_ANCHORS } from '../gameplay/data.js';
 import { generateCityTerritory } from '../map/territory-service.js';
@@ -12,19 +14,7 @@ let generatedCount = new Map(); // Stores Template ID -> Count of spawned entiti
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Firebase Auth & Role Sync first
-    await initFirebase();
-
-    // Check Status
-    if (!isAdmin()) {
-        document.getElementById('admin-lock').classList.remove('hidden');
-    } else {
-        document.getElementById('admin-lock').classList.add('hidden');
-        document.getElementById('admin-panel').classList.remove('hidden');
-        const user = getCurrentUser();
-        if (user) {
-            document.getElementById('admin-status').innerHTML = `<span class="text-green-400">● Online (${user.email})</span>`;
-        }
+    await requireAdmin(async () => {
         await loadTemplates();
         // restoreState();
         renderMappingRules();
@@ -42,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => {
             if (window.loadWorldSnapshots) window.loadWorldSnapshots();
         }, 1200);
-    }
+    });
 });
 
 // ==================== TEMPLATE MANAGEMENT ====================
@@ -240,11 +230,16 @@ window.saveScannedShops = async () => {
 
 // ... (logConsole stays same) ...
 
+const bulk = new BulkActions(deleteTemplate, loadTemplates);
+
 function renderTemplateList() {
     const list = document.getElementById('template-list');
     list.innerHTML = '';
 
-    templates.forEach(t => {
+    const visible = [...templates];
+    bulk.injectSelectAllHeader(list, visible.map(t => t.id));
+
+    visible.forEach(t => {
         const el = document.createElement('div');
         // Add visual cue if active
         const isActive = activeRules.has(t.id);
@@ -269,11 +264,13 @@ function renderTemplateList() {
                 </button>
             </div>
         `;
+        // Prepend bulk checkbox
+        el.querySelector('.flex.items-center.gap-2').prepend(bulk.createCheckbox(t.id));
 
         // Click to toggle rule
         el.addEventListener('click', (e) => {
-            // Avoid triggering if clicking buttons
-            if (!e.target.closest('button')) {
+            // Avoid triggering if clicking buttons or checkboxes
+            if (!e.target.closest('button') && !e.target.closest('input[type=checkbox]')) {
                 toggleMappingRule(t.id);
             }
         });
