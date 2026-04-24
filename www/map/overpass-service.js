@@ -61,6 +61,8 @@ export class OverpassService {
                 const isNetworkError = e.message.includes("Failed to fetch") || e.name === "TypeError";
                 if (!isNetworkError) {
                     await this.sleep(1500);
+                } else {
+                    lastRequestTime = 0;
                 }
                 return this.fetchJSON(query, attempt + 1);
             }
@@ -72,17 +74,11 @@ export class OverpassService {
      * Unified fetch for city context (Boundary + Districts)
      */
     static async fetchCityContext(cityName, center, options = {}) {
-        let attempt = 0;
         let includeDistricts = true;
 
-        if (typeof options === 'number') {
-            attempt = options;
-        } else {
-            attempt = options.attempt || 0;
-            if (options.includeDistricts !== undefined) includeDistricts = options.includeDistricts;
+        if (options && options.includeDistricts !== undefined) {
+            includeDistricts = options.includeDistricts;
         }
-
-        if (attempt > 2) return { boundary: null, districts: [], boundaryId: null };
 
         let query = `
             [out:json][timeout:40];
@@ -126,7 +122,7 @@ export class OverpassService {
             const districts = includeDistricts ? await this.processDistrictData(data) : [];
             return { boundary, districts, boundaryId };
         } catch (e) {
-            console.warn(`❌ Overpass Attempt ${attempt} failed:`, e.message);
+            console.warn(`❌ Overpass fetchCityContext failed:`, e.message);
             return { boundary: null, districts: [], boundaryId: null };
         }
     }
