@@ -88,13 +88,20 @@ window.generateGlobalWorld = async () => {
         status.textContent = "Loading templates...";
         bar.style.width = "5%";
         
-        const [monsters, shops, vaults, castles, citadels] = await Promise.all([
+        const [monsters, shops, vaults, allCastles] = await Promise.all([
             getTemplates('monster'),
             getTemplates('shop'),
             getTemplates('vault'),
-            getTemplates('castle'),
-            getTemplates('citadel')
+            getTemplates('castle')
         ]);
+
+        // Citadels are stored as type 'castle'
+        const citadels = allCastles.filter(t =>
+            t.icon === '🏯' ||
+            (t.name && t.name.includes('Citadel')) ||
+            (t.id && t.id.includes('citadel'))
+        );
+        const castles = allCastles.filter(t => !citadels.includes(t));
         
         const getRandomTemplate = (templatesList) => {
             if (!templatesList || templatesList.length === 0) return null;

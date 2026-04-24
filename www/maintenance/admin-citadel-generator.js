@@ -195,7 +195,10 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
         } catch (e) { /* fallback */ }
     }
 
-    const zonesGeoJson = await generateCityTerritory(cityKey, allCitadelsForZones, null, cityBoundary);
+    let zonesGeoJson = null;
+    if (allCitadelsForZones.length >= 2) {
+        zonesGeoJson = await generateCityTerritory(cityKey, allCitadelsForZones, null, cityBoundary);
+    }
 
     return { finalCitadels, zonesGeoJson, cityBoundary };
 }
