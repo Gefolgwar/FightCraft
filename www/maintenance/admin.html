@@ -62,6 +62,7 @@
                     class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">⬅️
                     Back to Game</button>
                 <button onclick="window.generateGlobalWorld()" class="px-4 py-2 bg-yellow-700 hover:bg-yellow-600 rounded-lg text-sm font-bold border border-yellow-500 shadow-lg shadow-yellow-900/50">🌍 Generate Full World</button>
+                <button onclick="window.clearLocalCache()" class="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg text-sm font-bold border border-red-500 shadow-lg shadow-red-900/50">🗑️ Clear Cache</button>
                 <button onclick="forceGlobalUpdate()"
                     class="px-4 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg text-sm font-bold border border-purple-500 shadow-lg shadow-purple-900/50">🚀
                     Force Update</button>
@@ -580,6 +581,13 @@
                 loadData();
             } catch (e) { alert(e.message); }
         };
+        window.clearLocalCache = () => {
+            if (!confirm("⚠️ CLEAR LOCAL INDEXEDDB CACHE?\n\nThis will delete the FightCraftDB database from your local browser, forcing a completely fresh download of all game objects on your next login.")) return;
+            indexedDB.deleteDatabase("FightCraftDB");
+            localStorage.removeItem("admin_snapshots_list");
+            alert("✅ Cache Cleared! Please refresh the page.");
+        };
+
         window.forceGlobalUpdate = async () => {
             if (!confirm("⚠️ FORCE GLOBAL UPDATE?\n\nThis will update 'world_metadata/current_state' timestamp.\n\nALL players will be forced to sync deltas (or full load) on their next game start.\n\nUse this after making changes to monsters/shops/etc.")) return;
 
