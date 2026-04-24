@@ -57,7 +57,11 @@ export class OverpassService {
         } catch (e) {
             console.warn(`❌ Overpass Error on ${endpoint}: ${e.message}`);
             if (attempt < 3) {
-                await this.sleep(1500);
+                // Smart failover: Skip the sleep penalty if it's a hard network error (e.g. server down)
+                const isNetworkError = e.message.includes("Failed to fetch") || e.name === "TypeError";
+                if (!isNetworkError) {
+                    await this.sleep(1500);
+                }
                 return this.fetchJSON(query, attempt + 1);
             }
             throw e;
