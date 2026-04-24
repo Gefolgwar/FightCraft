@@ -472,14 +472,8 @@
 
                         // Apply same fallback logic as above
                         if (!zid || zid === "Citadel" || zid === "Castle" || zid === "Zone") {
-                            // We can't easily get idx here without searching the array index of 'found'
-                            // But since we updated f.properties.citadelId in the initial loop (line 405),
-                            // we should rely on that property if possible.
-                            // Wait! The initial loop updated properties.citadelId with the CORRECT ID.
-                            // So found.properties.citadelId SHOULD be correct now!
                         }
 
-                        // Actually, simpler: simply trust properties.citadelId because we fixed it in the stats loop!
                         zid = found.properties.citadelId || found.id;
 
                         if (zid) o.zoneId = zid;
