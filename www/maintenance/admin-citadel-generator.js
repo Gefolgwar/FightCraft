@@ -93,6 +93,7 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
 
                 if (citadelTemplate) {
                     processedCitadels.push({
+                        id: `${cityKey}_citadel_${Math.random().toString(36).substring(2, 9)}`,
                         type: 'castle', cityId: cityKey, lat, lng,
                         templateId: citadelTemplate.id,
                         name: node.tags?.name || citadelTemplate.name,
@@ -141,6 +142,7 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
 
             if (isInside && citadelTemplate) {
                 processedCitadels.push({
+                    id: `${cityKey}_citadel_${Math.random().toString(36).substring(2, 9)}`,
                     type: 'castle', cityId: cityKey, lat, lng,
                     templateId: citadelTemplate.id,
                     name: `Synthetic Citadel ${processedCitadels.length + 1}`,
@@ -188,12 +190,7 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
 
     // 6. Generate Zones
     let allCitadelsForZones = [...finalCitadels];
-    if (cityBoundary) {
-        try {
-            const safetyMask = turf.buffer(cityBoundary, -0.01, { units: 'kilometers' });
-            allCitadelsForZones = allCitadelsForZones.filter(c => turf.booleanPointInPolygon([c.lng, c.lat], safetyMask));
-        } catch (e) { /* fallback */ }
-    }
+    // No secondary filtering needed, they were already filtered by cityBoundary in Step 3.
 
     let zonesGeoJson = null;
     if (allCitadelsForZones.length >= 2) {
