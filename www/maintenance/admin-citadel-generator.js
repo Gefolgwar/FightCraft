@@ -72,32 +72,41 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
     });
 
     let processedCitadels = [];
+    const citadelTemplate = templates.find(t => t.name.includes("Citadel") || t.icon === "🏯");
+    const cosLat = Math.cos(city.lat * Math.PI / 180);
+
     if (queryFilters) {
         const query = `[out:json][timeout:60]; (\n${queryFilters}); out center;`;
-        const data = await OverpassService.fetchJSON(query);
 
-        data.elements.forEach(node => {
-            const lat = node.lat || (node.center && node.center.lat);
-            const lng = node.lon || (node.center && node.center.lon);
-            if (!lat || !lng) return;
+        try {
+            const data = await OverpassService.fetchJSON(query);
 
-            const dist = Math.sqrt((lat - city.lat)**2 + (lng - city.lng)**2);
-            if (dist > 0.3) return;
+            data.elements.forEach(node => {
+                const lat = node.lat || (node.center && node.center.lat);
+                const lng = node.lon || (node.center && node.center.lon);
+                if (!lat || !lng) return;
 
-            let bestMatch = templates.find(t => t.name.includes("Citadel") || t.icon === "🏯");
-            if (bestMatch) {
-                processedCitadels.push({
-                    type: 'castle', cityId: cityKey, lat, lng,
-                    templateId: bestMatch.id,
-                    name: node.tags?.name || bestMatch.name,
-                    icon: bestMatch.icon,
-                    level: bestMatch.level || 15,
-                    hp: (bestMatch.level || 15) * 200,
-                    maxHp: (bestMatch.level || 15) * 200,
-                    realWorldId: node.id
-                });
-            }
-        });
+                const dLat = lat - city.lat;
+                const dLng = (lng - city.lng) * cosLat;
+                const dist = Math.sqrt(dLat**2 + dLng**2);
+                if (dist > 0.3) return;
+
+                if (citadelTemplate) {
+                    processedCitadels.push({
+                        type: 'castle', cityId: cityKey, lat, lng,
+                        templateId: citadelTemplate.id,
+                        name: node.tags?.name || citadelTemplate.name,
+                        icon: citadelTemplate.icon,
+                        level: citadelTemplate.level || 15,
+                        hp: (citadelTemplate.level || 15) * 200,
+                        maxHp: (citadelTemplate.level || 15) * 200,
+                        realWorldId: node.id
+                    });
+                }
+            });
+        } catch (e) {
+            console.error("Overpass query failed, falling back to synthetic fill:", e);
+        }
     }
 
     // 3. Filter by Strict Boundary
@@ -119,7 +128,6 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
         };
 
         let attempts = 0;
-        const synthTemplate = templates.find(t => t.name.includes("Citadel") || t.icon === "🏯");
 
         while (processedCitadels.length < capacity && attempts < 1000) {
             attempts++;
@@ -131,15 +139,15 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
                 isInside = turf.booleanPointInPolygon([lng, lat], cityBoundary);
             }
 
-            if (isInside && synthTemplate) {
+            if (isInside && citadelTemplate) {
                 processedCitadels.push({
                     type: 'castle', cityId: cityKey, lat, lng,
-                    templateId: synthTemplate.id,
+                    templateId: citadelTemplate.id,
                     name: `Synthetic Citadel ${processedCitadels.length + 1}`,
-                    icon: synthTemplate.icon,
-                    level: synthTemplate.level || 15,
-                    hp: (synthTemplate.level || 15) * 200,
-                    maxHp: (synthTemplate.level || 15) * 200
+                    icon: citadelTemplate.icon,
+                    level: citadelTemplate.level || 15,
+                    hp: (citadelTemplate.level || 15) * 200,
+                    maxHp: (citadelTemplate.level || 15) * 200
                 });
             }
         }
@@ -152,7 +160,11 @@ export async function generateCitadelsAndZones(cityKey, capacity, templates, act
         finalCitadels.push(candidates.shift());
 
         const distCache = new Array(candidates.length).fill(Infinity);
-        const getDistSq = (a, b) => (a.lat - b.lat)**2 + (a.lng - b.lng)**2;
+        const getDistSq = (a, b) => {
+            const dLat = a.lat - b.lat;
+            const dLng = (a.lng - b.lng) * cosLat;
+            return dLat**2 + dLng**2;
+        };
 
         while (finalCitadels.length < capacity && candidates.length > 0) {
             const lastAdded = finalCitadels[finalCitadels.length - 1];
