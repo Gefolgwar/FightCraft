@@ -61,12 +61,25 @@
                 <button onclick="window.location.href='/'"
                     class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">⬅️
                     Back to Game</button>
+                <button onclick="window.generateGlobalWorld()" class="px-4 py-2 bg-yellow-700 hover:bg-yellow-600 rounded-lg text-sm font-bold border border-yellow-500 shadow-lg shadow-yellow-900/50">🌍 Generate Full World</button>
                 <button onclick="forceGlobalUpdate()"
                     class="px-4 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg text-sm font-bold border border-purple-500 shadow-lg shadow-purple-900/50">🚀
                     Force Update</button>
                 <button onclick="loadData()" class="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg text-sm">🔄
                     Refresh</button>
             </div>
+        </div>
+
+        <!-- World Generator Progress -->
+        <div id="world-progress-container" class="hidden glass p-4 rounded-xl border border-yellow-500/30 mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-yellow-400">🌍 Generating World...</h3>
+                <span id="world-progress-text" class="text-sm text-gray-400">0 / X Cities</span>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-4 overflow-hidden border border-gray-700">
+                <div id="world-progress-bar" class="bg-gradient-to-r from-yellow-600 to-yellow-400 h-4 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="world-progress-status" class="text-xs text-gray-500 mt-2">Initializing...</p>
         </div>
 
         <!-- Stats -->
@@ -202,6 +215,7 @@
         </div>
     </div>
     </div>
+    <script type="module" src="admin-world.js"></script>
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, getDocs, deleteDoc, doc, collectionGroup, query, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -573,7 +587,7 @@
                 const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
                 await setDoc(doc(db, 'world_metadata', 'current_state'), {
-                    last_global_update: serverTimestamp(),
+                    last_global_update: serverTimestamp(), version_hash: null, world_data: null,
                     triggeredBy: currentUser.email || 'admin'
                 }, { merge: true });
 

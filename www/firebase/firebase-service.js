@@ -1301,7 +1301,7 @@ export async function saveGeneratedObjects(objects) {
         // Since most current usage is Berlin:
         deleteDoc(doc(db, 'world_chunks', 'berlin')).catch(err => console.error('Failed to clear packed:', err));
         deleteDoc(doc(db, "world_chunks", "kyiv")).catch(err => console.error("Failed to clear packed kyiv:", err));
-        await setDoc(doc(db, "world_metadata", "current_state"), { last_global_update: serverTimestamp(), world_data: null }, { merge: true });
+        await setDoc(doc(db, "world_metadata", "current_state"), { last_global_update: serverTimestamp(), world_data: null, version_hash: null }, { merge: true });
 
 
         console.log(`✅ Successfully saved ${count} objects and invalidated packed state.`);
