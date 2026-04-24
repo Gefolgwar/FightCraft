@@ -8,7 +8,7 @@ import { collection, writeBatch, doc } from 'https://www.gstatic.com/firebasejs/
 // Helper for delays
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-window.fetchCityPopulation = async function(city) {
+async function fetchCityPopulation(city) {
     const query = `[out:json][timeout:10];
 node(around:20000, ${city.lat}, ${city.lng})["place"~"city|town|municipality"]["name"="${city.name}"];
 out tags;`;
@@ -137,7 +137,10 @@ window.generateGlobalWorld = async () => {
 
         for (let i = 0; i < totalCities; i++) {
             const city = CITY_ANCHORS[i];
-            const population = city.population || 1000000;
+
+            status.textContent = `Fetching population for ${city.name} from OSM...`;
+            const population = await fetchCityPopulation(city);
+            await delay(1000); // Throttling for Overpass API
 
             // STRICT Ratios
             const counts = {
