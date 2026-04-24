@@ -10,8 +10,11 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
 
 async function fetchCityPopulation(city) {
     const query = `[out:json][timeout:10];
-node(around:20000, ${city.lat}, ${city.lng})["place"~"city|town|municipality"]["name"="${city.name}"];
-out tags;`;
+    (
+        node(around:20000, ${city.lat}, ${city.lng})["place"~"city|town|municipality"]["name"="${city.name}"];
+        node(around:20000, ${city.lat}, ${city.lng})["place"~"city|town|municipality"]["name:en"="${city.name}"];
+    );
+    out tags;`;
 
     const data = await OverpassService.fetchJSON(query);
 
