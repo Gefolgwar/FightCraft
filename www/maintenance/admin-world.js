@@ -175,90 +175,32 @@ window.generateGlobalWorld = async () => {
 
             const cityObjects = [...finalCitadels];
 
-            // 2. Build remaining objects (Monsters, Shops, Vaults, Castles) using grid
-            const radiusMeters = 9000;
-            const area = Math.PI * (radiusMeters ** 2);
-            let spacingMeters = Math.sqrt(area / (totalCityObjects * 1.5));
-            if (spacingMeters > 500) spacingMeters = 500;
-            if (spacingMeters < 50) spacingMeters = 50;
-
-            // Fetch Turf locally if needed for boundary checking
+            // 2. Build remaining objects using Zone Quotas
             const turf = window.turf || window.Turf;
 
-            const gridCells = buildCityGrid(city, radiusMeters, spacingMeters);
-            gridCells.sort(() => Math.random() - 0.5);
+            const placementOrder = [
+                { type: 'castle',  count: counts.castle,  templatesList: castles },
+                { type: 'vault',   count: counts.vault,   templatesList: vaults },
+                { type: 'shop',    count: counts.shop,    templatesList: shops },
+                { type: 'monster', count: counts.monster, templatesList: monsters }
+            ];
 
-            // Organize cells by Zone, then by Ring for even distribution
-            const zoneCells = {};
-            if (zonesGeoJson && turf) {
-                zonesGeoJson.features.forEach(f => {
-                    const zid = f.properties?.citadelId || f.id || 'default';
-                    if (!zoneCells[zid]) zoneCells[zid] = { 0: [], 1: [], 2: [] };
-                });
-            }
-            if (!zoneCells['default']) zoneCells['default'] = { 0: [], 1: [], 2: [] };
-
-            for (const cell of gridCells) {
-                // If we have a true city boundary, throw away grid cells outside of it
-                if (cityBoundary && turf) {
-                    try {
-                        if (!turf.booleanPointInPolygon([cell.lng, cell.lat], cityBoundary)) {
-                            continue; // Skip cells outside city
-                        }
-                    } catch(e) {}
-                }
-
-                let placedInZone = false;
-                if (zonesGeoJson && turf) {
-                    for (const f of zonesGeoJson.features) {
-                        try {
-                            if (turf.booleanPointInPolygon([cell.lng, cell.lat], f)) {
-                                const zid = f.properties?.citadelId || f.id || 'default';
-                                if (zoneCells[zid]) {
-                                    zoneCells[zid][cell.ring].push(cell);
-                                    placedInZone = true;
-                                    break;
-                                }
-                            }
-                        } catch(e) {}
-                    }
-                }
-
-                if (!placedInZone) {
-                    zoneCells['default'][cell.ring].push(cell);
+            // Build a flat, shuffled pool of all objects to place
+            const objectPool = [];
+            for (const { type, count, templatesList } of placementOrder) {
+                if (!templatesList || templatesList.length === 0) continue;
+                for (let j = 0; j < count; j++) {
+                    const template = getRandomTemplate(templatesList);
+                    if (template) objectPool.push({ type, template });
                 }
             }
+            objectPool.sort(() => Math.random() - 0.5);
 
-            const zoneIds = Object.keys(zoneCells);
-            let currentZoneIndex = 0;
-
-            const pickCell = (preferredRing) => {
-                const startIdx = currentZoneIndex;
-                do {
-                    const zid = zoneIds[currentZoneIndex];
-                    currentZoneIndex = (currentZoneIndex + 1) % zoneIds.length;
-
-                    const rings = zoneCells[zid];
-                    const searchOrder = [preferredRing, (preferredRing + 1) % 3, (preferredRing + 2) % 3];
-                    for (const ring of searchOrder) {
-                        if (rings[ring].length > 0) return rings[ring].pop();
-                    }
-                } while (currentZoneIndex !== startIdx);
-
-                // Fallback inside city bounds
-                let randomAngle = Math.random() * Math.PI * 2;
-                let randomDist = Math.random() * radiusMeters;
-                return {
-                    lat: city.lat + (randomDist / 111320) * Math.cos(randomAngle),
-                    lng: city.lng + (randomDist / (111320 * Math.cos(city.lat * Math.PI / 180))) * Math.sin(randomAngle)
-                };
-            };
-
-            const buildObject = (type, template, cell) => {
+            const buildObject = (type, template, lat, lng) => {
                 const obj = {
                     id: `${city.id}_${type}_${Math.random().toString(36).substring(2, 9)}`,
                     type, templateId: template.id, name: template.name, icon: template.icon,
-                    lat: cell.lat, lng: cell.lng, cityId: city.id, spawnedAt: Date.now()
+                    lat, lng, cityId: city.id, spawnedAt: Date.now()
                 };
                 if (type === 'monster') {
                     obj.level = template.level || 1; obj.hp = template.hp || 20; obj.maxHp = template.maxHp || 20;
@@ -270,23 +212,50 @@ window.generateGlobalWorld = async () => {
                 return obj;
             };
 
-            const placementOrder = [
-                { type: 'castle',  count: counts.castle,  templatesList: castles },
-                { type: 'vault',   count: counts.vault,   templatesList: vaults },
-                { type: 'shop',    count: counts.shop,    templatesList: shops },
-                { type: 'monster', count: counts.monster, templatesList: monsters }
-            ];
-            // Notice: 'citadel' is removed from the loop because they are already in `cityObjects`
-
-            for (const { type, count, templatesList } of placementOrder) {
-                if (!templatesList || templatesList.length === 0) continue;
-                const preferredRing = ENTITY_RING_PREFERENCE[type];
-                for (let j = 0; j < count; j++) {
-                    const template = getRandomTemplate(templatesList);
-                    if (!template) continue;
-                    const cell = pickCell(preferredRing);
-                    cityObjects.push(buildObject(type, template, cell));
+            const zones = (zonesGeoJson && zonesGeoJson.features) ? zonesGeoJson.features : [];
+            
+            if (zones.length > 0 && turf) {
+                const quotaPerZone = Math.ceil(objectPool.length / zones.length);
+                
+                for (const zone of zones) {
+                    const bbox = turf.bbox(zone);
+                    let placedInThisZone = 0;
+                    let attempts = 0;
+                    
+                    while (placedInThisZone < quotaPerZone && objectPool.length > 0 && attempts < 10000) {
+                        attempts++;
+                        const lat = bbox[1] + Math.random() * (bbox[3] - bbox[1]);
+                        const lng = bbox[0] + Math.random() * (bbox[2] - bbox[0]);
+                        
+                        if (turf.booleanPointInPolygon([lng, lat], zone)) {
+                            const { type, template } = objectPool.pop();
+                            cityObjects.push(buildObject(type, template, lat, lng));
+                            placedInThisZone++;
+                        }
+                    }
                 }
+            }
+
+            // Fallback for any remaining objects (if no zones or leftover rounding)
+            const radiusMeters = 9000;
+            let fallbackAttempts = 0;
+            while (objectPool.length > 0 && fallbackAttempts < 10000) {
+                fallbackAttempts++;
+                const { type, template } = objectPool.pop();
+                let randomAngle = Math.random() * Math.PI * 2;
+                let randomDist = Math.random() * radiusMeters;
+                const lat = city.lat + (randomDist / 111320) * Math.cos(randomAngle);
+                const lng = city.lng + (randomDist / (111320 * Math.cos(city.lat * Math.PI / 180))) * Math.sin(randomAngle);
+                
+                if (cityBoundary && turf) {
+                    try {
+                        if (!turf.booleanPointInPolygon([lng, lat], cityBoundary)) {
+                            objectPool.push({ type, template });
+                            continue;
+                        }
+                    } catch(e) {}
+                }
+                cityObjects.push(buildObject(type, template, lat, lng));
             }
 
             // 3. Save Snapshots
