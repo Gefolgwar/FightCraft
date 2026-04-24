@@ -1189,8 +1189,6 @@
                     }
 
                     statusText.textContent = "ACTIVATING...";
-                    // Using applyWorldSnapshot(id). If it needs a second argument isAppend, I'll pass false or omit it since it defaults to false.
-                    // The old code used isAppend, but the new instructions just say await applyWorldSnapshot(currentSnapshot.id);
                     const success = await applyWorldSnapshot(currentSnapshot.id);
                     if (success) {
                         currentSnapshot.isActive = true;
@@ -1228,15 +1226,10 @@
             if (!currentSnapshot) return;
             if (!confirm(`Delete template "${currentSnapshot.name || currentSnapshot.id}"?\n\nThis action cannot be undone.`)) return;
 
-            // Assume deleteSnapshot exists in firebase-service or implement inline if simple deleteDoc
-            // Since I didn't add deleteSnapshot export yet, I might need to rely on generic delete?
-            // Wait, I will add it to imports above, assuming I will add it to firebase-service.js next.
-
             const success = await deleteSnapshot(currentSnapshot.id);
             if (success) {
                 currentSnapshot = null;
 
-                // Clear markers correctly
                 // Clear markers correctly
                 if (markerLayerGroup) {
                     markerLayerGroup.clearLayers();
