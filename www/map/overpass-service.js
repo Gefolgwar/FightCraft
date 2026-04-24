@@ -1,10 +1,8 @@
 import { simplify, getCentroid } from '../core/geometry-utils.js';
 
 const OVERPASS_ENDPOINTS = [
-    "https://lz4.overpass-api.de/api/interpreter", // Usually more robust
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.nchc.org.tw/api/interpreter"
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://overpass-api.de/api/interpreter"
 ];
 let currentEndpointIndex = 0;
 let lastRequestTime = 0;
@@ -26,7 +24,7 @@ export class OverpassService {
      * Robust fetch with retries and mirror rotation
      */
     static async fetchJSON(query, attempt = 0) {
-        if (attempt > 2) throw new Error("Overpass API failed after multiple retries.");
+        if (attempt > 3) throw new Error("Overpass API failed after multiple retries.");
 
         const now = Date.now();
         const wait = Math.max(0, MIN_REQUEST_GAP - (now - lastRequestTime));
@@ -58,7 +56,7 @@ export class OverpassService {
             return JSON.parse(text);
         } catch (e) {
             console.warn(`❌ Overpass Error on ${endpoint}: ${e.message}`);
-            if (attempt < 2) {
+            if (attempt < 3) {
                 await this.sleep(1500);
                 return this.fetchJSON(query, attempt + 1);
             }
