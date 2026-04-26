@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Territory Math — Test Suite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; padding: 24px; }
+    h1 { font-size: 1.6rem; margin-bottom: 8px; color: #c0c8ff; }
+    h2 { font-size: 1.1rem; margin-bottom: 16px; font-weight: 400; }
+    h3 { font-size: 1rem; margin: 20px 0 8px; color: #8090c0; border-bottom: 1px solid #252a3a; padding-bottom: 4px; }
+    .summary-pass { color: #4ade80; }
+    .summary-fail { color: #f87171; }
+    .result { padding: 5px 10px; margin: 2px 0; border-radius: 4px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85rem; line-height: 1.5; }
+    .pass { background: #0d2818; border-left: 3px solid #4ade80; }
+    .fail { background: #2a0f0f; border-left: 3px solid #f87171; }
+    .details { color: #9ca3af; font-size: 0.8rem; margin-left: 8px; }
+    .timing { color: #6b7280; font-size: 0.8rem; margin-top: 12px; }
+    #error-banner { display: none; background: #4a1010; border: 1px solid #f87171; border-radius: 6px; padding: 16px; margin-bottom: 16px; white-space: pre-wrap; font-family: monospace; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Territory Math — Test Suite</h1>
+  <div id="error-banner"></div>
+  <h2 id="summary">Running…</h2>
+  <div id="results"></div>
+  <div class="timing" id="timing"></div>
+
+  <script type="module">
+    import {
+      haversineMeters,
+      effectiveDistance,
+      getOwner,
+      getNearestCitadels,
+      findBoundaryPoint,
+      estimateTerritoryBoundary,
+      isContested,
+      moveAlongBearing
+    } from '../core/territory-math.js';
+
+    const t0 = performance.now();
+    let passed = 0;
+    let failed = 0;
+    const results = [];
+    let currentGroup = '';
+
+    // ───────── Helpers ─────────
+
+    function group(name) {
+      currentGroup = name;
+      results.push({ type: 'group', name });
+    }
+
+    function assert(condition, testName, details = '') {
+      if (condition) {
+        passed++;
+        results.push({ type: 'pass', name: testName, details });
+      } else {
+        failed++;
+        results.push({ type: 'fail', name: testName, details });
+      }
+    }
+
+    function assertApprox(actual, expected, tolerance, testName) {
+      const diff = Math.abs(actual - expected);
+      const ok = diff <= tolerance;
+      const info = `got ${fmt(actual)}, expected ${fmt(expected)} ± ${fmt(tolerance)} (diff ${fmt(diff)})`;
+      assert(ok, testName, info);
+    }
+
+    function fmt(n) {
+      if (typeof n !== 'number') return String(n);
+      if (Number.isInteger(n)) return String(n);
+      if (Math.abs(n) >= 1) return n.toFixed(2);
+      return n.toPrecision(4);
+    }
+
+    // ───────── Shared fixtures ─────────
+
+    const BERLIN   = { id: 'berlin',  lat: 52.52,   lng: 13.405  };
+    const VIENNA   = { id: 'vienna',  lat: 48.2082, lng: 16.3738 };
+    const BGATE    = { lat: 52.5163, lng: 13.3777 }; // Brandenburg Gate
+
+    // ===================================================================
+    // TEST 1 — Haversine accuracy
+    // ===================================================================
+    group('Haversine');
+
+    (() => {
+      const d = haversineMeters(BERLIN.lat, BERLIN.lng, BGATE.lat, BGATE.lng);
+      // Verified via multiple geodesic calculators: ≈ 1893 m
+      assertApprox(d, 1893, 200, '1. Berlin center → Brandenburg Gate ≈ 1.9 km');
+    })();
+
+    // Sanity: known long distance — Berlin to Vienna ≈ 524 km
+    (() => {
+      const d = haversineMeters(BERLIN.lat, BERLIN.lng, VIENNA.lat, VIENNA.lng);
+      assertApprox(d, 524_000, 5_000, '   Berlin → Vienna ≈ 524 km (sanity)');
+    })();
+
+    // ===================================================================
+    // TEST 2 — Effective distance with power = 1 equals raw haversine
+    // ===================================================================
+    group('Effective Distance');
+
+    (() => {
+      const raw = haversineMeters(BERLIN.lat, BERLIN.lng, VIENNA.lat, VIENNA.lng);
+      const eff = effectiveDistance(BERLIN.lat, BERLIN.lng, { ...VIENNA, powerMultiplier: 1 });
+      assertApprox(eff, raw, 0.001,
+        '2. effectiveDistance(power=1) equals raw haversine');
+    })();
+
+    // ===================================================================
+    // TEST 3 — Effective distance with power = 2 is exactly half
+    // ===================================================================
+    (() => {
+      const raw = haversineMeters(BERLIN.lat, BERLIN.lng, VIENNA.lat, VIENNA.lng);
+      const eff = effectiveDistance(BERLIN.lat, BERLIN.lng, { ...VIENNA, powerMultiplier: 2 });
+      assertApprox(eff, raw / 2, 0.001,
+        '3. effectiveDistance(power=2) is exactly half of raw');
+    })();
+
+    // Guard: power = 0 should clamp to 0.01
+    (() => {
+      const raw = haversineMeters(BERLIN.lat, BERLIN.lng, VIENNA.lat, VIENNA.lng);
+      const eff = effectiveDistance(BERLIN.lat, BERLIN.lng, { ...VIENNA, powerMultiplier: 0 });
+      assertApprox(eff, raw / 0.01, 1,
+        '   effectiveDistance(power=0) clamps to 0.01');
+    })();
+
+    // ===================================================================
+    // TEST 4 — getOwner with single citadel always returns it
+    // ===================================================================
+    group('getOwner');
+
+    (() => {
+      const result = getOwner(0, 0, [{ id: 'solo', lat: 10, lng: 20, powerMultiplier: 1 }]);
+      assert(result !== null && result.citadel.id === 'solo',
+        '4. Single citadel → always returned as owner');
+      assert(result.rank.length === 1,
+        '   Rank array has length 1');
+    })();
+
+    // ===================================================================
+    // TEST 5 — getOwner two equal-power citadels
+    // ===================================================================
+    (() => {
+      const A = { id: 'A', lat: 52.52, lng: 13.405, powerMultiplier: 1 };
+      const B = { id: 'B', lat: 48.2082, lng: 16.3738, powerMultiplier: 1 };
+      // Midpoint — distances should be very close
+      const midLat = (A.lat + B.lat) / 2;
+      const midLng = (A.lng + B.lng) / 2;
+      const rMid = getOwner(midLat, midLng, [A, B]);
+      const diff = Math.abs(rMid.rank[0].distance - rMid.rank[1].distance);
+      assert(diff < 10_000,
+        '5a. Midpoint of two equal citadels → distances nearly equal',
+        `diff = ${fmt(diff)} m`);
+
+      // Point clearly near A
+      const rNear = getOwner(52.50, 13.40, [A, B]);
+      assert(rNear.citadel.id === 'A',
+        '5b. Point near A → A is owner');
+    })();
+
+    // ===================================================================
+    // TEST 6 — getOwner with unequal power
+    // ===================================================================
+    (() => {
+      const berlinStrong = { id: 'berlin', lat: 52.52, lng: 13.405, powerMultiplier: 3 };
+      const viennaWeak   = { id: 'vienna', lat: 48.2082, lng: 16.3738, powerMultiplier: 1 };
+      // Point at (49.5, 15.5) — much closer to Vienna (~157 km) than Berlin (~365 km)
+      // But Berlin effective = 365/3 ≈ 122 km  <  Vienna effective = 157 km → Berlin wins
+      const result = getOwner(49.5, 15.5, [berlinStrong, viennaWeak]);
+
+      const rawBerlin = haversineMeters(49.5, 15.5, berlinStrong.lat, berlinStrong.lng);
+      const rawVienna = haversineMeters(49.5, 15.5, viennaWeak.lat, viennaWeak.lng);
+      assert(rawVienna < rawBerlin,
+        '6a. Test point is geographically closer to Vienna',
+        `Vienna ${fmt(rawVienna / 1000)} km vs Berlin ${fmt(rawBerlin / 1000)} km`);
+      assert(result.citadel.id === 'berlin',
+        '6b. Berlin (power=3) still owns point closer to Vienna',
+        `eff Berlin ${fmt(result.rank[0].distance / 1000)} km, eff Vienna ${fmt(result.rank[1].distance / 1000)} km`);
+    })();
+
+    // ===================================================================
+    // TEST 7 — getOwner equator tie
+    // ===================================================================
+    (() => {
+      const east = { id: 'east', lat: 0, lng: 1, powerMultiplier: 1 };
+      const west = { id: 'west', lat: 0, lng: -1, powerMultiplier: 1 };
+      // Origin is equidistant — should return first citadel in array (stable sort)
+      const r1 = getOwner(0, 0, [east, west]);
+      assert(r1.citadel.id === 'east',
+        '7a. Equator equidistant → first in array wins (east)',
+        `east ${fmt(r1.rank[0].distance)} m, west ${fmt(r1.rank[1].distance)} m`);
+
+      // Reverse order → west should now win
+      const r2 = getOwner(0, 0, [west, east]);
+      assert(r2.citadel.id === 'west',
+        '7b. Reversed order → first in array wins (west)');
+    })();
+
+    // ===================================================================
+    // TEST 8 — getOwner across antimeridian
+    // ===================================================================
+    (() => {
+      const cA = { id: 'east179', lat: 0, lng: 179, powerMultiplier: 1 };
+      const cB = { id: 'west179', lat: 0, lng: -179, powerMultiplier: 1 };
+      // Query at (0, 178) — 1° from cA, 3° from cB (short-way around)
+      const result = getOwner(0, 178, [cA, cB]);
+      assert(result.citadel.id === 'east179',
+        '8a. Antimeridian: (0,178) → closer to citadel at (0,179)');
+
+      // Both distances should be valid positive numbers
+      const dA = haversineMeters(0, 178, 0, 179);
+      const dB = haversineMeters(0, 178, 0, -179);
+      assertApprox(dA, 111_000, 1_000,
+        '8b. Haversine across antimeridian: 1° ≈ 111 km');
+      assertApprox(dB, 333_000, 5_000,
+        '8c. Haversine across antimeridian: 3° ≈ 333 km');
+    })();
+
+    // ===================================================================
+    // TEST 9 — getNearestCitadels ordering
+    // ===================================================================
+    group('getNearestCitadels');
+
+    (() => {
+      const citadels = [
+        { id: 'far',  lat: 10, lng: 10, powerMultiplier: 1 },
+        { id: 'near', lat: 52, lng: 13, powerMultiplier: 1 },
+        { id: 'mid',  lat: 50, lng: 14, powerMultiplier: 1 },
+      ];
+      const top = getNearestCitadels(BERLIN.lat, BERLIN.lng, citadels, 3);
+      assert(top.length === 3,
+        '9a. getNearestCitadels returns requested count');
+      assert(top[0].distance <= top[1].distance && top[1].distance <= top[2].distance,
+        '9b. Results sorted ascending by effective distance',
+        `[${top.map(t => fmt(t.distance / 1000) + ' km').join(', ')}]`);
+      assert(top[0].citadel.id === 'near',
+        '9c. Closest citadel is first');
+    })();
+
+    // ===================================================================
+    // TEST 10 — findBoundaryPoint equal power → midpoint
+    // ===================================================================
+    group('findBoundaryPoint');
+
+    (() => {
+      const A = { id: 'A', lat: 52.52, lng: 13.405, powerMultiplier: 1 };
+      const B = { id: 'B', lat: 48.2082, lng: 16.3738, powerMultiplier: 1 };
+      const bp = findBoundaryPoint(A, B, 20);
+      const geoMidLat = (A.lat + B.lat) / 2;
+      const geoMidLng = (A.lng + B.lng) / 2;
+      // Boundary should be near the geographic midpoint
+      const bpToMid = haversineMeters(bp.lat, bp.lng, geoMidLat, geoMidLng);
+      assertApprox(bpToMid, 0, 2_000,
+        '10a. Equal power → boundary near geographic midpoint',
+        `offset ${fmt(bpToMid)} m`);
+
+      // Effective distances at boundary should be nearly equal
+      const dA = effectiveDistance(bp.lat, bp.lng, A);
+      const dB = effectiveDistance(bp.lat, bp.lng, B);
+      assertApprox(dA, dB, 1,
+        '10b. Effective distances at boundary are equal',
+        `to A: ${fmt(dA)} m, to B: ${fmt(dB)} m`);
+    })();
+
+    // ===================================================================
+    // TEST 11 — findBoundaryPoint unequal power → shifts toward weaker
+    // ===================================================================
+    (() => {
+      const strong = { id: 'strong', lat: 52.52, lng: 13.405, powerMultiplier: 2 };
+      const weak   = { id: 'weak',   lat: 48.2082, lng: 16.3738, powerMultiplier: 1 };
+      const bp = findBoundaryPoint(strong, weak, 20);
+      const midLat = (strong.lat + weak.lat) / 2;
+
+      // With power=2 vs power=1, boundary should shift toward the weaker citadel.
+      // Boundary condition: d(P, strong)/2 = d(P, weak)/1
+      // So d(P, strong) = 2 * d(P, weak) → P is at 2/3 of the way from strong to weak
+      // This means bp.lat < midLat (closer to Vienna's lower latitude)
+      assert(bp.lat < midLat,
+        '11a. Boundary shifts toward weaker citadel (lower lat than midpoint)',
+        `boundary lat ${fmt(bp.lat)}, midpoint lat ${fmt(midLat)}`);
+
+      // Effective distances at boundary should still be equal
+      const dS = effectiveDistance(bp.lat, bp.lng, strong);
+      const dW = effectiveDistance(bp.lat, bp.lng, weak);
+      assertApprox(dS, dW, 1,
+        '11b. Effective distances equal at unequal-power boundary',
+        `strong eff: ${fmt(dS)} m, weak eff: ${fmt(dW)} m`);
+
+      // Boundary should be roughly 2/3 of the way from strong to weak
+      const distStrongToBP = haversineMeters(strong.lat, strong.lng, bp.lat, bp.lng);
+      const distWeakToBP = haversineMeters(weak.lat, weak.lng, bp.lat, bp.lng);
+      const ratio = distStrongToBP / (distStrongToBP + distWeakToBP);
+      assertApprox(ratio, 2 / 3, 0.05,
+        '11c. Boundary at ≈ 2/3 of the way from strong to weak',
+        `ratio = ${fmt(ratio)}`);
+    })();
+
+    // ===================================================================
+    // TEST 12 — isContested
+    // ===================================================================
+    group('isContested');
+
+    (() => {
+      const A = { id: 'A', lat: 52.52, lng: 13.405, powerMultiplier: 1 };
+      const B = { id: 'B', lat: 48.2082, lng: 16.3738, powerMultiplier: 1 };
+      const bp = findBoundaryPoint(A, B, 20);
+
+      // Right at the boundary — definitely contested
+      const atBoundary = isContested(bp.lat, bp.lng, [A, B], 0.15);
+      assert(atBoundary.contested === true,
+        '12a. Point at boundary → contested',
+        `ratio = ${fmt(atBoundary.ratio)}`);
+
+      // Deep inside A's territory (Berlin itself)
+      const deep = isContested(A.lat, A.lng, [A, B], 0.15);
+      assert(deep.contested === false,
+        '12b. Point deep in A territory → not contested',
+        `ratio = ${fmt(deep.ratio)}`);
+      assert(deep.owner.id === 'A',
+        '12c. Owner is A when at A\'s position');
+    })();
+
+    // ===================================================================
+    // TEST 13 — estimateTerritoryBoundary
+    // ===================================================================
+    group('estimateTerritoryBoundary');
+
+    (() => {
+      const citadels = [
+        { id: 'center', lat: 50, lng: 14, powerMultiplier: 1 },
+        { id: 'north',  lat: 52, lng: 14, powerMultiplier: 1 },
+        { id: 'south',  lat: 48, lng: 14, powerMultiplier: 1 },
+        { id: 'east',   lat: 50, lng: 16, powerMultiplier: 1 },
+        { id: 'west',   lat: 50, lng: 12, powerMultiplier: 1 },
+      ];
+      const numRays = 24;
+      const boundary = estimateTerritoryBoundary(citadels[0], citadels, numRays, 50);
+      assert(boundary.length === numRays,
+        '13a. Boundary polygon has numRays points',
+        `got ${boundary.length}, expected ${numRays}`);
+
+      // Each boundary point should be a valid coordinate
+      const allValid = boundary.every(p =>
+        typeof p.lat === 'number' && typeof p.lng === 'number' &&
+        !isNaN(p.lat) && !isNaN(p.lng) &&
+        p.lat >= -90 && p.lat <= 90
+      );
+      assert(allValid,
+        '13b. All boundary points have valid lat/lng');
+
+      // Each boundary point should be approximately on the real boundary:
+      // effectiveDistance to center ≈ effectiveDistance to nearest rival
+      let boundaryAccuracy = 0;
+      for (const pt of boundary) {
+        const owner = getOwner(pt.lat, pt.lng, citadels);
+        const dCenter = effectiveDistance(pt.lat, pt.lng, citadels[0]);
+        // If center doesn't own this point, the boundary is right here or passed
+        // Either way, the distances should be close
+        if (owner && owner.rank.length >= 2) {
+          const gap = Math.abs(owner.rank[0].distance - owner.rank[1].distance);
+          if (gap < 2_000) boundaryAccuracy++;
+        }
+      }
+      // At least half the rays should have found a clean boundary
+      // (some may hit maxDist if no rival in that direction)
+      assert(boundaryAccuracy >= numRays * 0.4,
+        '13c. Most boundary points near actual ownership boundary',
+        `${boundaryAccuracy}/${numRays} within 2 km of boundary`);
+    })();
+
+    // ===================================================================
+    // TEST 14 — Edge case: empty citadels array
+    // ===================================================================
+    group('Edge Cases');
+
+    (() => {
+      const r = getOwner(52.52, 13.405, []);
+      assert(r === null,
+        '14a. getOwner([]) returns null');
+
+      const r2 = getOwner(52.52, 13.405, null);
+      assert(r2 === null,
+        '14b. getOwner(null) returns null');
+
+      const nearest = getNearestCitadels(52.52, 13.405, [], 3);
+      assert(Array.isArray(nearest) && nearest.length === 0,
+        '14c. getNearestCitadels([]) returns empty array');
+
+      const contested = isContested(52.52, 13.405, [], 0.15);
+      assert(contested.contested === false,
+        '14d. isContested([]) → not contested');
+    })();
+
+    // ===================================================================
+    // TEST 15 — Edge case: citadel at same location as query
+    // ===================================================================
+    (() => {
+      const here = { id: 'here', lat: 52.52, lng: 13.405, powerMultiplier: 1 };
+      const result = getOwner(52.52, 13.405, [here]);
+      assertApprox(result.distance, 0, 0.01,
+        '15a. Citadel at query point → distance ≈ 0');
+
+      // Even with a distant competitor, the co-located citadel wins
+      const far = { id: 'far', lat: 0, lng: 0, powerMultiplier: 100 };
+      const r2 = getOwner(52.52, 13.405, [far, here]);
+      assert(r2.citadel.id === 'here',
+        '15b. Co-located citadel beats distant high-power citadel');
+    })();
+
+    // ===================================================================
+    // BONUS — moveAlongBearing sanity
+    // ===================================================================
+    group('moveAlongBearing');
+
+    (() => {
+      // Move 111,320 m North from equator (0,0) → should be ≈ (1°, 0°)
+      const p = moveAlongBearing(0, 0, 0, 111_320);
+      assertApprox(p.lat, 1.0, 0.01,
+        'Bonus: 111 km North from (0,0) ≈ (1°, 0°)',
+        `got (${fmt(p.lat)}, ${fmt(p.lng)})`);
+      assertApprox(p.lng, 0, 0.001,
+        'Bonus: Longitude unchanged when moving due North');
+
+      // Move East along equator
+      const pE = moveAlongBearing(0, 0, 90, 111_320);
+      assertApprox(pE.lat, 0, 0.01,
+        'Bonus: Latitude unchanged when moving due East');
+      assertApprox(pE.lng, 1.0, 0.01,
+        'Bonus: 111 km East from (0,0) ≈ (0°, 1°)',
+        `got (${fmt(pE.lat)}, ${fmt(pE.lng)})`);
+    })();
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Render results
+    // ═══════════════════════════════════════════════════════════════════
+
+    const elapsed = (performance.now() - t0).toFixed(1);
+    const summaryEl = document.getElementById('summary');
+    const parts = [];
+    if (passed > 0) parts.push(`<span class="summary-pass">${passed} passed</span>`);
+    if (failed > 0) parts.push(`<span class="summary-fail">${failed} failed</span>`);
+    summaryEl.innerHTML = parts.join(', ') + ` — ${results.filter(r => r.type !== 'group').length} assertions`;
+
+    const container = document.getElementById('results');
+    let html = '';
+    for (const r of results) {
+      if (r.type === 'group') {
+        html += `<h3>${r.name}</h3>`;
+      } else {
+        const cls = r.type === 'pass' ? 'pass' : 'fail';
+        const icon = r.type === 'pass' ? '✅' : '❌';
+        const det = r.details ? `<span class="details">${r.details}</span>` : '';
+        html += `<div class="result ${cls}">${icon} ${r.name} ${det}</div>`;
+      }
+    }
+    container.innerHTML = html;
+    document.getElementById('timing').textContent = `Completed in ${elapsed} ms`;
+
+    // Set page title with pass/fail
+    document.title = `Territory Math — ${failed === 0 ? '✅ ALL PASSED' : `❌ ${failed} FAILED`}`;
+  </script>
+</body>
+</html>

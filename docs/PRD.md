@@ -295,3 +295,67 @@ No test framework is currently configured. Manual testing is done via browser co
 ### City Coverage
 
 Currently 6 city anchors: Berlin (default), Kyiv, Lviv, Warsaw, Prague, Vienna. Adding new cities requires adding entries to `CITY_ANCHORS` in `data.js` and running admin world-generation tools to populate Firestore with spawned objects.
+
+---
+
+## Global Territory System (v2)
+
+### Overview
+FightCraft v2 replaces the static 6-city model with a procedurally discovered global world. Any coordinate on Earth resolves to a territory owner via the **Weighted Voronoi (Power Diagram)** system.
+
+### Core Formula
+```
+EffectiveDistance = HaversineDistance(player, citadel) / CitadelPower
+```
+The citadel with the lowest `EffectiveDistance` owns any given point. This is computed client-side with zero Firestore reads.
+
+### Discovery System
+- **Trigger**: Player enters a new H3 Resolution 6 cell (~3.2km edge)
+- **Action**: Overpass API queries OSM for historic landmarks (castles, monuments, ruins, cathedrals, etc.)
+- **Result**: New castle documents are created in Firestore with default `powerMultiplier: 1.0`
+- **Dedup**: 100m radius prevents duplicate castles for the same landmark
+
+### Castle Types (from OSM classification)
+| Type | OSM Source | Icon |
+|------|-----------|------|
+| Fortress | `historic=castle/fort/citadel` | 🏰 |
+| Ruins | `historic=ruins` | 🏚️ |
+| Monument | `historic=monument/memorial` | 🗽 |
+| Temple | `amenity=place_of_worship`, `building=cathedral/church` | ⛪ |
+| Landmark | `tourism=attraction` | 🏛️ |
+| Outpost | Other qualifying features | 🏕️ |
+
+### Territory Rendering
+- **Canvas overlay**: HTML5 Canvas layer on Leaflet map (pointer-events: none)
+- **Boundary computation**: Ray-casting from each citadel (24 rays, 30km max range)
+- **Binary search refinement**: 15-step binary search per ray for sub-meter accuracy
+- **Fill**: Semi-transparent faction colors (opacity: 0.15)
+- **Borders**: Solid faction color lines (opacity: 0.7, width: 2px)
+
+### Contested Zones
+A point is "contested" when the 2nd-nearest citadel's effective distance is within 15% of the 1st-nearest. Contested zones trigger visual indicators and may affect gameplay (e.g., increased PvP encounters).
+
+### New Modules
+| Module | Path | Purpose |
+|--------|------|---------|
+| territory-math.js | www/core/ | Pure math: haversine, getOwner, boundary estimation |
+| discovery-service.js | www/core/ | H3 cell entry → OSM query → castle creation |
+| territory-canvas.js | www/map/ | Canvas overlay for territory visualization |
+
+### Preserved Systems
+- **Combat math** (battle-logic.js): Untouched
+- **BigInt XP**: All XP/gold operations remain BigInt-safe
+- **Passive income**: districts.js tax logic preserved, uses new getOwner fallback
+- **Save system**: triggerSave() debounce pattern unchanged
+
+### Migration Status
+- [x] territory-math.js — Pure math functions (TDD tested)
+- [x] discovery-service.js — H3 discovery with Overpass integration
+- [x] territory-canvas.js — Canvas rendering layer
+- [x] territory-service.js — Refactored to delegate to territory-math
+- [x] districts.js — Dual-path: polygon first, territory-math fallback
+- [x] map.js — Canvas layer + discovery wired into movement
+- [x] h3-spatial.js — H3_RES_DISCOVERY constant added
+- [x] data.js — CITY_ANCHORS deprecated
+- [ ] Firebase rules — Update for castle collection
+- [ ] Full CITY_ANCHORS removal — After all callers migrated

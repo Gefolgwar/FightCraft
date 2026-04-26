@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>🧪 Zone Generator — TDD Tests</title>
+        <style>
+            body {
+                font-family: monospace;
+                background: #1a1a2e;
+                color: #e0e0e0;
+                padding: 20px;
+            }
+            .pass {
+                color: #00ff88;
+            }
+            .fail {
+                color: #ff4444;
+                font-weight: bold;
+            }
+            .suite {
+                color: #ffd700;
+                margin-top: 16px;
+                font-size: 14px;
+            }
+            .result {
+                margin-left: 20px;
+                font-size: 12px;
+            }
+            #summary {
+                margin-top: 20px;
+                font-size: 16px;
+                border-top: 1px solid #444;
+                padding-top: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🧪 Zone Generator — TDD Tests</h1>
+        <div id="output"></div>
+        <div id="summary"></div>
+
+        <script type="module">
+            import {
+                createRNG,
+                hashSeed,
+                citadelCountFromPopulation,
+                placeCitadels,
+                farthestPointSampling,
+                distributePointsInZone,
+                assignTemplates,
+                generateCity,
+                computeBBox,
+                MONSTERS_PER_ZONE,
+            } from "./zone-generator.js";
+
+            import {
+                haversineMeters,
+                getOwner,
+            } from "../core/territory-math.js";
+
+            // ── Inline Test Framework ────────────────────────────────────────────
+
+            const out = document.getElementById("output");
+            let passed = 0,
+                failed = 0,
+                errors = [];
+
+            function suite(name) {
+                const div = document.createElement("div");
+                div.className = "suite";
+                div.textContent = "▸ " + name;
+                out.appendChild(div);
+            }
+
+            function assert(condition, msg) {
+                const div = document.createElement("div");
+                div.className = "result " + (condition ? "pass" : "fail");
+                div.textContent = (condition ? "  ✓ " : "  ✗ ") + msg;
+                out.appendChild(div);
+                if (condition) passed++;
+                else {
+                    failed++;
+                    errors.push(msg);
+                }
+            }
+
+            function assertClose(actual, expected, tolerance, msg) {
+                const ok = Math.abs(actual - expected) <= tolerance;
+                assert(
+                    ok,
+                    msg +
+                        " (got " +
+                        actual +
+                        ", expected ~" +
+                        expected +
+                        " ±" +
+                        tolerance +
+                        ")",
+                );
+            }
+
+            // ── Suite: createRNG — Determinism ───────────────────────────────────
+
+            suite("createRNG — Determinism");
+
+            {
+                const rng1 = createRNG(42);
+                const rng2 = createRNG(42);
+                const seq1 = Array.from({ length: 10 }, () => rng1());
+                const seq2 = Array.from({ length: 10 }, () => rng2());
+                assert(
+                    JSON.stringify(seq1) === JSON.stringify(seq2),
+                    "Same seed (42) produces identical 10-value sequence",
+                );
+
+                const rng3 = createRNG(99);
+                const seq3 = Array.from({ length: 10 }, () => rng3());
+                assert(
+                    JSON.stringify(seq1) !== JSON.stringify(seq3),
+                    "Different seed (99) produces different sequence",
+                );
+            }
+
+            // ── Suite: createRNG — Distribution ──────────────────────────────────
+
+            suite("createRNG — Distribution");
+
+            {
+                const rng = createRNG(12345);
+                const values = Array.from({ length: 10000 }, () => rng());
+
+                const allInRange = values.every((v) => v >= 0 && v < 1);
+                assert(allInRange, "All 10000 values in [0, 1)");
+
+                const mean = values.reduce((s, v) => s + v, 0) / values.length;
+                assertClose(mean, 0.5, 0.02, "Mean ≈ 0.5");
+
+                // Chi-squared uniformity test with 10 buckets
+                const buckets = new Array(10).fill(0);
+                for (const v of values)
+                    buckets[Math.min(Math.floor(v * 10), 9)]++;
+                const expected = values.length / 10;
+                const chiSq = buckets.reduce(
+                    (s, b) => s + (b - expected) ** 2 / expected,
+                    0,
+                );
+                assert(
+                    chiSq < 30,
+                    "Chi-squared uniformity (10 buckets): χ² = " +
+                        chiSq.toFixed(2) +
+                        " < 30",
+                );
+
+                const first100 = values.slice(0, 100);
+                let hasRepeat = false;
+                for (let i = 1; i < first100.length; i++) {
+                    if (first100[i] === first100[i - 1]) {
+                        hasRepeat = true;
+                        break;
+                    }
+                }
+                assert(
+                    !hasRepeat,
+                    "No repeated consecutive values (first 100)",
+                );
+            }
+
+            // ── Suite: hashSeed ──────────────────────────────────────────────────
+
+            suite("hashSeed");
+
+            {
+                assert(
+                    typeof hashSeed("test") === "number",
+                    "Returns a number",
+                );
+                assert(
+                    hashSeed("berlin") === hashSeed("berlin"),
+                    'Deterministic: hashSeed("berlin") === hashSeed("berlin")',
+                );
+                assert(
+                    hashSeed("berlin") !== hashSeed("kyiv"),
+                    "Different strings → different seeds",
+                );
+                assert(hashSeed("") >= 0, "Non-negative for empty string");
+            }
+
+            // ── Suite: citadelCountFromPopulation ─────────────────────────────────
+
+            suite("citadelCountFromPopulation");
+
+            {
+                const cases = [
+                    [0, 2, "0 → 2"],
+                    [-100, 2, "-100 → 2"],
+                    [null, 2, "null → 2"],
+                    [undefined, 2, "undefined → 2"],
+                    [50000, 2, "50000 → 2"],
+                    [100000, 2, "100000 → 2 (ceil(1) = 1, max(2,1) = 2)"],
+                    [100001, 2, "100001 → 2 (ceil(1.00001) = 2, max(2,2) = 2)"],
+                    [200000, 2, "200000 → 2 (ceil(2) = 2)"],
+                    [200001, 3, "200001 → 3 (ceil(2.00001) = 3)"],
+                    [500000, 5, "500000 → 5"],
+                    [1000000, 10, "1000000 → 10"],
+                    [3600000, 36, "3600000 → 36 (Berlin)"],
+                    [2900000, 29, "2900000 → 29 (Kyiv)"],
+                ];
+                for (const [pop, expected, label] of cases) {
+                    const result = citadelCountFromPopulation(pop);
+                    assert(result === expected, label + " — got " + result);
+                }
+            }
+
+            // ── Suite: MONSTERS_PER_ZONE constant ────────────────────────────────
+
+            suite("MONSTERS_PER_ZONE constant");
+
+            {
+                assert(
+                    MONSTERS_PER_ZONE === 250,
+                    "MONSTERS_PER_ZONE === 250 (got " + MONSTERS_PER_ZONE + ")",
+                );
+            }
+
+            // ── Suite: computeBBox ───────────────────────────────────────────────
+
+            suite("computeBBox");
+
+            {
+                const points = [
+                    { lat: 52.4, lng: 13.3 },
+                    { lat: 52.6, lng: 13.5 },
+                    { lat: 52.5, lng: 13.4 },
+                ];
+                const bbox = computeBBox(points);
+                assert(
+                    bbox.minLat === 52.4 &&
+                        bbox.maxLat === 52.6 &&
+                        bbox.minLng === 13.3 &&
+                        bbox.maxLng === 13.5,
+                    "Correct bbox from 3 points",
+                );
+
+                assert(computeBBox([]) === null, "Empty array → null");
+                assert(computeBBox(null) === null, "Null input → null");
+
+                const single = computeBBox([{ lat: 52.5, lng: 13.4 }]);
+                assert(
+                    single.minLat === single.maxLat &&
+                        single.minLng === single.maxLng,
+                    "Single point → bbox where min===max",
+                );
+            }
+
+            // ── Suite: placeCitadels — Count & Determinism ───────────────────────
+
+            suite("placeCitadels — Count & Determinism");
+
+            {
+                const center = { lat: 52.52, lng: 13.405 };
+
+                const result = placeCitadels(center, 10, 5, 42);
+                assert(
+                    result.length === 5,
+                    "placeCitadels(center, 10, 5, 42).length === 5 (got " +
+                        result.length +
+                        ")",
+                );
+
+                const result2 = placeCitadels(center, 10, 5, 42);
+                assert(
+                    JSON.stringify(result) === JSON.stringify(result2),
+                    "Same seed → identical positions",
+                );
+
+                const result3 = placeCitadels(center, 10, 5, 99);
+                assert(
+                    JSON.stringify(result) !== JSON.stringify(result3),
+                    "Different seed (99) → different positions",
+                );
+            }
+
+            // ── Suite: placeCitadels — Spatial Properties ─────────────────────────
+
+            suite("placeCitadels — Spatial Properties");
+
+            {
+                const center = { lat: 52.52, lng: 13.405 };
+                const radiusKm = 10;
+                const citadels = placeCitadels(center, radiusKm, 8, 42);
+
+                const allWithinRadius = citadels.every((c) => {
+                    const dist = haversineMeters(
+                        center.lat,
+                        center.lng,
+                        c.lat,
+                        c.lng,
+                    );
+                    return dist <= radiusKm * 1000 * 1.1;
+                });
+                assert(
+                    allWithinRadius,
+                    "All citadels within ~radius (≤ " +
+                        radiusKm * 1000 * 1.1 +
+                        "m)",
+                );
+
+                let minPairDist = Infinity;
+                for (let i = 0; i < citadels.length; i++) {
+                    for (let j = i + 1; j < citadels.length; j++) {
+                        const d = haversineMeters(
+                            citadels[i].lat,
+                            citadels[i].lng,
+                            citadels[j].lat,
+                            citadels[j].lng,
+                        );
+                        if (d < minPairDist) minPairDist = d;
+                    }
+                }
+                assert(
+                    minPairDist > 500,
+                    "Min pairwise distance > 500m (got " +
+                        Math.round(minPairDist) +
+                        "m)",
+                );
+
+                const meanDistFromCenter =
+                    citadels.reduce(
+                        (s, c) =>
+                            s +
+                            haversineMeters(
+                                center.lat,
+                                center.lng,
+                                c.lat,
+                                c.lng,
+                            ),
+                        0,
+                    ) / citadels.length;
+                assert(
+                    meanDistFromCenter > 2000,
+                    "Mean distance from center > 2000m (got " +
+                        Math.round(meanDistFromCenter) +
+                        "m)",
+                );
+
+                const allHavePower = citadels.every(
+                    (c) => c.powerMultiplier === 1,
+                );
+                assert(allHavePower, "All have powerMultiplier === 1");
+            }
+
+            // ── Suite: placeCitadels — Edge Cases ────────────────────────────────
+
+            suite("placeCitadels — Edge Cases");
+
+            {
+                const center = { lat: 52.52, lng: 13.405 };
+
+                const r0 = placeCitadels(center, 10, 0, 42);
+                assert(
+                    r0.length === 0,
+                    "Count 0 → empty array (got " + r0.length + ")",
+                );
+
+                const r1 = placeCitadels(center, 10, 1, 42);
+                assert(
+                    r1.length === 1,
+                    "Count 1 → single citadel (got " + r1.length + ")",
+                );
+
+                const r30 = placeCitadels(center, 10, 30, 42);
+                assert(
+                    r30.length === 30,
+                    "Count 30 → 30 citadels (got " + r30.length + ")",
+                );
+            }
+
+            // ── Suite: farthestPointSampling ─────────────────────────────────────
+
+            suite("farthestPointSampling");
+
+            {
+                const grid = [];
+                for (let lat = 0; lat <= 2; lat++) {
+                    for (let lng = 0; lng <= 2; lng++) {
+                        grid.push({ lat, lng });
+                    }
+                }
+                const center = { lat: 1, lng: 1 };
+
+                const selected4 = farthestPointSampling(grid, 4, center);
+                assert(
+                    selected4.length === 4,
+                    "Select 4 → returns 4 (got " + selected4.length + ")",
+                );
+
+                const first = selected4[0];
+                assert(
+                    Math.abs(first.lat - 1) < 0.01 &&
+                        Math.abs(first.lng - 1) < 0.01,
+                    "First selected point is nearest to center (lat≈1, lng≈1) — got (" +
+                        first.lat +
+                        ", " +
+                        first.lng +
+                        ")",
+                );
+
+                const selectedAll = farthestPointSampling(grid, 100, center);
+                assert(
+                    selectedAll.length === grid.length,
+                    "Fewer candidates than count → returns all (" +
+                        selectedAll.length +
+                        " === " +
+                        grid.length +
+                        ")",
+                );
+            }
+
+            // ── Suite: distributePointsInZone — Basic ────────────────────────────
+
+            suite("distributePointsInZone — Basic");
+
+            {
+                const citadels = [
+                    { id: "c0", lat: 52.5, lng: 13.35, powerMultiplier: 1 },
+                    { id: "c1", lat: 52.5, lng: 13.45, powerMultiplier: 1 },
+                    { id: "c2", lat: 52.54, lng: 13.35, powerMultiplier: 1 },
+                    { id: "c3", lat: 52.54, lng: 13.45, powerMultiplier: 1 },
+                ];
+
+                const points = distributePointsInZone(
+                    citadels[0],
+                    citadels,
+                    50,
+                    42,
+                );
+                assert(
+                    points.length === 50,
+                    "Request 50 points for c0: length === 50 (got " +
+                        points.length +
+                        ")",
+                );
+
+                const allOwnedByC0 = points.every((p) => {
+                    const owner = getOwner(p.lat, p.lng, citadels);
+                    return owner.citadel.id === "c0";
+                });
+                assert(allOwnedByC0, "All points owned by c0");
+
+                const points2 = distributePointsInZone(
+                    citadels[0],
+                    citadels,
+                    50,
+                    42,
+                );
+                assert(
+                    JSON.stringify(points) === JSON.stringify(points2),
+                    "Same seed → identical positions",
+                );
+            }
+
+            // ── Suite: distributePointsInZone — Spatial Uniformity ───────────────
+
+            suite("distributePointsInZone — Spatial Uniformity");
+
+            {
+                const citadels = [
+                    { id: "a", lat: 52.5, lng: 13.35, powerMultiplier: 1 },
+                    { id: "b", lat: 52.5, lng: 13.45, powerMultiplier: 1 },
+                    { id: "c", lat: 52.54, lng: 13.4, powerMultiplier: 1 },
+                ];
+
+                const points = distributePointsInZone(
+                    citadels[0],
+                    citadels,
+                    100,
+                    42,
+                );
+
+                const lats = points.map((p) => p.lat);
+                const lngs = points.map((p) => p.lng);
+                const latSpan = Math.max(...lats) - Math.min(...lats);
+                const lngSpan = Math.max(...lngs) - Math.min(...lngs);
+
+                assert(
+                    latSpan > 0.005,
+                    "Lat span > 0.005° (got " + latSpan.toFixed(6) + "°)",
+                );
+                assert(
+                    lngSpan > 0.005,
+                    "Lng span > 0.005° (got " + lngSpan.toFixed(6) + "°)",
+                );
+
+                const meanLat = lats.reduce((s, v) => s + v, 0) / lats.length;
+                const latStdDev = Math.sqrt(
+                    lats.reduce((s, v) => s + (v - meanLat) ** 2, 0) /
+                        lats.length,
+                );
+                assert(
+                    latStdDev > latSpan * 0.15,
+                    "Lat std dev > latSpan × 0.15 (stdDev=" +
+                        latStdDev.toFixed(6) +
+                        ", threshold=" +
+                        (latSpan * 0.15).toFixed(6) +
+                        ")",
+                );
+
+                const meanLng = lngs.reduce((s, v) => s + v, 0) / lngs.length;
+                const lngStdDev = Math.sqrt(
+                    lngs.reduce((s, v) => s + (v - meanLng) ** 2, 0) /
+                        lngs.length,
+                );
+                assert(
+                    lngStdDev > lngSpan * 0.15,
+                    "Lng std dev > lngSpan × 0.15 (stdDev=" +
+                        lngStdDev.toFixed(6) +
+                        ", threshold=" +
+                        (lngSpan * 0.15).toFixed(6) +
+                        ")",
+                );
+            }
+
+            // ── Suite: assignTemplates ───────────────────────────────────────────
+
+            suite("assignTemplates");
+
+            {
+                const positions = [
+                    { lat: 52.5, lng: 13.4 },
+                    { lat: 52.51, lng: 13.41 },
+                    { lat: 52.52, lng: 13.42 },
+                ];
+                const templates = [
+                    {
+                        id: "wolf",
+                        name: "Wolf",
+                        icon: "🐺",
+                        weight: 70,
+                        level: 5,
+                        hp: 90,
+                        damage: 12,
+                        defense: 3,
+                        xpReward: 60,
+                        loot: [],
+                    },
+                    {
+                        id: "goblin",
+                        name: "Goblin",
+                        icon: "👺",
+                        weight: 30,
+                        level: 9,
+                        hp: 150,
+                        damage: 18,
+                        defense: 6,
+                        xpReward: 95,
+                        loot: [],
+                    },
+                ];
+                const cityId = "testcity";
+                const zoneId = "zone-0";
+
+                const monsters = assignTemplates(
+                    positions,
+                    templates,
+                    cityId,
+                    zoneId,
+                    42,
+                );
+
+                assert(
+                    monsters.length === positions.length,
+                    "Returns one monster per position (got " +
+                        monsters.length +
+                        ")",
+                );
+                assert(monsters[0].type === "monster", 'Type is "monster"');
+                assert(monsters[0].cityId === cityId, "CityId set correctly");
+                assert(monsters[0].zoneId === zoneId, "ZoneId set correctly");
+                assert(monsters[0].lat === positions[0].lat, "Lat preserved");
+
+                const validIds = templates.map((t) => t.id);
+                const allValidTemplate = monsters.every((m) =>
+                    validIds.includes(m.templateId),
+                );
+                assert(allValidTemplate, "Valid templateId");
+
+                const monsters2 = assignTemplates(
+                    positions,
+                    templates,
+                    cityId,
+                    zoneId,
+                    42,
+                );
+                assert(
+                    JSON.stringify(monsters) === JSON.stringify(monsters2),
+                    "Same seed → identical assignments (determinism)",
+                );
+
+                // Weight distribution test: 1000 monsters
+                const bigPositions = Array.from({ length: 1000 }, (_, i) => ({
+                    lat: 52.5 + i * 0.0001,
+                    lng: 13.4 + i * 0.0001,
+                }));
+                const bigMonsters = assignTemplates(
+                    bigPositions,
+                    templates,
+                    cityId,
+                    zoneId,
+                    777,
+                );
+                const wolfCount = bigMonsters.filter(
+                    (m) => m.templateId === "wolf",
+                ).length;
+                assert(
+                    wolfCount >= 600 && wolfCount <= 800,
+                    "Weight distribution: wolf count between 600-800 (got " +
+                        wolfCount +
+                        " of 1000, weight 70%)",
+                );
+            }
+
+            // ── Suite: generateCity — Integration ────────────────────────────────
+
+            suite("generateCity — Integration");
+
+            {
+                const city = {
+                    id: "testville",
+                    name: "Testville",
+                    lat: 52.52,
+                    lng: 13.405,
+                };
+                const templates = [
+                    {
+                        id: "wolf",
+                        name: "Wolf",
+                        icon: "🐺",
+                        weight: 50,
+                        level: 5,
+                        hp: 90,
+                        damage: 12,
+                        defense: 3,
+                        xpReward: 60,
+                        loot: [],
+                    },
+                    {
+                        id: "goblin",
+                        name: "Goblin",
+                        icon: "👺",
+                        weight: 50,
+                        level: 9,
+                        hp: 150,
+                        damage: 18,
+                        defense: 6,
+                        xpReward: 95,
+                        loot: [],
+                    },
+                ];
+                const population = 300000;
+                const monstersPerZone = 50;
+
+                const result = generateCity(
+                    city,
+                    population,
+                    templates,
+                    monstersPerZone,
+                );
+
+                assert(
+                    result.citadels.length === 3,
+                    "citadels.length === 3 (ceil(300k/100k) = 3) — got " +
+                        result.citadels.length,
+                );
+                assert(
+                    result.meta.citadelCount === 3,
+                    "meta.citadelCount === 3 — got " + result.meta.citadelCount,
+                );
+                assert(
+                    result.meta.cityId === "testville",
+                    'meta.cityId === "testville" — got ' + result.meta.cityId,
+                );
+                assert(
+                    result.meta.population === 300000,
+                    "meta.population === 300000 — got " +
+                        result.meta.population,
+                );
+
+                const uniqueZones = new Set(
+                    result.monsters.map((m) => m.zoneId),
+                );
+                assert(
+                    uniqueZones.size === 3,
+                    "3 unique zoneIds in monsters (got " +
+                        uniqueZones.size +
+                        ")",
+                );
+
+                assert(
+                    result.monsters.length >= 100,
+                    "Total monsters >= 100 (3 × 50 = 150 target) — got " +
+                        result.monsters.length,
+                );
+
+                const result2 = generateCity(
+                    city,
+                    population,
+                    templates,
+                    monstersPerZone,
+                );
+                assert(
+                    result2.citadels.length === result.citadels.length &&
+                        JSON.stringify(
+                            result2.citadels.map((c) => ({
+                                lat: c.lat,
+                                lng: c.lng,
+                            })),
+                        ) ===
+                            JSON.stringify(
+                                result.citadels.map((c) => ({
+                                    lat: c.lat,
+                                    lng: c.lng,
+                                })),
+                            ),
+                    "Determinism: second call produces same citadel count and positions",
+                );
+            }
+
+            // ── Suite: generateCity — Population Scaling ─────────────────────────
+
+            suite("generateCity — Population Scaling");
+
+            {
+                const city = {
+                    id: "scaletown",
+                    name: "Scaletown",
+                    lat: 52.52,
+                    lng: 13.405,
+                };
+                const templates = [
+                    {
+                        id: "wolf",
+                        name: "Wolf",
+                        icon: "🐺",
+                        weight: 50,
+                        level: 5,
+                        hp: 90,
+                        damage: 12,
+                        defense: 3,
+                        xpReward: 60,
+                        loot: [],
+                    },
+                    {
+                        id: "goblin",
+                        name: "Goblin",
+                        icon: "👺",
+                        weight: 50,
+                        level: 9,
+                        hp: 150,
+                        damage: 18,
+                        defense: 6,
+                        xpReward: 95,
+                        loot: [],
+                    },
+                ];
+                const monstersPerZone = 10;
+
+                const r200k = generateCity(
+                    city,
+                    200000,
+                    templates,
+                    monstersPerZone,
+                );
+                assert(
+                    r200k.citadels.length === 2,
+                    "Pop 200k → 2 citadels (got " + r200k.citadels.length + ")",
+                );
+
+                const r500k = generateCity(
+                    city,
+                    500000,
+                    templates,
+                    monstersPerZone,
+                );
+                assert(
+                    r500k.citadels.length === 5,
+                    "Pop 500k → 5 citadels (got " + r500k.citadels.length + ")",
+                );
+
+                const r1m = generateCity(
+                    city,
+                    1000000,
+                    templates,
+                    monstersPerZone,
+                );
+                assert(
+                    r1m.citadels.length === 10,
+                    "Pop 1M → 10 citadels (got " + r1m.citadels.length + ")",
+                );
+            }
+
+            // ── Summary ──────────────────────────────────────────────────────────
+
+            const summaryEl = document.getElementById("summary");
+            const icon = failed === 0 ? "🎉" : "💥";
+            summaryEl.innerHTML = `<span class="${failed === 0 ? "pass" : "fail"}">${icon} ${passed} passed, ${failed} failed (${passed + failed} total)</span>`;
+            if (errors.length > 0) {
+                summaryEl.innerHTML +=
+                    '<div class="fail" style="margin-top:8px">Failed: ' +
+                    errors.join("; ") +
+                    "</div>";
+            }
+        </script>
+    </body>
+</html>

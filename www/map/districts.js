@@ -1,8 +1,12 @@
-
-import { OverpassService } from './overpass-service.js';
-import { gameState } from '../core/gameState.js';
-import { isPointInPolygon } from '../core/geometry-utils.js';
-import { getTerritoryZones } from './territory-service.js';
+import { OverpassService } from "./overpass-service.js";
+import { gameState } from "../core/gameState.js";
+import { isPointInPolygon } from "../core/geometry-utils.js";
+import { CITY_ANCHORS } from "../gameplay/data.js";
+import {
+  getTerritoryZones,
+  getGlobalOwner,
+  computeAllTerritoryBoundaries,
+} from "./territory-service.js";
 
 // ==================== STATE ====================
 let mapRef = null;
@@ -17,153 +21,216 @@ let areDistrictsVisible = false;
  * @param {L.Map} mapInstance - Leaflet map instance
  */
 export function initDistricts(mapInstance) {
-    if (mapRef) return; // Already initialized
-    mapRef = mapInstance;
+  if (mapRef) return; // Already initialized
+  mapRef = mapInstance;
 
-    // Create a LayerGroup to hold all district elements (polygons, labels, citadels)
-    districtLayers = L.layerGroup().addTo(mapRef);
+  // Create a LayerGroup to hold all district elements (polygons, labels, citadels)
+  districtLayers = L.layerGroup().addTo(mapRef);
 
-    // Expose toggle function globally for the UI button
-    window.toggleDistrictVisibility = toggleDistrictVisibility;
+  // Expose toggle function globally for the UI button
+  window.toggleDistrictVisibility = toggleDistrictVisibility;
 
-    // Initial load based on player position
-    if (gameState.player && gameState.player.position) {
-        console.log("🏙️ Initializing Districts...");
-        fetchAndDrawDistricts(gameState.player.position.lat, gameState.player.position.lng);
-    }
+  // Initial load based on player position
+  if (gameState.player && gameState.player.position) {
+    console.log("🏙️ Initializing Districts...");
+    fetchAndDrawDistricts(
+      gameState.player.position.lat,
+      gameState.player.position.lng,
+    );
+  }
 }
 
 /**
  * Toggle visibility of district polygons and labels
  */
 export function toggleDistrictVisibility() {
-    areDistrictsVisible = !areDistrictsVisible;
+  areDistrictsVisible = !areDistrictsVisible;
 
-    // Update Map/Body class for CSS transitions
-    const mapEl = document.getElementById('map');
-    if (mapEl) {
-        if (areDistrictsVisible) {
-            mapEl.classList.add('districts-visible');
-        } else {
-            mapEl.classList.remove('districts-visible');
-        }
+  // Update Map/Body class for CSS transitions
+  const mapEl = document.getElementById("map");
+  if (mapEl) {
+    if (areDistrictsVisible) {
+      mapEl.classList.add("districts-visible");
+    } else {
+      mapEl.classList.remove("districts-visible");
     }
+  }
 
-    // Update Polygon Fill Opacity (Smooth transition)
-    if (districtLayers) {
-        districtLayers.eachLayer(layer => {
-            if (layer instanceof L.Polygon) {
-                // Animate Opacity: 0 -> 0.4
-                // Leaflet doesn't animate setStyle natively nicely, handled by CSS on path if possible,
-                // but setStyle works for functional change.
-                layer.setStyle({
-                    fillOpacity: areDistrictsVisible ? 0.4 : 0,
-                    opacity: areDistrictsVisible ? 1 : 0 // Also hide borders if needed, or keep them? Prompt says "Layer... transparency 0 to 0.4"
-                });
-            }
+  // Update Polygon Fill Opacity (Smooth transition)
+  if (districtLayers) {
+    districtLayers.eachLayer((layer) => {
+      if (layer instanceof L.Polygon) {
+        // Animate Opacity: 0 -> 0.4
+        // Leaflet doesn't animate setStyle natively nicely, handled by CSS on path if possible,
+        // but setStyle works for functional change.
+        layer.setStyle({
+          fillOpacity: areDistrictsVisible ? 0.4 : 0,
+          opacity: areDistrictsVisible ? 1 : 0, // Also hide borders if needed, or keep them? Prompt says "Layer... transparency 0 to 0.4"
         });
-    }
+      }
+    });
+  }
 
-    // Update UI Button
-    const btn = document.getElementById('district-toggle-btn');
-    const icon = document.getElementById('district-toggle-icon');
-    if (btn && icon) {
-        if (areDistrictsVisible) {
-            btn.classList.add('bg-purple-600');
-            btn.classList.remove('bg-black/60');
-            icon.textContent = '🗺️';
-        } else {
-            btn.classList.remove('bg-purple-600');
-            btn.classList.add('bg-black/60');
-            icon.textContent = '🗺️'; // Keep it the same or change? The user asked to change 👓 to 🗺️. 
-            // Usually toggle icons change state, but the user asked for 🗺️ specifically.
-            // I'll keep 🗺️ as requested but maybe use opacity/color for state.
-        }
-        // Actually, the user might want a "show/hide" visual. 
-        // But I will follow the "change 👓 to 🗺️" instruction.
+  // Update UI Button
+  const btn = document.getElementById("district-toggle-btn");
+  const icon = document.getElementById("district-toggle-icon");
+  if (btn && icon) {
+    if (areDistrictsVisible) {
+      btn.classList.add("bg-purple-600");
+      btn.classList.remove("bg-black/60");
+      icon.textContent = "🗺️";
+    } else {
+      btn.classList.remove("bg-purple-600");
+      btn.classList.add("bg-black/60");
+      icon.textContent = "🗺️"; // Keep it the same or change? The user asked to change 👓 to 🗺️.
+      // Usually toggle icons change state, but the user asked for 🗺️ specifically.
+      // I'll keep 🗺️ as requested but maybe use opacity/color for state.
     }
+    // Actually, the user might want a "show/hide" visual.
+    // But I will follow the "change 👓 to 🗺️" instruction.
+  }
 
-    console.log(`Districts visibility: ${areDistrictsVisible}`);
+  console.log(`Districts visibility: ${areDistrictsVisible}`);
 }
 
 /**
  * Fetch district data (prefers Custom Game Zones, falls back to OSM)
  */
 export async function fetchAndDrawDistricts(lat, lng) {
-    if (!mapRef) return;
+  if (!mapRef) return;
 
-    const cityId = gameState.currentCityId || 'berlin'; // Default to berlin for testing
+  // LEGACY: Custom city polygon zones are disabled to save bandwidth.
+  // Monsters are now restricted strictly to visible H3 Citadel hex territories.
+  return;
 
-    try {
-        console.log(`🗺️ Checking for custom Game Zones for city: ${cityId}...`);
-        const gameZonesCollection = await getTerritoryZones(cityId);
+  let cityId = gameState.currentCityId;
+  if (!cityId && lat && lng) {
+    let minDist = Infinity;
+    for (const c of CITY_ANCHORS) {
+      const d = Math.pow(lat - c.lat, 2) + Math.pow(lng - c.lng, 2);
+      if (d < minDist) {
+        minDist = d;
+        cityId = c.id;
+      }
+    }
+  }
+  cityId = cityId || "berlin";
 
-        if (gameZonesCollection && gameZonesCollection.features && gameZonesCollection.features.length > 0) {
-            console.log(`✅ Found ${gameZonesCollection.features.length} custom Game Zones. Loading...`);
+  try {
+    console.log(`🗺️ Checking for custom Game Zones for city: ${cityId}...`);
+    const gameZonesCollection = await getTerritoryZones(cityId);
 
-            // Convert GeoJSON Features to our internal district format
-            const districts = gameZonesCollection.features.map(f => {
-                let coordsArray = f.geometry.coordinates;
+    if (
+      gameZonesCollection &&
+      gameZonesCollection.features &&
+      gameZonesCollection.features.length > 0
+    ) {
+      console.log(
+        `✅ Found ${gameZonesCollection.features.length} custom Game Zones. Loading...`,
+      );
 
-                // VALIDATION: Reject flat number arrays (e.g. BBox or single point)
-                if (!Array.isArray(coordsArray) || coordsArray.length === 0 || typeof coordsArray[0] === 'number') {
-                    console.warn(`⚠️ Skipped invalid zone geometry (flat array or empty):`, f.id || 'unknown');
-                    return null;
-                }
+      // Convert GeoJSON Features to our internal district format
+      const districts = gameZonesCollection.features
+        .map((f) => {
+          let coordsArray = f.geometry.coordinates;
 
-                // Recursively drill down until we find a Ring (Array of Points)
-                // This handles Polygon (depth 3) and MultiPolygon (depth 4+) by taking the first outer ring
-                while (Array.isArray(coordsArray) && coordsArray.length > 0
-                    && Array.isArray(coordsArray[0])
-                    && Array.isArray(coordsArray[0][0])) {
-                    coordsArray = coordsArray[0];
-                }
+          // VALIDATION: Reject flat number arrays (e.g. BBox or single point)
+          if (
+            !Array.isArray(coordsArray) ||
+            coordsArray.length === 0 ||
+            typeof coordsArray[0] === "number"
+          ) {
+            console.warn(
+              `⚠️ Skipped invalid zone geometry (flat array or empty):`,
+              f.id || "unknown",
+            );
+            return null;
+          }
 
-                // Map points safely
-                const points = coordsArray.map(coord => {
-                    if (Array.isArray(coord) && coord.length >= 2) {
-                        return { lat: coord[1], lng: coord[0] };
-                    }
-                    return null;
-                }).filter(p => p !== null);
+          // Recursively drill down until we find a Ring (Array of Points)
+          // This handles Polygon (depth 3) and MultiPolygon (depth 4+) by taking the first outer ring
+          while (
+            Array.isArray(coordsArray) &&
+            coordsArray.length > 0 &&
+            Array.isArray(coordsArray[0]) &&
+            Array.isArray(coordsArray[0][0])
+          ) {
+            coordsArray = coordsArray[0];
+          }
 
-                if (points.length < 3) return null;
+          // Map points safely
+          const points = coordsArray
+            .map((coord) => {
+              if (Array.isArray(coord) && coord.length >= 2) {
+                return { lat: coord[1], lng: coord[0] };
+              }
+              return null;
+            })
+            .filter((p) => p !== null);
 
-                // Calculate Centroid Fallback (Average of all points)
-                const sum = points.reduce((acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }), { lat: 0, lng: 0 });
-                const centroidFallback = { lat: sum.lat / points.length, lng: sum.lng / points.length };
+          if (points.length < 3) return null;
 
-                return {
-                    id: f.properties.citadelId || f.id || `zone_${Math.random().toString(36).substr(2, 5)}`,
-                    name: f.properties.name || ("Zone " + (f.properties.citadelId ? f.properties.citadelId.substring(0, 5) : "Unknown")),
-                    points: points,
-                    // PRIORITY: 1. DB Stored Coords | 2. Calculated Centroid Fallback
-                    center: {
-                        lat: f.properties.lat || centroidFallback.lat,
-                        lng: f.properties.lng || centroidFallback.lng
-                    },
-                    kingId: f.properties.kingId || null,
-                    kingName: f.properties.kingName || 'Unclaimed'
-                };
-            }).filter(d => d !== null);
+          // Calculate Centroid Fallback (Average of all points)
+          const sum = points.reduce(
+            (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+            { lat: 0, lng: 0 },
+          );
+          const centroidFallback = {
+            lat: sum.lat / points.length,
+            lng: sum.lng / points.length,
+          };
 
-            districtData = districts;
-            console.log(`🏰 Rendering ${districts.length} custom city zones from DB.`);
-            renderDistricts(districts);
+          return {
+            id:
+              f.properties.citadelId ||
+              f.id ||
+              `zone_${Math.random().toString(36).substr(2, 5)}`,
+            name:
+              f.properties.name ||
+              "Zone " +
+                (f.properties.citadelId
+                  ? f.properties.citadelId.substring(0, 5)
+                  : "Unknown"),
+            points: points,
+            // PRIORITY: 1. DB Stored Coords | 2. Calculated Centroid Fallback
+            center: {
+              lat: f.properties.lat || centroidFallback.lat,
+              lng: f.properties.lng || centroidFallback.lng,
+            },
+            kingId: f.properties.kingId || null,
+            kingName: f.properties.kingName || "Unclaimed",
+          };
+        })
+        .filter((d) => d !== null);
 
-            // Update current district immediately after load
-            if (gameState.player && gameState.player.position) {
-                const current = getDistrictByCoords(gameState.player.position.lat, gameState.player.position.lng);
-                if (current) {
-                    gameState.currentDistrict = current;
-                    if (window.updateDistrictHUD) window.updateDistrictHUD();
-                }
-            }
-            return;
+      districtData = districts;
+      console.log(
+        `🏰 Rendering ${districts.length} custom city zones from DB.`,
+      );
+      renderDistricts(districts);
+
+      // Update current district immediately after load
+      if (gameState.player && gameState.player.position) {
+        const current = getDistrictByCoords(
+          gameState.player.position.lat,
+          gameState.player.position.lng,
+        );
+        if (current) {
+          gameState.currentDistrict = current;
+          if (window.updateDistrictHUD) window.updateDistrictHUD();
         }
+      }
 
-        // FALLBACK: Overpass API (DISABLED to prevent unwanted "torn" zones)
-        /*
+      // Trigger map re-render so monsters appear now that zones are loaded
+      if (mapRef) {
+        mapRef.fire("moveend");
+      }
+
+      return;
+    }
+
+    // FALLBACK: Overpass API (DISABLED to prevent unwanted "torn" zones)
+    /*
         console.log("ℹ️ No custom zones found. Falling back to Overpass OSM districts...");
         const bounds = {
             south: lat - 0.04,
@@ -182,61 +249,65 @@ export async function fetchAndDrawDistricts(lat, lng) {
             console.warn("⚠️ No districts found from Overpass.");
         }
         */
-        console.log("ℹ️ No custom zones found. Zones will remain empty until generated via Admin Template.");
+    console.log(
+      "ℹ️ No custom zones found. Zones will remain empty until generated via Admin Template.",
+    );
 
-        // Update current district immediately after load
-        if (gameState.player && gameState.player.position) {
-            const current = getDistrictByCoords(gameState.player.position.lat, gameState.player.position.lng);
-            if (current) {
-                gameState.currentDistrict = current;
-                if (window.updateDistrictHUD) window.updateDistrictHUD();
-            }
-        }
-
-    } catch (e) {
-        console.error("Error loading districts:", e);
+    // Update current district immediately after load
+    if (gameState.player && gameState.player.position) {
+      const current = getDistrictByCoords(
+        gameState.player.position.lat,
+        gameState.player.position.lng,
+      );
+      if (current) {
+        gameState.currentDistrict = current;
+        if (window.updateDistrictHUD) window.updateDistrictHUD();
+      }
     }
+  } catch (e) {
+    console.error("Error loading districts:", e);
+  }
 }
 
 export function refreshDistricts() {
-    if (districtData.length > 0) {
-        renderDistricts(districtData);
-    }
+  if (districtData.length > 0) {
+    renderDistricts(districtData);
+  }
 }
 
 export function renderDistricts(districts) {
-    if (!districtLayers) return;
-    districtLayers.clearLayers();
+  if (!districtLayers) return;
+  districtLayers.clearLayers();
 
-    districts.forEach(d => {
-        // Ownership-based coloring
-        let color = '#FFFF00'; // Default: Yellow (No King)
-        if (d.kingId) {
-            if (d.kingId === gameState.player?.id || d.kingId === 'player_me') {
-                color = '#00FF00'; // Green (Player)
-            } else {
-                color = '#FF0000'; // Red (Enemy)
-            }
-        }
+  districts.forEach((d) => {
+    // Ownership-based coloring
+    let color = "#FFFF00"; // Default: Yellow (No King)
+    if (d.kingId) {
+      if (d.kingId === gameState.player?.id || d.kingId === "player_me") {
+        color = "#00FF00"; // Green (Player)
+      } else {
+        color = "#FF0000"; // Red (Enemy)
+      }
+    }
 
-        // 2. Create Polygon
-        const polygon = L.polygon(d.points, {
-            color: color,
-            weight: 3,
-            opacity: areDistrictsVisible ? 1 : 0,
-            fillColor: color,
-            fillOpacity: areDistrictsVisible ? 0.35 : 0,
-            className: 'district-polygon',
-            interactive: true,
-            zIndex: 10 // Base layer
-        });
+    // 2. Create Polygon
+    const polygon = L.polygon(d.points, {
+      color: color,
+      weight: 3,
+      opacity: areDistrictsVisible ? 1 : 0,
+      fillColor: color,
+      fillOpacity: areDistrictsVisible ? 0.35 : 0,
+      className: "district-polygon",
+      interactive: true,
+      zIndex: 10, // Base layer
+    });
 
-        // Store reference for quick updates
-        polygon.districtId = d.id;
-        districtLayers.addLayer(polygon);
+    // Store reference for quick updates
+    polygon.districtId = d.id;
+    districtLayers.addLayer(polygon);
 
-        // --- CITADEL MARKER REMOVED (Handled by poi.js to ensure Template Alignment) ---
-        /*
+    // --- CITADEL MARKER REMOVED (Handled by poi.js to ensure Template Alignment) ---
+    /*
         const citadelIcon = L.divIcon({
             html: `
                 <div class="w-12 h-12 flex items-center justify-center relative bg-transparent">
@@ -278,40 +349,90 @@ export function renderDistricts(districts) {
         districtLayers.addLayer(citadel);
         */
 
-        // 4. District Label (Big Text on Map)
-        const labelIcon = L.divIcon({
-            html: `<div class="district-label-text">${d.name}</div>`,
-            className: 'district-label-container',
-            iconSize: [300, 50],
-            iconAnchor: [150, 25]
-        });
-
-        const labelMarker = L.marker(d.center, {
-            icon: labelIcon,
-            interactive: false,
-            zIndexOffset: -500 // Behind everything
-        });
-        districtLayers.addLayer(labelMarker);
+    // 4. District Label (Big Text on Map)
+    const labelIcon = L.divIcon({
+      html: `<div class="district-label-text">${d.name}</div>`,
+      className: "district-label-container",
+      iconSize: [300, 50],
+      iconAnchor: [150, 25],
     });
+
+    const labelMarker = L.marker(d.center, {
+      icon: labelIcon,
+      interactive: false,
+      zIndexOffset: -500, // Behind everything
+    });
+    districtLayers.addLayer(labelMarker);
+  });
 }
 
-// Helper: Point in Polygon Check for HUD
-export function getDistrictByCoords(lat, lng) {
-    // Check cached districts first
+/**
+ * Check if a coordinate is strictly inside any defined polygon zone,
+ * or falls back to global territory if polygons aren't defined.
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {boolean} True if inside a zone
+ */
+export function isInsideAnyZone(lat, lng) {
+  // 1. If custom polygon zones exist, strictly enforce them
+  if (districtData && districtData.length > 0) {
     for (const d of districtData) {
-        if (isPointInPolygon({ lat, lng }, d.points)) {
-            return d;
-        }
+      if (isPointInPolygon({ lat, lng }, d.points)) {
+        return true;
+      }
     }
-    return null;
+    return false;
+  }
+
+  // 2. Fallback to global territory owner if no polygons are defined
+  const owner = getGlobalOwner(lat, lng);
+  return !!(owner && owner.citadel);
+}
+
+/**
+ * Get district/territory info for a coordinate.
+ * Priority: 1. Polygon-based districts (legacy/Firestore zones)
+ *           2. Weighted distance territory (global math)
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {Object|null} District-like object with id, name, kingId, kingName, center
+ */
+export function getDistrictByCoords(lat, lng) {
+  // 1. Check polygon-based districts first (legacy system)
+  for (const d of districtData) {
+    if (isPointInPolygon({ lat, lng }, d.points)) {
+      return d;
+    }
+  }
+
+  // 2. Fall back to global territory math
+  const owner = getGlobalOwner(lat, lng);
+  if (owner && owner.citadel) {
+    return {
+      id: owner.citadel.id,
+      name:
+        owner.citadel.name || `Territory ${owner.citadel.id.substring(0, 6)}`,
+      center: { lat: owner.citadel.lat, lng: owner.citadel.lng },
+      kingId: owner.citadel.ownerId || null,
+      kingName: owner.citadel.ownerName || "Unclaimed",
+      citadel: {
+        lat: owner.citadel.lat,
+        lng: owner.citadel.lng,
+        name: owner.citadel.name || "Citadel",
+      },
+      _fromTerritoryMath: true, // Flag for debugging
+    };
+  }
+
+  return null;
 }
 
 // Helper: Consistent Color Gen
 function stringToColor(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-    return '#' + '00000'.substring(0, 6 - c.length) + c;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c = (hash & 0x00ffffff).toString(16).toUpperCase();
+  return "#" + "00000".substring(0, 6 - c.length) + c;
 }

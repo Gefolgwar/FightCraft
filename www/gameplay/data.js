@@ -1,140 +1,420 @@
 // ==================== GAME DATA ====================
 export const MONSTER_TYPES = [
-    { id: 'fallen', name: 'Demon', icon: '👿', behavior: 'fallen' },
-    { id: 'scavenger', name: 'Beast', icon: '🐺', behavior: 'scavenger' },
-    { id: 'wraith', name: 'Wraith', icon: '👻', behavior: 'wraith' },
-    { id: 'golem', name: 'Golem', icon: '🗿', behavior: 'golem' },
-    { id: 'skeleton', name: 'Skeleton', icon: '💀', behavior: 'normal' },
-    { id: 'goblin', name: 'Goblin', icon: '👺', behavior: 'normal' },
-    { id: 'orc', name: 'Orc', icon: '👹', behavior: 'normal' },
+  { id: "fallen", name: "Demon", icon: "👿", behavior: "fallen" },
+  { id: "scavenger", name: "Beast", icon: "🐺", behavior: "scavenger" },
+  { id: "wraith", name: "Wraith", icon: "👻", behavior: "wraith" },
+  { id: "golem", name: "Golem", icon: "🗿", behavior: "golem" },
+  { id: "skeleton", name: "Skeleton", icon: "💀", behavior: "normal" },
+  { id: "goblin", name: "Goblin", icon: "👺", behavior: "normal" },
+  { id: "orc", name: "Orc", icon: "👹", behavior: "normal" },
 ];
 
 export const MONSTER_LIBRARY = [
-    { templateId: 'wolf', name: 'Wolf Pack', icon: '🐺', class: 'normal', level: 5, hp: 90, damage: 12, defense: 3, xpReward: 60, goldReward: 20, type: 'scavenger', affixes: [] },
-    { templateId: 'boar', name: 'Rabid Boar', icon: '🐗', class: 'normal', level: 7, hp: 120, damage: 15, defense: 4, xpReward: 75, goldReward: 28, type: 'scavenger', affixes: [] },
-    { templateId: 'goblin', name: 'Goblin Bandit', icon: '👺', class: 'normal', level: 9, hp: 150, damage: 18, defense: 6, xpReward: 95, goldReward: 40, type: 'goblin', affixes: [] },
-    { templateId: 'skeleton', name: 'Bone Sentinel', icon: '💀', class: 'champion', level: 12, hp: 220, damage: 22, defense: 12, xpReward: 180, goldReward: 65, type: 'skeleton', affixes: ['stoneSkin'] },
-    { templateId: 'orc', name: 'Orc Berserker', icon: '👹', class: 'champion', level: 15, hp: 320, damage: 30, defense: 15, xpReward: 260, goldReward: 90, type: 'orc', affixes: ['extraStrong'] },
-    { templateId: 'wraith', name: 'Spectral Guardian', icon: '👻', class: 'unique', level: 18, hp: 420, damage: 36, defense: 18, xpReward: 450, goldReward: 130, type: 'wraith', affixes: ['teleport'] },
-    { templateId: 'golem', name: 'Crystal Golem', icon: '🗿', class: 'unique', level: 22, hp: 600, damage: 44, defense: 28, xpReward: 620, goldReward: 180, type: 'golem', affixes: ['stoneSkin', 'extraStrong'] },
-    { templateId: 'fallen', name: 'Cursed Demon', icon: '👿', class: 'unique', level: 25, hp: 680, damage: 55, defense: 30, xpReward: 820, goldReward: 210, type: 'fallen', affixes: ['cursed', 'manaBurn'] },
-    { templateId: 'dragonling', name: 'Young Dragon', icon: '🐉', class: 'superUnique', level: 30, hp: 950, damage: 70, defense: 40, xpReward: 1400, goldReward: 320, type: 'dragon', affixes: ['extraStrong', 'stoneSkin', 'teleport'] },
-    { templateId: 'mage', name: 'Dark Mage', icon: '🧙‍♂️', class: 'champion', level: 20, hp: 380, damage: 48, defense: 14, xpReward: 500, goldReward: 150, type: 'fallen', affixes: ['manaBurn'] },
-    { templateId: 'hunter', name: 'Ettin Hunter', icon: '🥷', class: 'champion', level: 17, hp: 300, damage: 35, defense: 18, xpReward: 320, goldReward: 120, type: 'orc', affixes: ['teleport'] },
-    { templateId: 'spirit', name: 'Forest Spirit', icon: '🌿', class: 'normal', level: 8, hp: 140, damage: 16, defense: 5, xpReward: 85, goldReward: 34, type: 'wraith', affixes: [] },
+  {
+    templateId: "wolf",
+    name: "Wolf Pack",
+    icon: "🐺",
+    class: "normal",
+    level: 5,
+    hp: 90,
+    damage: 12,
+    defense: 3,
+    xpReward: 60,
+    goldReward: 20,
+    type: "scavenger",
+    affixes: [],
+  },
+  {
+    templateId: "boar",
+    name: "Rabid Boar",
+    icon: "🐗",
+    class: "normal",
+    level: 7,
+    hp: 120,
+    damage: 15,
+    defense: 4,
+    xpReward: 75,
+    goldReward: 28,
+    type: "scavenger",
+    affixes: [],
+  },
+  {
+    templateId: "goblin",
+    name: "Goblin Bandit",
+    icon: "👺",
+    class: "normal",
+    level: 9,
+    hp: 150,
+    damage: 18,
+    defense: 6,
+    xpReward: 95,
+    goldReward: 40,
+    type: "goblin",
+    affixes: [],
+  },
+  {
+    templateId: "skeleton",
+    name: "Bone Sentinel",
+    icon: "💀",
+    class: "champion",
+    level: 12,
+    hp: 220,
+    damage: 22,
+    defense: 12,
+    xpReward: 180,
+    goldReward: 65,
+    type: "skeleton",
+    affixes: ["stoneSkin"],
+  },
+  {
+    templateId: "orc",
+    name: "Orc Berserker",
+    icon: "👹",
+    class: "champion",
+    level: 15,
+    hp: 320,
+    damage: 30,
+    defense: 15,
+    xpReward: 260,
+    goldReward: 90,
+    type: "orc",
+    affixes: ["extraStrong"],
+  },
+  {
+    templateId: "wraith",
+    name: "Spectral Guardian",
+    icon: "👻",
+    class: "unique",
+    level: 18,
+    hp: 420,
+    damage: 36,
+    defense: 18,
+    xpReward: 450,
+    goldReward: 130,
+    type: "wraith",
+    affixes: ["teleport"],
+  },
+  {
+    templateId: "golem",
+    name: "Crystal Golem",
+    icon: "🗿",
+    class: "unique",
+    level: 22,
+    hp: 600,
+    damage: 44,
+    defense: 28,
+    xpReward: 620,
+    goldReward: 180,
+    type: "golem",
+    affixes: ["stoneSkin", "extraStrong"],
+  },
+  {
+    templateId: "fallen",
+    name: "Cursed Demon",
+    icon: "👿",
+    class: "unique",
+    level: 25,
+    hp: 680,
+    damage: 55,
+    defense: 30,
+    xpReward: 820,
+    goldReward: 210,
+    type: "fallen",
+    affixes: ["cursed", "manaBurn"],
+  },
+  {
+    templateId: "dragonling",
+    name: "Young Dragon",
+    icon: "🐉",
+    class: "superUnique",
+    level: 30,
+    hp: 950,
+    damage: 70,
+    defense: 40,
+    xpReward: 1400,
+    goldReward: 320,
+    type: "dragon",
+    affixes: ["extraStrong", "stoneSkin", "teleport"],
+  },
+  {
+    templateId: "mage",
+    name: "Dark Mage",
+    icon: "🧙‍♂️",
+    class: "champion",
+    level: 20,
+    hp: 380,
+    damage: 48,
+    defense: 14,
+    xpReward: 500,
+    goldReward: 150,
+    type: "fallen",
+    affixes: ["manaBurn"],
+  },
+  {
+    templateId: "hunter",
+    name: "Ettin Hunter",
+    icon: "🥷",
+    class: "champion",
+    level: 17,
+    hp: 300,
+    damage: 35,
+    defense: 18,
+    xpReward: 320,
+    goldReward: 120,
+    type: "orc",
+    affixes: ["teleport"],
+  },
+  {
+    templateId: "spirit",
+    name: "Forest Spirit",
+    icon: "🌿",
+    class: "normal",
+    level: 8,
+    hp: 140,
+    damage: 16,
+    defense: 5,
+    xpReward: 85,
+    goldReward: 34,
+    type: "wraith",
+    affixes: [],
+  },
 ];
 
 export const AFFIXES = {
-    stoneSkin: { name: 'Stone Skin', effect: { defenseBonus: 0.5 }, class: 'affix-stone-skin' },
-    extraStrong: { name: 'Extra Strong', effect: { damageBonus: 1.0 }, class: 'affix-extra-strong' },
-    teleport: { name: 'Teleport', effect: { teleportChance: 0.2 }, class: 'affix-teleport' },
-    cursed: { name: 'Cursed', effect: { curseDebuff: 0.2 }, class: 'affix-cursed' },
-    manaBurn: { name: 'Mana Burn', effect: { manaBurn: 10 }, class: 'affix-mana-burn' },
+  stoneSkin: {
+    name: "Stone Skin",
+    effect: { defenseBonus: 0.5 },
+    class: "affix-stone-skin",
+  },
+  extraStrong: {
+    name: "Extra Strong",
+    effect: { damageBonus: 1.0 },
+    class: "affix-extra-strong",
+  },
+  teleport: {
+    name: "Teleport",
+    effect: { teleportChance: 0.2 },
+    class: "affix-teleport",
+  },
+  cursed: {
+    name: "Cursed",
+    effect: { curseDebuff: 0.2 },
+    class: "affix-cursed",
+  },
+  manaBurn: {
+    name: "Mana Burn",
+    effect: { manaBurn: 10 },
+    class: "affix-mana-burn",
+  },
 };
 
 export const ITEMS_DB = {
-    // Weapons
-    rustySword: {
-        name: 'Rusty Sword', icon: '🗡️', type: 'sword', rarity: 'common',
-        stats: { attackBonus: 3 }, requirements: { strength: 3 }, desc: 'An old sword, but still sharp'
-    },
-    ironSword: {
-        name: 'Iron Sword', icon: '⚔️', type: 'sword', rarity: 'uncommon',
-        stats: { attackBonus: 8, strength: 2 }, requirements: { strength: 8 }, desc: 'A reliable sword made of sturdy iron'
-    },
-    flameSword: {
-        name: 'Flaming Sword', icon: '🔥', type: 'sword', rarity: 'epic',
-        stats: { attackBonus: 15, intuition: 3 }, requirements: { strength: 15, agility: 10 }, desc: 'Burns with eternal fire'
-    },
+  // Weapons
+  rustySword: {
+    name: "Rusty Sword",
+    icon: "🗡️",
+    type: "sword",
+    rarity: "common",
+    stats: { attackBonus: 3 },
+    requirements: { strength: 3 },
+    desc: "An old sword, but still sharp",
+  },
+  ironSword: {
+    name: "Iron Sword",
+    icon: "⚔️",
+    type: "sword",
+    rarity: "uncommon",
+    stats: { attackBonus: 8, strength: 2 },
+    requirements: { strength: 8 },
+    desc: "A reliable sword made of sturdy iron",
+  },
+  flameSword: {
+    name: "Flaming Sword",
+    icon: "🔥",
+    type: "sword",
+    rarity: "epic",
+    stats: { attackBonus: 15, intuition: 3 },
+    requirements: { strength: 15, agility: 10 },
+    desc: "Burns with eternal fire",
+  },
 
-    // Helmets
-    leatherCap: {
-        name: 'Leather Cap', icon: '🧢', type: 'helmet', rarity: 'common',
-        stats: { defense: 2 }, requirements: {}, desc: 'Light head protection'
-    },
-    ironHelmet: {
-        name: 'Iron Helmet', icon: '🪖', type: 'helmet', rarity: 'uncommon',
-        stats: { defense: 5, wisdom: 1 }, requirements: { vitality: 5 }, desc: 'A sturdy warrior helmet'
-    },
+  // Helmets
+  leatherCap: {
+    name: "Leather Cap",
+    icon: "🧢",
+    type: "helmet",
+    rarity: "common",
+    stats: { defense: 2 },
+    requirements: {},
+    desc: "Light head protection",
+  },
+  ironHelmet: {
+    name: "Iron Helmet",
+    icon: "🪖",
+    type: "helmet",
+    rarity: "uncommon",
+    stats: { defense: 5, wisdom: 1 },
+    requirements: { vitality: 5 },
+    desc: "A sturdy warrior helmet",
+  },
 
-    // Armor
-    leatherArmor: {
-        name: 'Leather Armor', icon: '🦺', type: 'armor', rarity: 'common',
-        stats: { defense: 5, vitality: 1 }, requirements: {}, desc: 'Light leather armor'
-    },
-    chainMail: {
-        name: 'Chain Mail', icon: '⛓️', type: 'armor', rarity: 'uncommon',
-        stats: { defense: 12, vitality: 3 }, requirements: { strength: 8 }, desc: 'Reliable chain protection'
-    },
-    plateArmor: {
-        name: 'Plate Armor', icon: '🛡️', type: 'armor', rarity: 'rare',
-        stats: { defense: 25, vitality: 5 }, requirements: { strength: 15, vitality: 10 }, desc: 'Heavy plate armor'
-    },
+  // Armor
+  leatherArmor: {
+    name: "Leather Armor",
+    icon: "🦺",
+    type: "armor",
+    rarity: "common",
+    stats: { defense: 5, vitality: 1 },
+    requirements: {},
+    desc: "Light leather armor",
+  },
+  chainMail: {
+    name: "Chain Mail",
+    icon: "⛓️",
+    type: "armor",
+    rarity: "uncommon",
+    stats: { defense: 12, vitality: 3 },
+    requirements: { strength: 8 },
+    desc: "Reliable chain protection",
+  },
+  plateArmor: {
+    name: "Plate Armor",
+    icon: "🛡️",
+    type: "armor",
+    rarity: "rare",
+    stats: { defense: 25, vitality: 5 },
+    requirements: { strength: 15, vitality: 10 },
+    desc: "Heavy plate armor",
+  },
 
-    // Shields
-    woodenShield: {
-        name: 'Wooden Shield', icon: '🪵', type: 'shield', rarity: 'common',
-        stats: { defense: 4 }, requirements: {}, desc: 'A simple wooden shield'
-    },
-    ironShield: {
-        name: 'Iron Shield', icon: '🛡️', type: 'shield', rarity: 'uncommon',
-        stats: { defense: 10, vitality: 2 }, requirements: { strength: 6 }, desc: 'A sturdy iron shield'
-    },
+  // Shields
+  woodenShield: {
+    name: "Wooden Shield",
+    icon: "🪵",
+    type: "shield",
+    rarity: "common",
+    stats: { defense: 4 },
+    requirements: {},
+    desc: "A simple wooden shield",
+  },
+  ironShield: {
+    name: "Iron Shield",
+    icon: "🛡️",
+    type: "shield",
+    rarity: "uncommon",
+    stats: { defense: 10, vitality: 2 },
+    requirements: { strength: 6 },
+    desc: "A sturdy iron shield",
+  },
 
-    // Gloves
-    leatherGloves: {
-        name: 'Leather Gloves', icon: '🧤', type: 'gloves', rarity: 'common',
-        stats: { agility: 2 }, requirements: {}, desc: 'Comfortable leather gloves'
-    },
-    ironGauntlets: {
-        name: 'Iron Gauntlets', icon: '🥊', type: 'gloves', rarity: 'uncommon',
-        stats: { attackBonus: 3, agility: 1 }, requirements: { strength: 5 }, desc: 'Combat iron gauntlets'
-    },
+  // Gloves
+  leatherGloves: {
+    name: "Leather Gloves",
+    icon: "🧤",
+    type: "gloves",
+    rarity: "common",
+    stats: { agility: 2 },
+    requirements: {},
+    desc: "Comfortable leather gloves",
+  },
+  ironGauntlets: {
+    name: "Iron Gauntlets",
+    icon: "🥊",
+    type: "gloves",
+    rarity: "uncommon",
+    stats: { attackBonus: 3, agility: 1 },
+    requirements: { strength: 5 },
+    desc: "Combat iron gauntlets",
+  },
 
-    // Boots
-    leatherBoots: {
-        name: 'Leather Boots', icon: '👢', type: 'boots', rarity: 'common',
-        stats: { agility: 2, intuition: 1 }, requirements: {}, desc: 'Light leather boots'
-    },
-    ironBoots: {
-        name: 'Iron Boots', icon: '🥾', type: 'boots', rarity: 'uncommon',
-        stats: { defense: 3, agility: 1 }, requirements: { strength: 4 }, desc: 'Heavy iron boots'
-    },
+  // Boots
+  leatherBoots: {
+    name: "Leather Boots",
+    icon: "👢",
+    type: "boots",
+    rarity: "common",
+    stats: { agility: 2, intuition: 1 },
+    requirements: {},
+    desc: "Light leather boots",
+  },
+  ironBoots: {
+    name: "Iron Boots",
+    icon: "🥾",
+    type: "boots",
+    rarity: "uncommon",
+    stats: { defense: 3, agility: 1 },
+    requirements: { strength: 4 },
+    desc: "Heavy iron boots",
+  },
 
-    // Belts
-    leatherBelt: {
-        name: 'Leather Belt', icon: '🥋', type: 'belt', rarity: 'common',
-        stats: { vitality: 1, strength: 1 }, requirements: {}, desc: 'A simple leather belt'
-    },
-    ironBelt: {
-        name: 'Iron Belt', icon: '⛓️', type: 'belt', rarity: 'uncommon',
-        stats: { defense: 4, vitality: 2 }, requirements: { strength: 6 }, desc: 'A reinforced belt with metal plates'
-    },
+  // Belts
+  leatherBelt: {
+    name: "Leather Belt",
+    icon: "🥋",
+    type: "belt",
+    rarity: "common",
+    stats: { vitality: 1, strength: 1 },
+    requirements: {},
+    desc: "A simple leather belt",
+  },
+  ironBelt: {
+    name: "Iron Belt",
+    icon: "⛓️",
+    type: "belt",
+    rarity: "uncommon",
+    stats: { defense: 4, vitality: 2 },
+    requirements: { strength: 6 },
+    desc: "A reinforced belt with metal plates",
+  },
 
-    // Consumables
-    healthPotion: {
-        name: 'Health Potion', icon: '🧪', type: 'consumable', rarity: 'common',
-        stats: {}, effect: { healPercent: 30 }, requirements: {}, desc: 'Restores 30% HP'
-    },
-    largeHealthPotion: {
-        name: 'Greater Health Potion', icon: '⚗️', type: 'consumable', rarity: 'rare',
-        stats: {}, effect: { healPercent: 70 }, requirements: {}, desc: 'Restores 70% HP'
-    },
+  // Consumables
+  healthPotion: {
+    name: "Health Potion",
+    icon: "🧪",
+    type: "consumable",
+    rarity: "common",
+    stats: {},
+    effect: { healPercent: 30 },
+    requirements: {},
+    desc: "Restores 30% HP",
+  },
+  largeHealthPotion: {
+    name: "Greater Health Potion",
+    icon: "⚗️",
+    type: "consumable",
+    rarity: "rare",
+    stats: {},
+    effect: { healPercent: 70 },
+    requirements: {},
+    desc: "Restores 70% HP",
+  },
 };
 
+/**
+ * @deprecated CITY_ANCHORS is being replaced by the H3 Discovery System.
+ * New territory ownership uses global Weighted Voronoi math (territory-math.js)
+ * with dynamically discovered castles (discovery-service.js).
+ *
+ * This array is kept for backward compatibility with:
+ *   - map.js: getPlayerCity() — nearest-city resolution
+ *   - monster rendering: city-specific spawn context
+ *
+ * TODO: Remove once all callers are migrated to getGlobalOwner() from territory-service.js
+ * See: docs/REFACTOR-PLAN-GLOBAL-TERRITORY.md
+ */
 export const CITY_ANCHORS = [
-    { id: 'berlin', name: 'Berlin', lat: 52.52, lng: 13.405 },
-    { id: 'kyiv', name: 'Kyiv', lat: 50.4501, lng: 30.5234 },
-    { id: 'lviv', name: 'Lviv', lat: 49.8397, lng: 24.0297 },
-    { id: 'warsaw', name: 'Warsaw', lat: 52.2297, lng: 21.0122 },
-    { id: 'prague', name: 'Prague', lat: 50.0755, lng: 14.4378 },
-    { id: 'vienna', name: 'Vienna', lat: 48.2082, lng: 16.3738 },
+  { id: "berlin", name: "Berlin", lat: 52.52, lng: 13.405 },
+  { id: "kyiv", name: "Kyiv", lat: 50.4501, lng: 30.5234 },
+  { id: "lviv", name: "Lviv", lat: 49.8397, lng: 24.0297 },
+  { id: "warsaw", name: "Warsaw", lat: 52.2297, lng: 21.0122 },
+  { id: "prague", name: "Prague", lat: 50.0755, lng: 14.4378 },
+  { id: "vienna", name: "Vienna", lat: 48.2082, lng: 16.3738 },
 ];
 
 export const GRID_SETTINGS = {
-    spacingMeters: 500,
-    radius: 5,
-    respawnMs: 5 * 60 * 1000
+  spacingMeters: 500,
+  radius: 5,
+  respawnMs: 5 * 60 * 1000,
 };
 
 export const MAX_MONSTERS_PER_CITY = 800;

@@ -1,291 +1,317 @@
 /**
- * Territory Service - Generates and manages game zones around Citadels.
- * Powered by Turf.js (Voronoi Diagrams)
+ * Territory Service v2 — Distance-Based Ownership
+ * Replaces Voronoi/Turf.js GeoJSON with real-time weighted distance checks.
+ * No pre-generated polygons. Territory is computed on-the-fly.
+ *
+ * Key formula:
+ *   D_weighted = Distance(point, citadel) / citadel.powerMultiplier
+ *   The "King" of any point is the citadel with the lowest D_weighted.
  */
 
-// Import Firebase dependencies via Dynamic Import to maintain compatibility with existing module structure
-import { saveCityZones, getCityZones, isAdmin } from '../firebase/firebase-service.js';
+import {
+  saveCityZones,
+  getCityZones,
+  isAdmin,
+} from "../firebase/firebase-service.js";
 
-// Turf.js Full Bundle (Browser Compatible)
-const TURF_CDN = "https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js";
+import {
+  haversineMeters as _haversineMeters,
+  getOwner,
+  effectiveDistance,
+  estimateTerritoryBoundary,
+  isContested,
+  getNearestCitadels,
+} from "../core/territory-math.js";
+
+// ==================== DELEGATED GEOMETRY HELPERS ====================
+// Canonical implementations live in core/territory-math.js.
+// These wrappers preserve the legacy signatures for backward compatibility.
 
 /**
- * Main function to generate and save zones for a city.
- * @param {string} cityId - ID of the city (e.g. 'kyiv')
- * @param {Array} citadels - Array of objects { id, lat, lng }
- * @param {Array} bbox - Optional Bounding Box [minLon, minLat, maxLon, maxLat]
+ * Weighted distance: raw haversine divided by a power multiplier.
+ * Delegates to effectiveDistance() from territory-math.js.
+ *
+ * @param {number} lat1 - Point latitude
+ * @param {number} lng1 - Point longitude
+ * @param {number} lat2 - Citadel latitude
+ * @param {number} lng2 - Citadel longitude
+ * @param {number} powerMultiplier - >= 1; defaults to 1
+ * @returns {number} weighted distance in meters
  */
-/**
- * CLEAN MASK: Fixes topology, self-intersections, and removes holes
- * for high-quality solid clipping. Follows Senior GIS Developer best practices.
- */
-export function getCleanCityMask(rawGeoJSON) {
-    const turf = window.turf;
-    if (!rawGeoJSON) return null;
-
-    try {
-        // 1. Gather all Polygon/MultiPolygon features
-        let features = [];
-        if (rawGeoJSON.type === 'FeatureCollection') features = rawGeoJSON.features;
-        else if (rawGeoJSON.type === 'Feature') features = [rawGeoJSON];
-        else features = [{ type: 'Feature', geometry: rawGeoJSON, properties: {} }];
-
-        // 2. Filter only valid area geometries
-        const polys = features.filter(f =>
-            f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon'
-        );
-        if (polys.length === 0) return null;
-
-        // 3. Union all parts into a single MultiPolygon/Polygon
-        let united = polys[0];
-        for (let i = 1; i < polys.length; i++) {
-            united = turf.union(united, polys[i]);
-        }
-
-        // 4. Remove ALL internal holes (keep only the outer ring for each polygon)
-        // This ensures a solid contiguous area for game zones.
-        if (united.geometry.type === 'Polygon') {
-            united.geometry.coordinates = [united.geometry.coordinates[0]];
-        } else if (united.geometry.type === 'MultiPolygon') {
-            united.geometry.coordinates = united.geometry.coordinates.map(poly => [poly[0]]);
-        }
-
-        // 5. Rewind for correct winding order (RHR)
-        united = turf.rewind(united, { reverse: true, mutate: true });
-
-        // 6. Simplify slightly to remove micro-nodes/jitter
-        united = turf.simplify(united, { tolerance: 0.0001, highQuality: true });
-
-        // 7. Final closure check (Turf simplify usually handles this, but safety first)
-        return united;
-    } catch (e) {
-        console.warn("⚠️ Mask Cleaning Failed:", e.message);
-        return rawGeoJSON;
-    }
+export function weightedDistance(lat1, lng1, lat2, lng2, powerMultiplier = 1) {
+  return effectiveDistance(lat1, lng1, {
+    lat: lat2,
+    lng: lng2,
+    powerMultiplier,
+  });
 }
 
 /**
- * Main function to generate and save zones for a city.
+ * Find the citadel with the lowest weighted distance to a point.
+ * Delegates to getOwner() from territory-math.js.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {Array} citadels - [{id, lat, lng, powerMultiplier, ...}]
+ * @returns {{ citadel: Object, distance: number } | null}
  */
-export async function generateCityTerritory(cityId, citadels, bbox, rawMask = null) {
-    if (!isAdmin()) throw new Error("Unauthorized: Admin access required.");
+export function getNearestCitadel(lat, lng, citadels) {
+  const result = getOwner(lat, lng, citadels);
+  return result ? { citadel: result.citadel, distance: result.distance } : null;
+}
 
-    console.log(`🗺️ Calculation Territory for ${cityId} using ${citadels.length} citadels...`);
+// ==================== CITADEL CACHE ====================
 
-    // 1. Load Turf.js (Global Script Approach for reliability)
-    if (!window.turf) {
-        await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = TURF_CDN;
-            script.onload = resolve;
-            script.onerror = () => reject(new Error("Failed to load Turf.js"));
-            document.head.appendChild(script);
-        });
-    }
-    const turf = window.turf;
+/** @type {Array<{id:string, lat:number, lng:number, powerMultiplier:number, ownerId?:string, ownerName?:string, cityId?:string}>} */
+let _citadelCache = [];
 
-    // 2. Prepare Point Collection
-    // Turf expects [lon, lat]
-    const points = turf.featureCollection(
-        citadels.map(c => turf.point([c.lng, c.lat], { id: c.id }))
-    );
-
-    // 3. Define Bounding Box if not provided (±0.5 deg around the average point)
-    let center = { lat: 0, lng: 0 };
-    if (citadels.length > 0) {
-        let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-        let sumLat = 0, sumLng = 0;
-
-        citadels.forEach(c => {
-            if (c.lat < minLat) minLat = c.lat;
-            if (c.lat > maxLat) maxLat = c.lat;
-            if (c.lng < minLng) minLng = c.lng;
-            if (c.lng > maxLng) maxLng = c.lng;
-            sumLat += c.lat;
-            sumLng += c.lng;
-        });
-
-        center = { lat: sumLat / citadels.length, lng: sumLng / citadels.length };
-
-        if (!bbox) {
-            const buffer = 0.5; // ~55km padding
-            bbox = [minLng - buffer, minLat - buffer, maxLng + buffer, maxLat + buffer];
-        }
-    }
-
-    // 4. Create the Clipping Mask (City Boundary or Organic Cloud)
-    let clippingMask = null;
-
-    if (rawMask) {
-        // Use Smart Hybrid Mask if we have points to insure they are included
-        if (points && points.features.length > 0) {
-            console.log("🧠 Using Smart Hybrid Mask (City + Citadels)...");
-            clippingMask = generateSmartMapMask(rawMask, points);
-        } else {
-            console.log("🏙️ Using provided City Boundary for clipping...");
-            clippingMask = getCleanCityMask(rawMask);
-        }
-    } else {
-        try {
-            console.log("☁️ Generating Organic Cloud mask (Convex Hull + 3km)...");
-            // Step 1: Convex Hull
-            const hull = turf.convex(points);
-
-            if (hull) {
-                // Step 2: 3km Buffer
-                const buffered = turf.buffer(hull, 3, { units: 'kilometers' });
-
-                // Step 3: Bezier Spline / Smoothing
-                const ring = buffered.geometry.coordinates[0];
-                const line = turf.lineString(ring);
-                const smoothed = turf.bezierSpline(line);
-
-                // Step 4: Final Mask (Polygon)
-                clippingMask = turf.polygon([smoothed.geometry.coordinates]);
-            }
-        } catch (e) {
-            console.warn("Organic shaping failed:", e);
-        }
-    }
-
-    // 5. Generate Large Voronoi & Intersect with Mask
-    const maskBbox = clippingMask ? turf.bbox(clippingMask) : bbox;
-    const expandedBbox = [maskBbox[0] - 0.1, maskBbox[1] - 0.1, maskBbox[2] + 0.1, maskBbox[3] + 0.1];
-
-    const finalVoronoi = turf.voronoi(points, { bbox: expandedBbox });
-
-    const zones = finalVoronoi.features.map(polygon => {
-        // Find the citadel responsible for this cell. 
-        // Voronoi cells are defined by being closer to their seed point than any other.
-        let parentCitadelFeature = points.features.find(pt =>
-            turf.booleanPointInPolygon(pt, polygon)
-        );
-
-        // Fallback: If point is on the boundary or precision fails, find the nearest seed to the cell centroid
-        if (!parentCitadelFeature) {
-            try {
-                const centroid = turf.centroid(polygon);
-                parentCitadelFeature = turf.nearestPoint(centroid, points);
-            } catch (e) {
-                console.warn("Centroid calculation failed for a zone, skipping...");
-            }
-        }
-
-        if (parentCitadelFeature) {
-            const props = {
-                citadelId: parentCitadelFeature.properties.id,
-                cityId: cityId,
-                lat: parentCitadelFeature.geometry.coordinates[1],
-                lng: parentCitadelFeature.geometry.coordinates[0],
-                generatedAt: new Date().toISOString()
-            };
-
-            if (clippingMask) {
-                try {
-                    const intersected = turf.intersect(polygon, clippingMask);
-                    if (intersected) {
-                        intersected.properties = props;
-                        return intersected;
-                    }
-                } catch (err) { /* ignore */ }
-            }
-
-            polygon.properties = props;
-            return polygon;
-        }
-        return null;
-    }).filter(f => f !== null);
-
-    return turf.featureCollection(zones);
+/**
+ * Set the citadel list for territory calculations.
+ * @param {Array} citadels - [{id, lat, lng, powerMultiplier, ownerId, ownerName, cityId}]
+ */
+export function setCitadels(citadels) {
+  _citadelCache = citadels || [];
 }
 
 /**
- * Generate AND Save (Legacy Helper)
+ * Get the current cached citadel list.
+ * @returns {Array}
+ */
+export function getCitadels() {
+  return _citadelCache;
+}
+
+// ==================== PUBLIC API ====================
+
+/**
+ * Get the citadel that controls a given point.
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {{ citadel: Object, distance: number } | null}
+ */
+export function getZoneOwner(lat, lng) {
+  return getNearestCitadel(lat, lng, _citadelCache);
+}
+
+/**
+ * Get the zone owner for the current player's position.
+ * Uses window.gameState to avoid circular imports.
+ * @returns {{ citadel: Object, distance: number } | null}
+ */
+export function getPlayerZoneOwner() {
+  const gs = window.gameState;
+  if (!gs?.player?.position) return null;
+  return getZoneOwner(gs.player.position.lat, gs.player.position.lng);
+}
+
+/**
+ * Get the owner of any coordinate on Earth using the global citadel cache.
+ * This is the primary API for the new global territory system.
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {{citadel: Object, distance: number, rank: Array} | null}
+ */
+export function getGlobalOwner(lat, lng) {
+  return getOwner(lat, lng, _citadelCache);
+}
+
+/**
+ * Compute territory boundaries for all cached citadels.
+ * Returns data suitable for TerritoryCanvasLayer.setTerritories().
+ * @param {number} [numRays=36]
+ * @param {number} [maxDistKm=50]
+ * @returns {Array<{citadelId: string, boundary: Array<{lat: number, lng: number}>, ownerId?: string, ownerName?: string}>}
+ */
+export function computeAllTerritoryBoundaries(numRays = 36, maxDistKm = 50) {
+  if (_citadelCache.length === 0) return [];
+  return _citadelCache.map((c) => ({
+    citadelId: c.id,
+    boundary: estimateTerritoryBoundary(c, _citadelCache, numRays, maxDistKm),
+    ownerId: c.ownerId || null,
+    ownerName: c.ownerName || null,
+  }));
+}
+
+/**
+ * Check if the player's current position is in a contested zone.
+ * @returns {{contested: boolean, owner: Object|null, challenger: Object|null, ratio: number}}
+ */
+export function isPlayerInContestedZone() {
+  const gs = window.gameState;
+  if (!gs?.player?.position)
+    return { contested: false, owner: null, challenger: null, ratio: 0 };
+  return isContested(
+    gs.player.position.lat,
+    gs.player.position.lng,
+    _citadelCache,
+  );
+}
+
+/**
+ * Get all citadels within a raw (unweighted) radius of a point.
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} radiusMeters
+ * @returns {Array}
+ */
+export function getCitadelsInRange(lat, lng, radiusMeters) {
+  return _citadelCache.filter((c) => {
+    const d = _haversineMeters(lat, lng, c.lat, c.lng);
+    return d <= radiusMeters;
+  });
+}
+
+/**
+ * Generate a deterministic HSL colour for a citadel (stable across sessions).
+ * @param {string} citadelId
+ * @returns {string} e.g. "hsl(217, 70%, 50%)"
+ */
+export function getCitadelColor(citadelId) {
+  let hash = 0;
+  for (let i = 0; i < citadelId.length; i++) {
+    hash = citadelId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 70%, 50%)`;
+}
+
+// ==================== LEGACY-COMPATIBLE PERSISTENCE ====================
+
+/**
+ * LEGACY COMPATIBILITY: Generate territory data for a city.
+ * Now stores citadel positions + power instead of Voronoi GeoJSON polygons.
+ * Returns a GeoJSON FeatureCollection of Point features (one per citadel)
+ * so callers that iterate .features still work.
+ *
+ * @param {string} cityId
+ * @param {Array} citadels - [{id, lat, lng, ...}]
+ * @param {Array} bbox - (ignored — kept for signature compat)
+ * @param {Object|null} rawMask - (ignored — kept for signature compat)
+ * @returns {Object} GeoJSON FeatureCollection
+ */
+export async function generateCityTerritory(
+  cityId,
+  citadels,
+  bbox,
+  rawMask = null,
+) {
+  if (!isAdmin()) throw new Error("Unauthorized: Admin access required.");
+
+  console.log(
+    `🗺️ Generating distance-based territory for ${cityId} with ${citadels.length} citadels`,
+  );
+
+  // Enrich with defaults
+  const enriched = citadels.map((c) => ({
+    ...c,
+    cityId,
+    powerMultiplier: c.powerMultiplier || 1,
+    generatedAt: new Date().toISOString(),
+  }));
+
+  // Update local cache (merge: replace same-city entries, keep others)
+  _citadelCache = [
+    ..._citadelCache.filter((c) => c.cityId !== cityId),
+    ...enriched,
+  ];
+
+  // Return in a format compatible with the old Voronoi system
+  return {
+    type: "FeatureCollection",
+    features: enriched.map((c) => ({
+      type: "Feature",
+      properties: {
+        citadelId: c.id,
+        cityId,
+        lat: c.lat,
+        lng: c.lng,
+        powerMultiplier: c.powerMultiplier,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [c.lng, c.lat],
+      },
+    })),
+  };
+}
+
+/**
+ * LEGACY COMPATIBILITY: Generate AND save territory to Firestore.
+ * @param {string} cityId
+ * @param {Array} citadels
+ * @param {Array} bbox
+ * @returns {Object} GeoJSON FeatureCollection
  */
 export async function regenerateCityTerritory(cityId, citadels, bbox) {
-    const featureCollection = await generateCityTerritory(cityId, citadels, bbox);
+  const fc = await generateCityTerritory(cityId, citadels, bbox);
 
-    // Save to Firebase
-    const success = await saveCityZones(cityId, featureCollection);
-
-    if (success) {
-        console.log(`✅ Successfully generated and saved ${featureCollection.features.length} zones for ${cityId}.`);
-        return featureCollection;
-    } else {
-        throw new Error("Failed to save zones to database.");
-    }
+  const success = await saveCityZones(cityId, fc);
+  if (success) {
+    console.log(`✅ Saved ${fc.features.length} citadel zones for ${cityId}`);
+    return fc;
+  }
+  throw new Error("Failed to save zones to database.");
 }
 
 /**
- * Fetch zones for a city with local caching
+ * LEGACY COMPATIBILITY: Fetch zones for a city with local caching.
+ * Also hydrates _citadelCache from the stored features.
  */
 const _localZoneCache = {};
 
 export async function getTerritoryZones(cityId) {
-    // 1. Return from local memory if available
-    if (_localZoneCache[cityId]) return _localZoneCache[cityId];
+  // 1. Return from local memory if available
+  if (_localZoneCache[cityId]) return _localZoneCache[cityId];
 
-    // 2. Fetch from Database
-    const data = await getCityZones(cityId);
-    if (data && data.geoJson) {
-        _localZoneCache[cityId] = data.geoJson;
-        return data.geoJson;
+  // 2. Fetch from Database
+  const data = await getCityZones(cityId);
+  if (data?.geoJson) {
+    _localZoneCache[cityId] = data.geoJson;
+
+    // Extract citadels from stored zone data and update runtime cache
+    if (data.geoJson.features) {
+      const citadels = data.geoJson.features
+        .filter((f) => f.properties?.citadelId)
+        .map((f) => ({
+          id: f.properties.citadelId,
+          lat: f.properties.lat || f.geometry?.coordinates?.[1],
+          lng: f.properties.lng || f.geometry?.coordinates?.[0],
+          powerMultiplier: f.properties.powerMultiplier || 1,
+          cityId: f.properties.cityId || cityId,
+        }));
+      // Merge into cache
+      setCitadels([
+        ..._citadelCache.filter((c) => c.cityId !== cityId),
+        ...citadels,
+      ]);
     }
 
-    return null;
+    return data.geoJson;
+  }
+
+  return null;
+}
+
+// ==================== LEGACY STUBS ====================
+// Kept so any code that still references these names won't throw on import.
+
+/**
+ * LEGACY STUB: Previously cleaned topology / self-intersections from raw GeoJSON.
+ * With distance-based ownership, no polygon cleanup is needed.
+ * @param {Object} rawGeoJSON
+ * @returns {Object} passthrough
+ */
+export function getCleanCityMask(rawGeoJSON) {
+  return rawGeoJSON;
 }
 
 /**
- * SMART MAP MASK: Hybrid approach
- * Merges City Boundary + Citadel Convex Hull to ensure NO points are cut off.
- * Applies buffer and smoothing for organic game-like feel.
- * 
- * @param {Object} cityBoundary - GeoJSON Polygon/MultiPolygon of the city
- * @param {Object} citadelPoints - GeoJSON FeatureCollection of points
+ * LEGACY STUB: Previously merged city boundary + citadel convex hull.
+ * With distance-based ownership, no polygon mask is needed.
+ * @param {Object} cityBoundary
+ * @param {Object} citadelPoints
+ * @returns {Object} passthrough
  */
 export function generateSmartMapMask(cityBoundary, citadelPoints) {
-    const turf = window.turf;
-    if (!turf) return cityBoundary;
-
-    console.log("🧠 Calculating Smart Hybrid Mask...");
-
-    // 1. Create Hull for Citadels (The "Game Area")
-    const hull = turf.convex(citadelPoints);
-
-    // 2. Prepare City Boundary
-    const cleanCity = getCleanCityMask(cityBoundary);
-
-    // 3. Union: City + Game Area
-    let combined = cleanCity;
-    if (hull) {
-        try {
-            // Using union to fuse them.
-            combined = turf.union(cleanCity, hull);
-        } catch (e) {
-            console.warn("Union failed, using Hull or City fallback", e);
-            combined = hull || cleanCity;
-        }
-    }
-
-    // 4. Organic Expansion (Buffer) - Add 1.5km breathing room
-    // This ensures points on the edge have "territory" behind them
-    const buffered = turf.buffer(combined, 1.5, { units: 'kilometers' });
-
-    // 5. Simplify (Reduce vertex count for performance and smoothing prep)
-    const simplified = turf.simplify(buffered, { tolerance: 0.005, highQuality: true });
-
-    // 6. Smoothing (Bezier Spline) - Makes it look like a fantasy map
-    let finalMask = simplified;
-    try {
-        if (simplified.geometry.type === 'Polygon') {
-            const ring = simplified.geometry.coordinates[0];
-            const line = turf.lineString(ring);
-            const smoothed = turf.bezierSpline(line, { resolution: 10000, sharpness: 0.85 });
-            finalMask = turf.lineToPolygon(smoothed);
-        }
-    } catch (e) {
-        console.warn("Bezier smoothing failed, using simplified mask.", e);
-    }
-
-    return finalMask;
+  return cityBoundary;
 }

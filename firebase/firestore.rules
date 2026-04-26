@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // Helper function to check if user is admin
     // Priority: 1) Custom claim (most secure, set via Admin SDK)
     //           2) Hardcoded UID fallback (remove once custom claims are deployed)
@@ -13,25 +13,25 @@ service cloud.firestore {
               (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
-    
+
     // Users collection
     match /users/{userId} {
       // Anyone authenticated can read user profiles (for multiplayer)
       allow read: if request.auth != null;
-      
+
       // Users can update their own profile, but CANNOT change protected fields (role, uid)
       // Admins can update any profile including protected fields
       allow update: if request.auth != null && (
         (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid']))
         || isAdmin()
       );
-      
+
       // Only allow user creation during registration
       allow create: if request.auth != null && request.auth.uid == userId;
-      
+
       // Only admins can delete users
       allow delete: if isAdmin();
-      
+
       // Characters subcollection
       match /characters/{characterId} {
         // Anyone authenticated can read characters (MP)
@@ -66,20 +66,20 @@ service cloud.firestore {
       );
       allow delete: if isAdmin();
     }
-    
+
     // Collection Group query for characters (admin only)
     // Prevents leaking all player data to non-admin users
     match /{path=**}/characters/{characterId} {
       allow read: if isAdmin();
     }
-    
-    
+
+
     // Templates collection - authenticated users can read, admins can write
     match /templates/{templateId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
-    
+
     // Spawned objects - admins can write, all authenticated users can read
     // Authenticated users can update ONLY the defeatedAt field (monster cooldown)
     match /spawned_objects/{objectId} {
@@ -89,7 +89,7 @@ service cloud.firestore {
         && request.resource.data.defeatedAt is number;
       allow create, delete: if isAdmin();
     }
-    
+
     // Castles collection - authenticated users can read, admins can write
     match /castles/{castleId} {
       allow read: if request.auth != null;
@@ -119,14 +119,37 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
-    
+
     // Players collection (legacy) - authenticated users can read/write their own
     match /players/{playerId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && 
+      allow write: if request.auth != null &&
                    (request.auth.uid == playerId || isAdmin());
     }
-    
+
+    // Defeated Objects — procedural monster cooldown tracking
+    // Any authenticated user can create (record a defeat)
+    // Any authenticated user can read (check if monster is on cooldown)
+    // Only the original defeater or admin can delete (clear cooldown)
+    // TTL enforcement is client-side (expiresAt field)
+    // Document ID format: proc_{h3Index}_{localIndex}
+    match /defeated_objects/{monsterId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['h3Index', 'defeatedByUid', 'defeatedAt', 'expiresAt'])
+        && request.resource.data.defeatedByUid == request.auth.uid
+        && request.resource.data.defeatedAt is number
+        && request.resource.data.expiresAt is number
+        && request.resource.data.h3Index is string;
+      allow update: if request.auth != null
+        && request.resource.data.defeatedByUid == request.auth.uid
+        && request.resource.data.defeatedAt is number
+        && request.resource.data.expiresAt is number;
+      allow delete: if request.auth != null && (
+        resource.data.defeatedByUid == request.auth.uid || isAdmin()
+      );
+    }
+
     // Deny all other access
     match /{document=**} {
       allow read, write: if false;

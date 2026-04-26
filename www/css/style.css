@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
 
 * {
     box-sizing: border-box;
@@ -6,13 +6,13 @@
 }
 
 body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-family: "Segoe UI", system-ui, sans-serif;
     overflow: hidden;
     background: #1a1a2e;
 }
 
 .rpg-font {
-    font-family: 'Press Start 2P', cursive;
+    font-family: "Press Start 2P", cursive;
 }
 
 #map {
@@ -29,11 +29,14 @@ body {
     bottom: 0;
     pointer-events: none;
     z-index: 400;
-    background: radial-gradient(circle at var(--player-x, 50%) var(--player-y, 50%),
-            transparent 0%, transparent var(--fog-radius-inner, 80px),
-            rgba(0, 0, 0, 0.4) var(--fog-radius-mid, 120px),
-            rgba(0, 0, 0, 0.7) var(--fog-radius-outer, 180px),
-            rgba(0, 0, 0, 0.95) var(--fog-radius-max, 250px));
+    background: radial-gradient(
+        circle at var(--player-x, 50%) var(--player-y, 50%),
+        transparent 0%,
+        transparent var(--fog-radius-inner, 80px),
+        rgba(0, 0, 0, 0.4) var(--fog-radius-mid, 120px),
+        rgba(0, 0, 0, 0.7) var(--fog-radius-outer, 180px),
+        rgba(0, 0, 0, 0.95) var(--fog-radius-max, 250px)
+    );
     transition: background 0.1s ease-out;
 }
 
@@ -83,7 +86,9 @@ body {
 
 .monster-marker.super-unique {
     filter: drop-shadow(0 0 20px #f97316);
-    animation: float 2s ease-in-out infinite, pulse-boss 1s ease-in-out infinite;
+    animation:
+        float 2s ease-in-out infinite,
+        pulse-boss 1s ease-in-out infinite;
 }
 
 .monster-marker.super-unique .monster-level {
@@ -91,7 +96,7 @@ body {
 }
 
 .monster-marker.dangerous::after {
-    content: '💀';
+    content: "💀";
     position: absolute;
     top: -10px;
     right: -10px;
@@ -114,7 +119,7 @@ body {
 }
 
 .monster-marker.inactive::before {
-    content: '⏳';
+    content: "⏳";
     position: absolute;
     top: -8px;
     left: 50%;
@@ -122,8 +127,35 @@ body {
     font-size: 14px;
 }
 
-@keyframes float {
+/* ==================== MARKER CLUSTER STYLING ==================== */
+/* Override default MarkerCluster styles for dark map visibility */
+.marker-cluster {
+    background: none !important;
+}
 
+.marker-cluster div {
+    margin: 0 !important;
+}
+
+.marker-cluster span {
+    line-height: 1 !important;
+}
+
+/* Smooth transition when clusters split/merge */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+    transition:
+        transform 0.2s ease-out,
+        opacity 0.2s ease-out;
+}
+
+/* Spider leg styling (lines connecting spiderfied markers) */
+.leaflet-cluster-spider-leg {
+    stroke: rgba(255, 255, 255, 0.4);
+    stroke-width: 1.5;
+}
+
+@keyframes float {
     0%,
     100% {
         transform: translateY(0);
@@ -135,7 +167,6 @@ body {
 }
 
 @keyframes pulse-boss {
-
     0%,
     100% {
         transform: scale(1);
@@ -147,7 +178,6 @@ body {
 }
 
 @keyframes shake {
-
     0%,
     100% {
         transform: translateX(0);
@@ -163,7 +193,6 @@ body {
 }
 
 @keyframes damage-flash {
-
     0%,
     100% {
         opacity: 1;
@@ -291,7 +320,11 @@ body {
 }
 
 .menu-panel {
-    background: linear-gradient(180deg, rgba(26, 26, 46, 0.98) 0%, rgba(20, 20, 40, 0.98) 100%);
+    background: linear-gradient(
+        180deg,
+        rgba(26, 26, 46, 0.98) 0%,
+        rgba(20, 20, 40, 0.98) 100%
+    );
     border: 1px solid rgba(139, 92, 246, 0.3);
     backdrop-filter: blur(10px);
 }
@@ -307,7 +340,9 @@ body {
 }
 
 .notification {
-    animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+    animation:
+        slideIn 0.3s ease,
+        fadeOut 0.5s ease 2.5s forwards;
 }
 
 @keyframes slideIn {
@@ -359,8 +394,13 @@ body {
 }
 
 @keyframes groupPulse {
-    0%, 100% { filter: brightness(1); }
-    50% { filter: brightness(1.3); }
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.3);
+    }
 }
 
 /* Combat marker pulse (red) */
@@ -371,8 +411,13 @@ body {
 }
 
 @keyframes combatPulse {
-    0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
-    50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.9); }
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(239, 68, 68, 0.9);
+    }
 }
 
 /* Arena circle on map */
@@ -381,8 +426,13 @@ body {
 }
 
 @keyframes arenaFlicker {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
 }
 
 /* Player interaction popup override */
@@ -626,7 +676,9 @@ body {
     border-radius: 12px;
     padding: 12px;
     width: 200px;
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4), inset 0 0 10px rgba(0, 0, 0, 0.5);
+    box-shadow:
+        0 0 20px rgba(139, 92, 246, 0.4),
+        inset 0 0 10px rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
     animation: fadeInScale 0.15s ease-out;
     transform-origin: bottom center;
@@ -679,7 +731,7 @@ body {
 }
 
 .district-label-text {
-    font-family: 'Press Start 2P', cursive;
+    font-family: "Press Start 2P", cursive;
     color: rgba(255, 255, 255, 0.15);
     /* Semi-transparent default */
     font-size: 16px;
@@ -687,7 +739,9 @@ body {
     text-align: center;
     white-space: nowrap;
     opacity: 0;
-    transition: opacity 0.5s ease-in-out, transform 0.5s ease;
+    transition:
+        opacity 0.5s ease-in-out,
+        transform 0.5s ease;
     transform: scale(0.8);
     pointer-events: none;
     text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
@@ -709,7 +763,6 @@ body {
 }
 
 @keyframes citadel-pulse {
-
     0%,
     100% {
         transform: scale(1);
