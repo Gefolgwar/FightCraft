@@ -1,6 +1,7 @@
 import { OverpassService } from "../map/overpass-service.js";
 import { generateCityTerritory } from "../map/territory-service.js";
 import { CITY_ANCHORS } from "../gameplay/data.js";
+import { createRNG, hashSeed } from "../gameplay/zone-generator.js";
 
 /**
  * Ensures Turf is loaded on window
@@ -29,6 +30,7 @@ export async function generateCitadelsAndZones(
   if (!city) throw new Error("Invalid city");
 
   const turf = await ensureTurf();
+  const rng = createRNG(hashSeed(cityKey));
 
   // 1. Resolve Area ID & Boundary
   const ctx = await OverpassService.fetchCityContext(
@@ -120,7 +122,7 @@ export async function generateCitadelsAndZones(
 
         if (citadelTemplate) {
           processedCitadels.push({
-            id: `${cityKey}_citadel_${Math.random().toString(36).substring(2, 9)}`,
+            id: `${cityKey}_citadel_${rng().toString(36).substring(2, 9)}`,
             type: "castle",
             cityId: cityKey,
             lat,
@@ -175,11 +177,9 @@ export async function generateCitadelsAndZones(
     while (processedCitadels.length < targetCapacity && attempts < 1000) {
       attempts++;
       const lat =
-        cityBounds.minLat +
-        Math.random() * (cityBounds.maxLat - cityBounds.minLat);
+        cityBounds.minLat + rng() * (cityBounds.maxLat - cityBounds.minLat);
       const lng =
-        cityBounds.minLng +
-        Math.random() * (cityBounds.maxLng - cityBounds.minLng);
+        cityBounds.minLng + rng() * (cityBounds.maxLng - cityBounds.minLng);
 
       let isInside = true;
       if (cityBoundary) {
@@ -188,7 +188,7 @@ export async function generateCitadelsAndZones(
 
       if (isInside && citadelTemplate) {
         processedCitadels.push({
-          id: `${cityKey}_citadel_${Math.random().toString(36).substring(2, 9)}`,
+          id: `${cityKey}_citadel_${rng().toString(36).substring(2, 9)}`,
           type: "castle",
           cityId: cityKey,
           lat,

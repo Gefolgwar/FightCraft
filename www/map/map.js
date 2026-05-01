@@ -826,14 +826,12 @@ export function updatePlayerPosition(lat, lng) {
           `🏰 Discovered ${newCastles.length} new landmark(s)!`,
           "success",
         );
-        // Update territory-service cache with new castles
-        const allCastles = getDiscoveredCastles();
-        setCitadels(allCastles);
-        // Recompute and redraw territory boundaries
-        _updateTerritoryCanvas();
+        // Note: We don't need to manually call setCitadels() here because
+        // saveDiscoveredCastle writes to Firestore, which immediately triggers
+        // our subscribeToCastles listener, updating the map automatically.
       }
     })
-    .catch(() => {}); // Swallow errors — discovery is non-critical
+    .catch((err) => console.warn("Discovery check failed:", err));
 
   // Check for new POIs (Castles/Shops)
   checkAndFetchPOIs();
@@ -1785,16 +1783,23 @@ export async function initH3Territory() {
       );
     });
 
-    // Also merge any locally discovered castles
-    const discovered = getDiscoveredCastles();
-    if (discovered && discovered.length > 0) {
-      const existing = getCitadels();
-      const existingIds = new Set(existing.map((c) => c.id));
-      const newOnes = discovered.filter((c) => !existingIds.has(c.id));
-      if (newOnes.length > 0) {
-        setCitadels([...existing, ...newOnes]);
-        _updateTerritoryCanvas();
-      }
+    // Trigger initial H3 discovery on load
+    if (gameState && gameState.player && gameState.player.position) {
+      const { lat, lng } = gameState.player.position;
+      checkDiscovery(lat, lng)
+        .then((newCastles) => {
+          if (newCastles && newCastles.length > 0) {
+            console.log(
+              `🏰 Initial discovery: ${newCastles.length} new castle(s)!`,
+            );
+            showNotification(
+              `🏰 Discovered ${newCastles.length} new landmark(s)!`,
+              "success",
+            );
+            // Firebase snapshot listener will handle state update automatically
+          }
+        })
+        .catch(() => {});
     }
   } catch (e) {
     console.warn("⚠️ H3 territory init failed:", e.message);

@@ -47,7 +47,7 @@ FightCraft is a geolocation RPG (HTML5/JS/TailwindCSS) wrapped in Capacitor for 
 10. loadStaticMonsters() → parse + render from Firestore spawned_objects
 11. fetchSpawnedObjectsOnce() + getCityZones() + getTemplates() → parallel
 12. checkAndFetchPOIs()  → Points of Interest
-13. initPvP() + initKingdom() + initGroups() → subsystems
+13. initPvP() + initKingdom() + initH3Territory() + initGroups() → subsystems (including immediate H3 discovery)
 14. subscribeToArenas()  → RTDB arena listeners
 15. recalculateStats()   → derive all stats from base attributes + equipment
 16. updateHUD()          → render all UI
@@ -299,7 +299,7 @@ TailwindCSS loaded from CDN (~300KB, ~5% utilized — accepted trade-off for bun
 - **Firebase project ID:** `fight-craft-3c3f0`
 - **Android package:** `com.fightcraft.game`
 - **Default fallback coordinates:** Berlin (52.484512, 13.449876) when GPS is unavailable
-- **Multi-city support:** 6 city anchors (Berlin, Kyiv, Lviv, Warsaw, Prague, Vienna) — defined in `CITY_ANCHORS` in `gameplay/data.js`
+- **Multi-city support:** 6 city anchors (Berlin, Kyiv, Lviv, Warsaw, Prague, Vienna) — defined in `CITY_ANCHORS` in `gameplay/data.js` (Transitioning to H3 global procedural discovery)
 - **Design system:** Penpot-managed UI tokens (37 color rules, spacing/sizing tokens, 8px grid) — see `docs/SRC.md`
 - **Firestore optimization:** ~15 reads at startup (down from 2600+ via SyncEngine + IndexedDB caching)
 

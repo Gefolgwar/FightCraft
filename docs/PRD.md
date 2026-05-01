@@ -310,7 +310,7 @@ EffectiveDistance = HaversineDistance(player, citadel) / CitadelPower
 The citadel with the lowest `EffectiveDistance` owns any given point. This is computed client-side with zero Firestore reads.
 
 ### Discovery System
-- **Trigger**: Player enters a new H3 Resolution 6 cell (~3.2km edge)
+- **Trigger**: Player logs into the game OR enters a new H3 Resolution 6 cell (~3.2km edge)
 - **Action**: Overpass API queries OSM for historic landmarks (castles, monuments, ruins, cathedrals, etc.)
 - **Result**: New castle documents are created in Firestore with default `powerMultiplier: 1.0`
 - **Dedup**: 100m radius prevents duplicate castles for the same landmark

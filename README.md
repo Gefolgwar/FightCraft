@@ -165,6 +165,8 @@ Defense covers 2 adjacent zones simultaneously (Head+Body, Body+Belt, Belt+Legs,
 - Proximity checks: all members must be within 50m of the target
 
 ### Territory
+- **Procedural Global World:** Powered by H3 spatial indexing and OpenStreetMap, generating the world wherever you go.
+- **Auto-Discovery:** Landmarks (castles, monuments, ruins) are automatically discovered and spawned immediately upon logging in and as you explore.
 - City districts with citadels that can be captured when within 50m
 - District kings earn passive hourly gold income
 - Safe storage system at citadels to protect resources

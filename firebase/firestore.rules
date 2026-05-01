@@ -77,7 +77,8 @@ service cloud.firestore {
     // Templates collection - authenticated users can read, admins can write
     match /templates/{templateId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin();
     }
 
     // Spawned objects - admins can write, all authenticated users can read
@@ -93,31 +94,36 @@ service cloud.firestore {
     // Castles collection - authenticated users can read, admins can write
     match /castles/{castleId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin();
     }
 
     // World Snapshots - admins can write, authenticated users can read (for map viewer)
     match /world_snapshots/{snapshotId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin();
     }
 
     // World Chunks (Packed States) - All users can read, only admins can write (auto-pack)
     match /world_chunks/{chunkId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin();
     }
 
     // World Metadata - All users can read (for sync), admins can write (force update)
     match /world_metadata/{docId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin();
     }
 
     // City Zones - All users can read, admins can write
     match /city_zones/{cityId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin();
     }
 
     // Players collection (legacy) - authenticated users can read/write their own

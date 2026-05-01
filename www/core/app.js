@@ -23,6 +23,7 @@ import {
   subscribeToWorldMetadata,
   isAdmin,
   isModerator,
+  saveDiscoveredCastle,
 } from "../firebase/firebase-service.js";
 import {
   updateHUD,
@@ -56,8 +57,10 @@ window.logout = logout;
 
 console.log("✅ app.js module loaded - setting up window functions...");
 
+import { getCitadels } from "../map/territory-service.js";
 import { initPvP } from "../gameplay/pvp.js";
 import { initKingdom } from "../map/kingdom.js";
+import { initDiscoveryService } from "./discovery-service.js";
 
 import { initLogger } from "./logger.js";
 
@@ -463,6 +466,18 @@ async function init() {
     // Initialize PvP & Stats
     initPvP();
     initKingdom();
+
+    // Initialize Discovery Service before H3
+    initDiscoveryService({
+      saveCastle: async (castle) => {
+        return saveDiscoveredCastle(castle);
+      },
+      loadCastles: async () => {
+        // Use existing citadels loaded from Firestore as the dedup base
+        return getCitadels();
+      },
+    });
+
     // Initialize H3-based territory system (loads citadels from Firestore)
     initH3Territory().catch((e) =>
       console.warn("⚠️ H3 territory init:", e.message),

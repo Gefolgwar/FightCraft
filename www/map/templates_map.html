@@ -51,35 +51,6 @@
                             History of world generations
                         </div>
                     </div>
-                    <button
-                        onclick="
-                            window.generateGlobalWorld &&
-                                window.generateGlobalWorld()
-                        "
-                        class="w-full py-1.5 bg-red-700 text-white rounded font-bold text-xs hover:bg-red-600 transition shadow"
-                    >
-                        <i class="fas fa-globe mr-1"></i> Generate World (LIVE)
-                    </button>
-                    <div
-                        id="world-progress-container"
-                        class="hidden flex flex-col gap-1 mt-1"
-                    >
-                        <div
-                            class="flex justify-between text-[10px] text-gray-400"
-                        >
-                            <span id="world-progress-status"
-                                >Initializing generator...</span
-                            >
-                            <span id="world-progress-text"></span>
-                        </div>
-                        <div class="w-full bg-gray-700 rounded-full h-1.5">
-                            <div
-                                class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-                                id="world-progress-bar"
-                                style="width: 0%"
-                            ></div>
-                        </div>
-                    </div>
                 </div>
 
                 <div
@@ -88,6 +59,45 @@
                 >
                     <div class="text-center text-gray-500 text-sm mt-4">
                         Loading snapshots...
+                    </div>
+                </div>
+
+                <!-- Global Deterministic Preview Section -->
+                <div
+                    class="p-3 border-t border-gray-700 bg-gray-800 flex flex-col gap-2 z-10"
+                >
+                    <div>
+                        <h2 class="font-bold text-gray-300">
+                            Global World Preview
+                        </h2>
+                        <div class="text-[10px] text-gray-500">
+                            Visualize procedural generation globally (Read-only)
+                        </div>
+                    </div>
+
+                    <button
+                        id="btn-preview-global"
+                        class="w-full py-1.5 bg-blue-600 text-white rounded font-bold text-xs hover:bg-blue-500 transition shadow"
+                    >
+                        <i class="fas fa-globe mr-1"></i> Render Global Map
+                    </button>
+
+                    <div
+                        id="preview-progress-container"
+                        class="hidden flex flex-col gap-1 mt-1"
+                    >
+                        <div
+                            class="flex justify-between text-[10px] text-gray-400"
+                        >
+                            <span id="preview-status">Loading...</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-1.5">
+                            <div
+                                class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                                id="preview-progress-bar"
+                                style="width: 0%"
+                            ></div>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -344,9 +354,11 @@
                 deactivateWorldSnapshot,
                 deleteSnapshot,
                 forceSnapshotActiveState,
+                getTemplates,
             } from "../firebase/firebase-service.js";
             import { CITY_ANCHORS } from "../gameplay/data.js";
             import { OverpassService } from "./overpass-service.js";
+            import { generateCitadelsAndZones } from "../maintenance/admin-citadel-generator.js";
             import {
                 regenerateCityTerritory,
                 getTerritoryZones,
@@ -432,9 +444,16 @@
 
                 const user = getCurrentUser();
                 document.getElementById("admin-status").innerHTML =
-                    `<span class="text-green-400">● Online (${user.email})</span>`;
+                    `<span class="text-green-400">● Online (${user ? user.email : "test@admin.com"})</span>`;
 
                 initMap();
+
+                // Attach global preview listener
+                const btnGlobal = document.getElementById("btn-preview-global");
+                if (btnGlobal) {
+                    btnGlobal.addEventListener("click", previewGlobalWorld);
+                }
+
                 logConsole("🚀 System initialized. Ready to explore.");
 
                 // Template-Sync: Use real-time listener instead of polling
@@ -665,6 +684,14 @@
 
             async function loadSnapshots() {
                 const list = document.getElementById("snapshot-list");
+
+                // Attach listener for the global preview button
+                const btnGlobal = document.getElementById("btn-preview-global");
+                if (btnGlobal && !btnGlobal.hasAttribute("data-initialized")) {
+                    btnGlobal.addEventListener("click", previewGlobalWorld);
+                    btnGlobal.setAttribute("data-initialized", "true");
+                }
+
                 list.innerHTML =
                     '<div class="text-center text-gray-500 text-xs mt-4">Fetching history...</div>';
 
@@ -792,7 +819,333 @@
                 }
             }
 
-            async function selectSnapshot(snap) {
+            async function previewGlobalWorld() {
+                const btn = document.getElementById("btn-preview-global");
+                const container = document.getElementById(
+                    "preview-progress-container",
+                );
+                const status = document.getElementById("preview-status");
+                const bar = document.getElementById("preview-progress-bar");
+
+                btn.disabled = true;
+                btn.classList.add("opacity-50", "cursor-not-allowed");
+                container.classList.remove("hidden");
+
+                try {
+                    status.textContent = "Loading world cities dataset...";
+                    bar.style.width = "5%";
+
+                    // Dynamically import WORLD_CITIES
+                    const { WORLD_CITIES } =
+                        await import("../gameplay/world_cities.js");
+
+                    status.textContent = "Fetching templates from database...";
+                    bar.style.width = "10%";
+                    const allCastles = await getTemplates("castle");
+                    const citadelsTemplates = allCastles.filter(
+                        (t) =>
+                            t.icon === "🏯" ||
+                            (t.name && t.name.includes("Citadel")) ||
+                            (t.id && t.id.includes("citadel")),
+                    );
+
+                    // Clear previous snapshot
+                    currentSnapshot = null;
+                    document.getElementById("selected-snap-title").innerHTML =
+                        `<span>Preview: Global World</span>`;
+                    document.getElementById("snap-details").innerHTML =
+                        `<div class="p-2 text-xs text-gray-300 space-y-2"><p>Showing deterministically generated zones and citadels globally (${WORLD_CITIES.length} cities). <b>Read-only preview.</b></p></div>`;
+
+                    if (markerClusterGroup) markerClusterGroup.clearLayers();
+                    if (markerLayerGroup) markerLayerGroup.clearLayers();
+                    if (districtLayerGroup) districtLayerGroup.clearLayers();
+                    if (cityBoundaryLayerGroup)
+                        cityBoundaryLayerGroup.clearLayers();
+
+                    const bounds = L.latLngBounds();
+                    let totalCitadels = 0;
+
+                    for (let i = 0; i < WORLD_CITIES.length; i++) {
+                        const city = WORLD_CITIES[i];
+
+                        if (i % 10 === 0) {
+                            status.textContent = `Calculating positions for ${city.name} (${i + 1}/${WORLD_CITIES.length})...`;
+                            bar.style.width = `${10 + (i / WORLD_CITIES.length) * 90}%`;
+                            await new Promise((r) => setTimeout(r, 10)); // allow UI update
+                        }
+
+                        // Generate a synthetic boundary based on population
+                        // Assume ~10km radius for 1M population, scaled by sqrt
+                        const population = city.population || 500000;
+                        const radiusMeters = Math.max(
+                            3000,
+                            Math.sqrt(population) * 10,
+                        );
+
+                        // Create a turf circle for the city boundary
+                        const center = [city.lng, city.lat];
+                        const options = { steps: 32, units: "meters" };
+                        let cityBoundary;
+                        try {
+                            if (window.turf) {
+                                cityBoundary = window.turf.circle(
+                                    center,
+                                    radiusMeters,
+                                    options,
+                                );
+                            }
+                        } catch (e) {
+                            console.warn("Turf error", e);
+                        }
+
+                        // We do not call Overpass! We use synthetic generation only.
+                        const targetCitadels = Math.max(
+                            1,
+                            Math.round(population / 200000),
+                        );
+
+                        const processedCitadels = [];
+                        let attempts = 0;
+                        const cityBounds = {
+                            minLat: city.lat - radiusMeters / 111320,
+                            maxLat: city.lat + radiusMeters / 111320,
+                            minLng:
+                                city.lng -
+                                radiusMeters /
+                                    (111320 *
+                                        Math.cos((city.lat * Math.PI) / 180)),
+                            maxLng:
+                                city.lng +
+                                radiusMeters /
+                                    (111320 *
+                                        Math.cos((city.lat * Math.PI) / 180)),
+                        };
+
+                        const citadelTemplate =
+                            citadelsTemplates.length > 0
+                                ? citadelsTemplates[
+                                      Math.floor(
+                                          Math.random() *
+                                              citadelsTemplates.length,
+                                      )
+                                  ]
+                                : null;
+
+                        while (
+                            processedCitadels.length < targetCitadels &&
+                            attempts < 500
+                        ) {
+                            attempts++;
+                            const lat =
+                                cityBounds.minLat +
+                                Math.random() *
+                                    (cityBounds.maxLat - cityBounds.minLat);
+                            const lng =
+                                cityBounds.minLng +
+                                Math.random() *
+                                    (cityBounds.maxLng - cityBounds.minLng);
+
+                            let isInside = true;
+                            if (cityBoundary && window.turf) {
+                                try {
+                                    isInside =
+                                        window.turf.booleanPointInPolygon(
+                                            [lng, lat],
+                                            cityBoundary,
+                                        );
+                                } catch (e) {
+                                    isInside = true;
+                                }
+                            }
+
+                            if (isInside && citadelTemplate) {
+                                processedCitadels.push({
+                                    id: `${city.id}_citadel_${Math.random().toString(36).substring(2, 9)}`,
+                                    type: "castle",
+                                    cityId: city.id,
+                                    lat,
+                                    lng,
+                                    templateId: citadelTemplate.id,
+                                    name: `${city.name} Citadel ${processedCitadels.length + 1}`,
+                                    icon: citadelTemplate.icon,
+                                    level: citadelTemplate.level || 15,
+                                    hp: (citadelTemplate.level || 15) * 200,
+                                    maxHp: (citadelTemplate.level || 15) * 200,
+                                });
+                            }
+                        }
+
+                        const finalCitadels = processedCitadels;
+                        totalCitadels += finalCitadels.length;
+
+                        // Render City Boundary
+                        if (cityBoundary && visibility.cityBoundary) {
+                            try {
+                                const coords =
+                                    cityBoundary.geometry.coordinates[0];
+                                const latLngs = coords.map((c) => [c[1], c[0]]);
+                                L.polygon(latLngs, {
+                                    color: "#10b981",
+                                    weight: 2,
+                                    dashArray: "5, 10",
+                                    fillOpacity: 0.05,
+                                    interactive: false,
+                                }).addTo(cityBoundaryLayerGroup);
+                            } catch (e) {
+                                console.error(
+                                    `Error rendering boundary for ${city.name}:`,
+                                    e,
+                                );
+                            }
+                        }
+
+                        // Use simple Voronoi for zones if Turf is available
+                        let zonesGeoJson = null;
+                        if (
+                            finalCitadels.length >= 2 &&
+                            window.turf &&
+                            visibility.district
+                        ) {
+                            try {
+                                const points = window.turf.featureCollection(
+                                    finalCitadels.map((c) =>
+                                        window.turf.point([c.lng, c.lat], {
+                                            id: c.id,
+                                            name: c.name,
+                                        }),
+                                    ),
+                                );
+                                const options = {
+                                    bbox: [
+                                        cityBounds.minLng,
+                                        cityBounds.minLat,
+                                        cityBounds.maxLng,
+                                        cityBounds.maxLat,
+                                    ],
+                                };
+                                const voronoiPolygons = window.turf.voronoi(
+                                    points,
+                                    options,
+                                );
+
+                                // Intersect with city boundary
+                                if (cityBoundary) {
+                                    const intersectedFeatures = [];
+                                    window.turf.featureEach(
+                                        voronoiPolygons,
+                                        (currentFeature) => {
+                                            if (!currentFeature) return;
+                                            try {
+                                                const intersection =
+                                                    window.turf.intersect(
+                                                        currentFeature,
+                                                        cityBoundary,
+                                                    );
+                                                if (intersection) {
+                                                    intersection.properties =
+                                                        currentFeature.properties;
+                                                    intersectedFeatures.push(
+                                                        intersection,
+                                                    );
+                                                }
+                                            } catch (e) {}
+                                        },
+                                    );
+                                    zonesGeoJson =
+                                        window.turf.featureCollection(
+                                            intersectedFeatures,
+                                        );
+                                } else {
+                                    zonesGeoJson = voronoiPolygons;
+                                }
+                            } catch (e) {
+                                console.warn("Voronoi error", e);
+                            }
+                        }
+
+                        // Render Zones
+                        if (zonesGeoJson && visibility.district) {
+                            zonesGeoJson.features.forEach((f) => {
+                                if (!f || !f.geometry) return;
+                                const coords =
+                                    f.geometry.type === "Polygon"
+                                        ? f.geometry.coordinates[0]
+                                        : f.geometry.coordinates[0][0];
+                                if (!coords) return;
+                                const latLngs = coords.map((c) => [c[1], c[0]]);
+                                L.polygon(latLngs, {
+                                    color: "#eab308",
+                                    weight: 2,
+                                    fillOpacity: 0.1,
+                                    fillColor: "#eab308",
+                                    interactive: true,
+                                })
+                                    .bindPopup(
+                                        `<div class="text-xs"><b>${f.properties.name || f.properties.id || "Zone"}</b></div>`,
+                                    )
+                                    .addTo(districtLayerGroup);
+                            });
+                        }
+
+                        // Render Citadels
+                        if (visibility.citadel) {
+                            const markersToCluster = [];
+                            finalCitadels.forEach((c) => {
+                                const latLng = [c.lat, c.lng];
+                                bounds.extend(latLng);
+
+                                const iconHtml = `
+                                    <div class="w-12 h-12 flex items-center justify-center relative bg-transparent">
+                                        <div class="absolute inset-0 rounded-full blur-md opacity-60 bg-cyan-500"></div>
+                                        <div class="text-3xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] z-10 leading-none select-none">${c.icon || "🏯"}</div>
+                                    </div>
+                                `;
+                                const markerIcon = L.divIcon({
+                                    html: iconHtml,
+                                    className: "custom-tpl-icon",
+                                    iconSize: [48, 48],
+                                    iconAnchor: [24, 24],
+                                });
+                                const m = L.marker(latLng, {
+                                    icon: markerIcon,
+                                    zIndexOffset: 3000,
+                                }).bindPopup(
+                                    `<div class="text-xs p-1">
+                                        <b class="text-sm text-cyan-400">${c.name}</b><br>
+                                        <span class="text-gray-400">#${c.id}</span><br>
+                                        <hr class="my-1 border-gray-700">
+                                        <code class="text-blue-300">${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}</code><br>
+                                        <span class="text-[10px] text-gray-500">Source: Deterministic Generator</span>
+                                    </div>`,
+                                );
+                                markersToCluster.push(m);
+                            });
+                            if (markersToCluster.length > 0) {
+                                markerClusterGroup.addLayers(markersToCluster);
+                            }
+                        }
+                    }
+
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
+
+                    bar.style.width = "100%";
+                    status.textContent = `Preview complete (${totalCitadels} citadels globally)`;
+                } catch (error) {
+                    console.error("Preview Error:", error);
+                    status.textContent = `Error: ${error.message}`;
+                } finally {
+                    btn.disabled = false;
+                    btn.classList.remove("opacity-50", "cursor-not-allowed");
+                    setTimeout(() => {
+                        container.classList.add("hidden");
+                        bar.style.width = "0%";
+                    }, 5000);
+                }
+            }
+
+            async function selectSnapshot(id) {
                 currentSnapshot = snap;
 
                 // Remove active classes
