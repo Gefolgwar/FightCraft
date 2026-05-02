@@ -27,6 +27,8 @@
         <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
         <!-- Turf.js -->
         <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+        <!-- TopoJSON Client (for Natural Earth land polygon conversion) -->
+        <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
         <script type="module" src="../components/admin-header.js"></script>
     </head>
 
@@ -61,45 +63,6 @@
                         Loading snapshots...
                     </div>
                 </div>
-
-                <!-- Global Deterministic Preview Section -->
-                <div
-                    class="p-3 border-t border-gray-700 bg-gray-800 flex flex-col gap-2 z-10"
-                >
-                    <div>
-                        <h2 class="font-bold text-gray-300">
-                            Global World Preview
-                        </h2>
-                        <div class="text-[10px] text-gray-500">
-                            Visualize procedural generation globally (Read-only)
-                        </div>
-                    </div>
-
-                    <button
-                        id="btn-preview-global"
-                        class="w-full py-1.5 bg-blue-600 text-white rounded font-bold text-xs hover:bg-blue-500 transition shadow"
-                    >
-                        <i class="fas fa-globe mr-1"></i> Render Global Map
-                    </button>
-
-                    <div
-                        id="preview-progress-container"
-                        class="hidden flex flex-col gap-1 mt-1"
-                    >
-                        <div
-                            class="flex justify-between text-[10px] text-gray-400"
-                        >
-                            <span id="preview-status">Loading...</span>
-                        </div>
-                        <div class="w-full bg-gray-700 rounded-full h-1.5">
-                            <div
-                                class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-                                id="preview-progress-bar"
-                                style="width: 0%"
-                            ></div>
-                        </div>
-                    </div>
-                </div>
             </aside>
 
             <!-- Main Content: Map Viewer -->
@@ -112,177 +75,252 @@
 
                 <!-- Controls Overlay (Top Right) -->
                 <div
-                    class="absolute top-4 right-4 z-[400] bg-gray-800/95 backdrop-blur-md p-2.5 rounded-2xl shadow-2xl border border-gray-600/50 flex flex-col gap-1.5 min-w-[300px] max-w-[340px] max-h-[calc(100vh-8.5rem)] overflow-hidden"
+                    id="right-panel"
+                    class="absolute top-4 right-4 z-[400] bg-gray-800/95 backdrop-blur-md p-2.5 rounded-2xl shadow-2xl border border-gray-600/50 flex flex-col gap-1.5 min-w-[300px] max-w-[340px] max-h-[calc(100vh-8.5rem)] overflow-y-auto custom-scrollbar transition-all duration-200"
                 >
-                    <h3
-                        class="text-xs font-bold text-gray-400 border-b border-gray-700/50 pb-1.5 flex justify-between items-center"
-                        id="selected-snap-title"
-                    >
-                        <span>No Template Selected</span>
-                    </h3>
-
                     <div
-                        class="text-xs text-gray-400 space-y-1 overflow-y-auto flex-1 pr-2 custom-scrollbar -mr-2"
-                        id="snap-details"
+                        class="flex justify-between items-center pb-1.5 cursor-pointer select-none"
+                        onclick="toggleRightPanel()"
                     >
-                        <p class="py-10 text-center opacity-50 italic">
-                            Select a template from the left to preview.
-                        </p>
+                        <h3
+                            class="text-xs font-bold text-gray-400 flex-1 truncate"
+                            id="selected-snap-title"
+                        >
+                            <span>No Template Selected</span>
+                        </h3>
+                        <button
+                            class="text-gray-500 hover:text-white transition text-[10px] ml-2 flex-shrink-0"
+                            title="Collapse/Expand"
+                        >
+                            <i
+                                id="right-panel-chevron"
+                                class="fas fa-chevron-up"
+                            ></i>
+                        </button>
                     </div>
 
-                    <div
-                        class="flex flex-col gap-1.5 pt-1 border-t border-gray-700/50"
-                    >
+                    <div id="right-panel-body">
                         <div
-                            class="flex items-center justify-between bg-gray-800 rounded-lg p-2 border border-gray-700"
+                            class="text-xs text-gray-400 space-y-1 overflow-y-auto flex-1 pr-2 custom-scrollbar -mr-2"
+                            id="snap-details"
                         >
-                            <span
-                                class="text-xs font-bold text-gray-500"
-                                id="toggle-status-text"
-                                >INACTIVE</span
-                            >
-                            <button
-                                id="btn-toggle-active"
-                                onclick="window.toggleCurrentSnapshot()"
-                                disabled
-                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-gray-600 opacity-50 cursor-not-allowed shadow-inner"
+                            <p class="py-10 text-center opacity-50 italic">
+                                Select a template from the left to preview.
+                            </p>
+                        </div>
+
+                        <div
+                            class="flex flex-col gap-1.5 pt-1 border-t border-gray-700/50"
+                        >
+                            <div
+                                class="flex items-center justify-between bg-gray-800 rounded-lg p-2 border border-gray-700"
                             >
                                 <span
-                                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1 shadow"
-                                    id="toggle-status-knob"
-                                ></span>
+                                    class="text-xs font-bold text-gray-500"
+                                    id="toggle-status-text"
+                                    >INACTIVE</span
+                                >
+                                <button
+                                    id="btn-toggle-active"
+                                    onclick="window.toggleCurrentSnapshot()"
+                                    disabled
+                                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-gray-600 opacity-50 cursor-not-allowed shadow-inner"
+                                >
+                                    <span
+                                        class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1 shadow"
+                                        id="toggle-status-knob"
+                                    ></span>
+                                </button>
+                            </div>
+                            <button
+                                id="btn-force-state"
+                                onclick="window.forceCurrentSnapshotState()"
+                                class="hidden w-full py-1 text-gray-400 hover:text-white text-[10px] flex items-center justify-center gap-1 hover:bg-gray-800 rounded transition mt-0.5"
+                            >
+                                <i class="fas fa-check-double"></i> Mark as
+                                Active (No Spawn)
+                            </button>
+                            <button
+                                id="btn-delete-snap"
+                                onclick="deleteCurrentSnapshot()"
+                                disabled
+                                class="w-full py-1 text-red-400 hover:text-red-300 text-[10px] opacity-50 cursor-not-allowed flex items-center justify-center gap-1 hover:bg-red-900/20 rounded transition mt-1"
+                            >
+                                <i class="fas fa-trash-alt"></i> Delete Template
                             </button>
                         </div>
-                        <button
-                            id="btn-force-state"
-                            onclick="window.forceCurrentSnapshotState()"
-                            class="hidden w-full py-1 text-gray-400 hover:text-white text-[10px] flex items-center justify-center gap-1 hover:bg-gray-800 rounded transition mt-0.5"
-                        >
-                            <i class="fas fa-check-double"></i> Mark as Active
-                            (No Spawn)
-                        </button>
-                        <button
-                            id="btn-delete-snap"
-                            onclick="deleteCurrentSnapshot()"
-                            disabled
-                            class="w-full py-1 text-red-400 hover:text-red-300 text-[10px] opacity-50 cursor-not-allowed flex items-center justify-center gap-1 hover:bg-red-900/20 rounded transition mt-1"
-                        >
-                            <i class="fas fa-trash-alt"></i> Delete Template
-                        </button>
-                    </div>
 
-                    <!-- Visibility Toggles -->
-                    <div class="border-t border-gray-700/50 pt-2">
-                        <div
-                            class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]"
-                        >
-                            <label
-                                class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
+                        <!-- Visibility Toggles -->
+                        <div class="border-t border-gray-700/50 pt-2">
+                            <div
+                                class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]"
                             >
-                                <input
-                                    type="checkbox"
-                                    id="toggle-monsters"
-                                    checked
-                                    onchange="toggleLayer('monster')"
-                                    class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-purple-500 focus:ring-purple-500"
-                                />
-                                <span
-                                    class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                                    >👾 Monsters</span
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
                                 >
-                            </label>
-                            <label
-                                class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
-                            >
-                                <input
-                                    type="checkbox"
-                                    id="toggle-shops"
-                                    checked
-                                    onchange="toggleLayer('shop')"
-                                    class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-yellow-500 focus:ring-yellow-500"
-                                />
-                                <span
-                                    class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                                    >🏪 Shops</span
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-monsters"
+                                        checked
+                                        onchange="toggleLayer('monster')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-purple-500 focus:ring-purple-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >👾 Monsters</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
                                 >
-                            </label>
-                            <label
-                                class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
-                            >
-                                <input
-                                    type="checkbox"
-                                    id="toggle-vaults"
-                                    checked
-                                    onchange="toggleLayer('vault')"
-                                    class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span
-                                    class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                                    >📦 Vaults</span
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-shops"
+                                        checked
+                                        onchange="toggleLayer('shop')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-yellow-500 focus:ring-yellow-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🏪 Shops</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
                                 >
-                            </label>
-                            <label
-                                class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
-                            >
-                                <input
-                                    type="checkbox"
-                                    id="toggle-castles"
-                                    checked
-                                    onchange="toggleLayer('castle')"
-                                    class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-blue-500"
-                                />
-                                <span
-                                    class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                                    >🏰 Castles</span
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-vaults"
+                                        checked
+                                        onchange="toggleLayer('vault')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-emerald-500 focus:ring-emerald-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >📦 Vaults</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
                                 >
-                            </label>
-                            <label
-                                class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
-                            >
-                                <input
-                                    type="checkbox"
-                                    id="toggle-citadels"
-                                    checked
-                                    onchange="toggleLayer('citadel')"
-                                    class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-orange-500 focus:ring-orange-500"
-                                />
-                                <span
-                                    class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                                    >🏯 Citadels</span
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-castles"
+                                        checked
+                                        onchange="toggleLayer('castle')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-blue-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🏰 Castles</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
                                 >
-                            </label>
-                            <label
-                                class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group col-span-2"
-                            >
-                                <input
-                                    type="checkbox"
-                                    id="toggle-districts"
-                                    checked
-                                    onchange="toggleLayer('district')"
-                                    class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-yellow-500 focus:ring-yellow-500"
-                                />
-                                <span
-                                    class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                                    >🧭 Territory Zones (Voronoi)</span
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-citadels"
+                                        checked
+                                        onchange="toggleLayer('citadel')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-orange-500 focus:ring-orange-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🏯 Citadels</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group col-span-2"
                                 >
-                            </label>
-                            <label
-                                class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group col-span-2 border-t border-gray-700/30 pt-1.5 mt-0.5"
-                            >
-                                <input
-                                    type="checkbox"
-                                    id="toggle-city-boundary"
-                                    checked
-                                    onchange="toggleLayer('cityBoundary')"
-                                    class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-emerald-500 focus:ring-emerald-500"
-                                />
-                                <span
-                                    class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
-                                    >🌐 City Boundary</span
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-districts"
+                                        checked
+                                        onchange="toggleLayer('district')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-yellow-500 focus:ring-yellow-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🧭 Territory Zones (Voronoi)</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
                                 >
-                            </label>
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-water"
+                                        onchange="toggleLayer('water')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-blue-500 focus:ring-blue-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🌊 Water</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-land"
+                                        onchange="toggleLayer('land')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🏔️ Land</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group col-span-2"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-countries"
+                                        onchange="toggleLayer('countries')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-amber-500 focus:ring-amber-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🌐 Countries</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group col-span-2"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-contour-vertices"
+                                        onchange="
+                                            toggleLayer('contourVertices')
+                                        "
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-red-500 focus:ring-red-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >📍 Contour Vertices</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-1.5 cursor-pointer hover:text-white transition group col-span-2 border-t border-gray-700/30 pt-1.5 mt-0.5 hidden"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="toggle-city-boundary"
+                                        onchange="toggleLayer('cityBoundary')"
+                                        class="w-3 h-3 rounded border-gray-600 bg-gray-900 text-emerald-500 focus:ring-emerald-500"
+                                    />
+                                    <span
+                                        class="opacity-70 group-hover:opacity-100 whitespace-nowrap"
+                                        >🌐 City Boundary</span
+                                    >
+                                </label>
+                            </div>
                         </div>
                     </div>
+                    <!-- /right-panel-body -->
                 </div>
 
                 <!-- Admin Console (Separated into Button and Panel like main map) -->
@@ -372,10 +410,548 @@
             let markerLayerGroup = null;
             let districtLayerGroup = null;
             let cityBoundaryLayerGroup = null;
+            let waterLayerGroup = null;
+            let landLayerGroup = null;
+            let countriesLayerGroup = null;
+            let contourVertexLayerGroup = null;
             let _snapshotUnsubscribe = null; // Real-time listener cleanup
+            let _lastCitadelsByCity = null; // saved for manual zone generation
+
+            // === Right panel collapse ===
+            let _rightPanelCollapsed = false;
+            window.toggleRightPanel = function () {
+                _rightPanelCollapsed = !_rightPanelCollapsed;
+                const body = document.getElementById("right-panel-body");
+                const chevron = document.getElementById("right-panel-chevron");
+                const panel = document.getElementById("right-panel");
+                if (_rightPanelCollapsed) {
+                    body.style.display = "none";
+                    chevron.className = "fas fa-chevron-down";
+                    panel.style.minWidth = "auto";
+                } else {
+                    body.style.display = "";
+                    chevron.className = "fas fa-chevron-up";
+                    panel.style.minWidth = "300px";
+                }
+            };
 
             const districtCache = {};
             const adminDistrictCache = {};
+
+            // Cached land polygon for zone clipping
+            let _validLandMask = null;
+            let _oceanMask = null; // lazy, only for Water layer
+            let _landMaskLoading = false;
+
+            /**
+             * Load land polygon (countries merged + 20km buffer).
+             * Used for zone clipping via turf.intersect(zone, land).
+             * NO turf.mask() here — avoids the bbox rectangle bug.
+             */
+            async function loadLandMask(statusEl) {
+                if (_validLandMask) return _validLandMask;
+                if (_landMaskLoading) {
+                    while (_landMaskLoading)
+                        await new Promise((r) => setTimeout(r, 100));
+                    return _validLandMask;
+                }
+                _landMaskLoading = true;
+                try {
+                    const turf = window.turf;
+                    if (!turf || !window.topojson) return null;
+
+                    if (statusEl)
+                        statusEl.textContent = "Loading land boundaries...";
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    const mergedGeo = window.topojson.merge(
+                        topoData,
+                        topoData.objects.countries.geometries,
+                    );
+
+                    // Fix antimeridian: remove rings that cross 180/-180
+                    // (creates horizontal artifact through Russia)
+                    function fixAntimeridian(geo) {
+                        const polys =
+                            geo.type === "MultiPolygon"
+                                ? geo.coordinates
+                                : [geo.coordinates];
+                        const fixed = [];
+                        for (const poly of polys) {
+                            const goodRings = [];
+                            for (const ring of poly) {
+                                let crosses = false;
+                                for (let i = 0; i < ring.length - 1; i++) {
+                                    if (
+                                        Math.abs(ring[i][0] - ring[i + 1][0]) >
+                                        180
+                                    ) {
+                                        crosses = true;
+                                        break;
+                                    }
+                                }
+                                if (!crosses) goodRings.push(ring);
+                            }
+                            if (goodRings.length > 0) fixed.push(goodRings);
+                        }
+                        return {
+                            type: "MultiPolygon",
+                            coordinates: fixed,
+                        };
+                    }
+
+                    const cleanGeo = fixAntimeridian(mergedGeo);
+                    const rawLand = {
+                        type: "Feature",
+                        geometry: cleanGeo,
+                        properties: {},
+                    };
+
+                    if (statusEl)
+                        statusEl.textContent = "Buffering coastline +20km...";
+                    const bufferedLand = turf.buffer(rawLand, 20, {
+                        units: "kilometers",
+                    });
+
+                    _validLandMask = bufferedLand;
+                    logConsole(
+                        "Land mask ready (antimeridian-fixed + 20km buffer)",
+                    );
+                    return bufferedLand;
+                } catch (e) {
+                    console.error("Failed to load land mask:", e);
+                    return null;
+                } finally {
+                    _landMaskLoading = false;
+                }
+            }
+
+            /**
+             * Get ocean polygon (lazy, only for Water layer display).
+             * Uses turf.mask(land) — the bbox rectangle is fine for display only.
+             */
+            async function getOceanForDisplay() {
+                if (_oceanMask) return _oceanMask;
+                const land = await loadLandMask();
+                if (!land) return null;
+                try {
+                    _oceanMask = window.turf.mask(land);
+                    return _oceanMask;
+                } catch (e) {
+                    console.warn("Ocean mask error:", e);
+                    return null;
+                }
+            }
+
+            /**
+             * Clip zones to land using turf.intersect(zone, land).
+             * No ocean polygon, no bbox rectangle — direct land intersection.
+             * Optimized: skip inland zones via vertex check.
+             */
+            /**
+             * Clip Voronoi zones to land using individual country polygons.
+             * For each zone: intersect with every overlapping country,
+             * collect all land parts. Zones never extend beyond land.
+             * @param {Object} voronoiFC - turf FeatureCollection of Voronoi zones
+             * @param {Object} statusEl - status DOM element
+             * @param {Array} countryBboxes - pre-computed [{feature, minLng, minLat, maxLng, maxLat}]
+             */
+            async function clipZonesAndDrawContour(
+                voronoiFC,
+                statusEl,
+                countryBboxes,
+            ) {
+                const turf = window.turf;
+                if (!turf || !voronoiFC?.features) return voronoiFC;
+                if (!countryBboxes || countryBboxes.length === 0)
+                    return voronoiFC;
+
+                if (statusEl)
+                    statusEl.textContent = "Clipping zones to land...";
+                await new Promise((r) => setTimeout(r, 10));
+
+                const clippedFeatures = [];
+                const total = voronoiFC.features.length;
+                let trimmed = 0,
+                    removed = 0;
+
+                for (let i = 0; i < total; i++) {
+                    const zone = voronoiFC.features[i];
+                    if (!zone || !zone.geometry) continue;
+
+                    // Get zone bbox for fast rejection
+                    let zBbox;
+                    try {
+                        zBbox = turf.bbox(zone);
+                    } catch (e) {
+                        continue;
+                    }
+
+                    // Collect all land intersections from overlapping countries
+                    const parts = [];
+                    for (const cb of countryBboxes) {
+                        // Fast bbox rejection
+                        if (
+                            zBbox[2] < cb.minLng ||
+                            zBbox[0] > cb.maxLng ||
+                            zBbox[3] < cb.minLat ||
+                            zBbox[1] > cb.maxLat
+                        )
+                            continue;
+                        try {
+                            const part = turf.intersect(zone, cb.feature);
+                            if (part && part.geometry) {
+                                part.properties = { ...zone.properties };
+                                parts.push(part);
+                            }
+                        } catch (e) {
+                            /* geometry error */
+                        }
+                    }
+
+                    if (parts.length > 0) {
+                        // Add all land parts (may be multiple polygons for coastal zones)
+                        for (const p of parts) clippedFeatures.push(p);
+                        trimmed++;
+                    } else {
+                        removed++;
+                    }
+
+                    if (i % 50 === 0 && i > 0) {
+                        if (statusEl)
+                            statusEl.textContent = `Clipping: ${i}/${total} (${trimmed} clipped, ${removed} ocean)...`;
+                        await new Promise((r) => setTimeout(r, 3));
+                    }
+                }
+
+                logConsole(
+                    `Clipped: ${trimmed} zones to land, ${removed} fully ocean (of ${total})`,
+                );
+                return turf.featureCollection(clippedFeatures);
+            }
+
+            /**
+             * Render water as "everything that is NOT land".
+             * Draws a world-covering polygon with country shapes cut out as holes.
+             * No turf.mask, no topojson.merge — uses individual countries.
+             */
+            async function renderWaterLayer() {
+                if (!waterLayerGroup) return;
+                waterLayerGroup.clearLayers();
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    const fixed = fixAntimeridianGeoJSON(countriesFC);
+
+                    // Outer ring: covers the entire visible map area
+                    // Must go counter-clockwise for Leaflet to treat it as outer boundary
+                    const outerRing = [
+                        [-90, -200],
+                        [-90, 200],
+                        [90, 200],
+                        [90, -200],
+                        [-90, -200],
+                    ];
+
+                    // Collect ALL land rings as holes (clockwise = hole in Leaflet)
+                    const holes = [];
+                    for (const feature of fixed.features) {
+                        const geo = feature.geometry;
+                        let polys = [];
+                        if (geo.type === "Polygon") polys = [geo.coordinates];
+                        else if (geo.type === "MultiPolygon")
+                            polys = geo.coordinates;
+                        for (const poly of polys) {
+                            // Only outer ring of each polygon (index 0), skip inner holes
+                            if (poly[0] && poly[0].length >= 4) {
+                                holes.push(poly[0]);
+                            }
+                        }
+                    }
+
+                    // Build Leaflet polygon: outer ring + holes
+                    // Leaflet expects [lat, lng], GeoJSON has [lng, lat]
+                    const outerLatLngs = outerRing.map(([lat, lng]) => [
+                        lat,
+                        lng,
+                    ]);
+                    const holeLatLngs = holes.map((ring) =>
+                        ring.map(([lng, lat]) => [lat, lng]),
+                    );
+
+                    L.polygon([outerLatLngs, ...holeLatLngs], {
+                        color: "#1e40af",
+                        weight: 0,
+                        fillColor: "#1e3a5f",
+                        fillOpacity: 0.35,
+                        interactive: false,
+                    }).addTo(waterLayerGroup);
+                } catch (e) {
+                    console.warn("Water layer error:", e);
+                }
+            }
+
+            /**
+             * Render the land polygon as a green semi-transparent layer.
+             */
+            async function renderLandLayer() {
+                if (!landLayerGroup) return;
+                landLayerGroup.clearLayers();
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    // Use individual country features instead of merge
+                    // to avoid antimeridian artifact (horizontal black band)
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    L.geoJSON(fixAntimeridianGeoJSON(countriesFC), {
+                        style: {
+                            color: "#16a34a",
+                            weight: 2,
+                            fillColor: "transparent",
+                            fillColor: "#15803d",
+                            fillOpacity: 0.15,
+                        },
+                        interactive: false,
+                    }).addTo(landLayerGroup);
+                } catch (e) {
+                    console.warn("Land layer error:", e);
+                }
+            }
+
+            // ==================== ANTIMERIDIAN FIX ====================
+            /**
+             * Fix antimeridian crossing in a coordinate ring.
+             *
+             * Two cases:
+             * 1. SMALL crossing (Chukotka, Fiji): ring spans <180° around
+             *    the antimeridian → shift negative lngs by +360°.
+             * 2. GLOBE-WRAPPING (Antarctica): ring spans >180° (goes all
+             *    the way around) → leave as-is (seam at antimeridian
+             *    is the standard cylindrical representation).
+             */
+            function _fixRing(ring) {
+                let crosses = false;
+                for (let i = 0; i < ring.length - 1; i++) {
+                    if (Math.abs(ring[i][0] - ring[i + 1][0]) > 180) {
+                        crosses = true;
+                        break;
+                    }
+                }
+                if (!crosses) return ring;
+
+                // Unwrap longitudes to measure the TRUE angular span.
+                // If span > 180° the ring wraps around the globe — skip.
+                const lngs = [ring[0][0]];
+                let offset = 0;
+                for (let i = 1; i < ring.length; i++) {
+                    let lng = ring[i][0] + offset;
+                    while (lng - lngs[i - 1] > 180) {
+                        lng -= 360;
+                        offset -= 360;
+                    }
+                    while (lngs[i - 1] - lng > 180) {
+                        lng += 360;
+                        offset += 360;
+                    }
+                    lngs.push(lng);
+                }
+                let minL = lngs[0],
+                    maxL = lngs[0];
+                for (const l of lngs) {
+                    if (l < minL) minL = l;
+                    if (l > maxL) maxL = l;
+                }
+                if (maxL - minL > 180) return ring; // Antarctica etc.
+
+                // Small crossing — shift negative lngs to +360°
+                return ring.map(([lng, lat]) => [
+                    lng < 0 ? lng + 360 : lng,
+                    lat,
+                ]);
+            }
+
+            /**
+             * Deep-fix all coordinate rings in any GeoJSON structure.
+             * Handles Feature, FeatureCollection, Polygon, MultiPolygon.
+             */
+            function fixAntimeridianGeoJSON(geojson) {
+                function fixGeometry(geo) {
+                    if (!geo) return geo;
+                    if (geo.type === "Polygon") {
+                        return {
+                            ...geo,
+                            coordinates: geo.coordinates.map(_fixRing),
+                        };
+                    }
+                    if (geo.type === "MultiPolygon") {
+                        return {
+                            ...geo,
+                            coordinates: geo.coordinates.map((poly) =>
+                                poly.map(_fixRing),
+                            ),
+                        };
+                    }
+                    return geo;
+                }
+                if (geojson.type === "FeatureCollection") {
+                    return {
+                        ...geojson,
+                        features: geojson.features.map((f) => ({
+                            ...f,
+                            geometry: fixGeometry(f.geometry),
+                        })),
+                    };
+                }
+                if (geojson.type === "Feature") {
+                    return {
+                        ...geojson,
+                        geometry: fixGeometry(geojson.geometry),
+                    };
+                }
+                return fixGeometry(geojson);
+            }
+
+            /**
+             * Haversine distance in km between two [lng, lat] coords.
+             */
+            function _haversineKm(c1, c2) {
+                const R = 6371;
+                const dLat = ((c2[1] - c1[1]) * Math.PI) / 180;
+                const dLng = ((c2[0] - c1[0]) * Math.PI) / 180;
+                const a =
+                    Math.sin(dLat / 2) ** 2 +
+                    Math.cos((c1[1] * Math.PI) / 180) *
+                        Math.cos((c2[1] * Math.PI) / 180) *
+                        Math.sin(dLng / 2) ** 2;
+                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            }
+
+            /**
+             * Render clickable markers at each vertex of the land contour
+             * where an adjacent segment is >= ~1000km (indicating low-resolution
+             * coastline that may cause incorrect land/water classification).
+             */
+            async function renderLandContourVertices() {
+                if (!contourVertexLayerGroup) return;
+                contourVertexLayerGroup.clearLayers();
+
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    // Fix antimeridian before extracting rings
+                    const fixedFC = fixAntimeridianGeoJSON(countriesFC);
+
+                    let rings = [];
+                    for (const feature of fixedFC.features) {
+                        const geo = feature.geometry;
+                        if (geo.type === "Polygon") {
+                            rings.push(...geo.coordinates);
+                        } else if (geo.type === "MultiPolygon") {
+                            for (const poly of geo.coordinates) {
+                                rings.push(...poly);
+                            }
+                        }
+                    }
+
+                    let totalMarkers = 0;
+                    for (const ring of rings) {
+                        const len = ring.length;
+                        for (let i = 0; i < len; i++) {
+                            const prev = ring[(i - 1 + len) % len];
+                            const curr = ring[i];
+                            const next = ring[(i + 1) % len];
+
+                            const distPrev = _haversineKm(prev, curr);
+                            const distNext = _haversineKm(curr, next);
+                            const maxDist = Math.max(distPrev, distNext);
+
+                            // Color: green=short, yellow=medium, orange=long, red=very long
+                            const color =
+                                maxDist >= 300
+                                    ? "#ef4444"
+                                    : maxDist >= 200
+                                      ? "#f97316"
+                                      : maxDist >= 100
+                                        ? "#eab308"
+                                        : "#22c55e";
+
+                            const marker = L.circleMarker([curr[1], curr[0]], {
+                                radius: 3,
+                                color: color,
+                                fillColor: color,
+                                fillOpacity: 0.85,
+                                weight: 1,
+                            });
+                            marker.bindPopup(
+                                `<div class="text-xs">
+                                    <b style="color:${color}">Contour Vertex #${totalMarkers + 1}</b><br>
+                                    <code>${curr[1].toFixed(3)}, ${curr[0].toFixed(3)}</code><br>
+                                    <hr class="my-1 border-gray-600">
+                                    \u2190 prev: <b>${distPrev.toFixed(0)} km</b><br>
+                                    \u2192 next: <b>${distNext.toFixed(0)} km</b>
+                                </div>`,
+                            );
+                            marker.addTo(contourVertexLayerGroup);
+                            totalMarkers++;
+                        }
+                    }
+                    logConsole(
+                        `Contour vertices: ${totalMarkers} markers (all)`,
+                    );
+                } catch (e) {
+                    console.warn("Contour vertex error:", e);
+                }
+            }
+
+            /**
+             * Render country borders as a toggleable layer.
+             */
+            async function renderCountriesLayer() {
+                if (!countriesLayerGroup) return;
+                countriesLayerGroup.clearLayers();
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    // Render each country as a closed polygon (no fill, only border)
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    L.geoJSON(fixAntimeridianGeoJSON(countriesFC), {
+                        style: {
+                            color: "#9ca3af",
+                            weight: 1,
+                            fillColor: "transparent",
+                            fillOpacity: 0,
+                            opacity: 0.5,
+                        },
+                        interactive: false,
+                    }).addTo(countriesLayerGroup);
+                } catch (e) {
+                    console.warn("Countries layer error:", e);
+                }
+            }
 
             const visibility = {
                 monster: true,
@@ -384,7 +960,11 @@
                 castle: true,
                 citadel: true,
                 district: true,
-                cityBoundary: true,
+                cityBoundary: false,
+                water: false,
+                land: false,
+                countries: false,
+                contourVertices: false,
             };
 
             window.toggleLayer = (type) => {
@@ -396,11 +976,48 @@
                     citadel: "toggle-citadels",
                     district: "toggle-districts",
                     cityBoundary: "toggle-city-boundary",
+                    water: "toggle-water",
+                    land: "toggle-land",
+                    countries: "toggle-countries",
+                    contourVertices: "toggle-contour-vertices",
                 };
 
                 const checkbox = document.getElementById(idMap[type]);
                 if (!checkbox) return;
                 visibility[type] = checkbox.checked;
+
+                if (type === "water") {
+                    if (visibility.water) {
+                        renderWaterLayer();
+                    } else {
+                        waterLayerGroup.clearLayers();
+                    }
+                    return;
+                }
+                if (type === "land") {
+                    if (visibility.land) {
+                        renderLandLayer();
+                    } else {
+                        landLayerGroup.clearLayers();
+                    }
+                    return;
+                }
+                if (type === "countries") {
+                    if (visibility.countries) {
+                        renderCountriesLayer();
+                    } else {
+                        countriesLayerGroup.clearLayers();
+                    }
+                    return;
+                }
+                if (type === "contourVertices") {
+                    if (visibility.contourVertices) {
+                        renderLandContourVertices();
+                    } else {
+                        contourVertexLayerGroup.clearLayers();
+                    }
+                    return;
+                }
 
                 if (currentSnapshot) {
                     if (type === "district") {
@@ -448,19 +1065,13 @@
 
                 initMap();
 
-                // Attach global preview listener
-                const btnGlobal = document.getElementById("btn-preview-global");
-                if (btnGlobal) {
-                    btnGlobal.addEventListener("click", previewGlobalWorld);
-                }
-
                 logConsole("🚀 System initialized. Ready to explore.");
 
                 // Template-Sync: Use real-time listener instead of polling
                 setTimeout(() => {
                     _snapshotUnsubscribe = subscribeToWorldSnapshots(
                         (snapshots) => {
-                            renderSnapshotList(snapshots);
+                            mergeAndRenderSnapshots(snapshots);
                             // On first load, trigger city metadata after a delay
                             if (currentSnapshot && !_initialMetadataLoaded) {
                                 _initialMetadataLoaded = true;
@@ -483,6 +1094,73 @@
             });
 
             let _initialMetadataLoaded = false;
+
+            // Local IndexedDB manager for saving global map runs without hitting Firestore
+            const LocalSnapshotsManager = {
+                dbName: "FightCraftLocalTemplates",
+                storeName: "local_snapshots",
+                async init() {
+                    return new Promise((resolve, reject) => {
+                        const request = indexedDB.open(this.dbName, 1);
+                        request.onupgradeneeded = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains(this.storeName)) {
+                                db.createObjectStore(this.storeName, {
+                                    keyPath: "id",
+                                });
+                            }
+                        };
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                },
+                async saveSnapshot(data) {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readwrite");
+                        const store = tx.objectStore(this.storeName);
+                        store.put(data);
+                        tx.oncomplete = () => resolve(data);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                },
+                async getAll() {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readonly");
+                        const store = tx.objectStore(this.storeName);
+                        const request = store.getAll();
+                        request.onsuccess = () => {
+                            const result = request.result || [];
+                            result.sort((a, b) => b.created - a.created);
+                            resolve(result);
+                        };
+                        request.onerror = () => reject(request.error);
+                    });
+                },
+                async deleteSnapshot(id) {
+                    const db = await this.init();
+                    const tx = db.transaction(this.storeName, "readwrite");
+                    const store = tx.objectStore(this.storeName);
+                    store.delete(id);
+                    return new Promise((resolve, reject) => {
+                        tx.oncomplete = () => resolve(true);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                },
+            };
+
+            async function mergeAndRenderSnapshots(firestoreSnapshots) {
+                try {
+                    const localSnaps = await LocalSnapshotsManager.getAll();
+                    const combined = [...localSnaps, ...firestoreSnapshots];
+                    combined.sort((a, b) => b.created - a.created);
+                    renderSnapshotList(combined);
+                } catch (e) {
+                    console.error("Local IDB error:", e);
+                    renderSnapshotList(firestoreSnapshots);
+                }
+            }
 
             /**
              * Renders the snapshot sidebar list from real-time data.
@@ -654,16 +1332,25 @@
             function initMap() {
                 if (map) map.remove();
 
-                // USE CANVAS RENDERER FOR PERFORMANCE (Same as main map)
+                // Cylindrical projection (Mercator), fit all continents
                 map = L.map("map", {
                     renderer: L.canvas(),
                     preferCanvas: true,
-                }).setView([52.52, 13.405], 12); // Default Berlin
+                    worldCopyJump: false,
+                    minZoom: 1,
+                    maxZoom: 18,
+                }).fitBounds(
+                    [
+                        [-86, -180], // SW: Antarctica bottom-left
+                        [84, 195], //   NE: top-right (Chukotka shifted to ~190°)
+                    ],
+                    { padding: [10, 10] },
+                );
 
                 L.tileLayer(
                     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
                     {
-                        attribution: "©OpenStreetMap",
+                        attribution: "\u00a9OpenStreetMap",
                     },
                 ).addTo(map);
 
@@ -680,472 +1367,23 @@
                 markerLayerGroup = L.layerGroup().addTo(map);
                 districtLayerGroup = L.layerGroup().addTo(map);
                 cityBoundaryLayerGroup = L.layerGroup().addTo(map);
+                waterLayerGroup = L.layerGroup().addTo(map);
+                landLayerGroup = L.layerGroup().addTo(map);
+                countriesLayerGroup = L.layerGroup().addTo(map);
+                contourVertexLayerGroup = L.layerGroup().addTo(map);
             }
 
             async function loadSnapshots() {
                 const list = document.getElementById("snapshot-list");
 
-                // Attach listener for the global preview button
-                const btnGlobal = document.getElementById("btn-preview-global");
-                if (btnGlobal && !btnGlobal.hasAttribute("data-initialized")) {
-                    btnGlobal.addEventListener("click", previewGlobalWorld);
-                    btnGlobal.setAttribute("data-initialized", "true");
-                }
-
                 list.innerHTML =
                     '<div class="text-center text-gray-500 text-xs mt-4">Fetching history...</div>';
 
                 const snaps = await getWorldSnapshots();
-
-                if (snaps.length === 0) {
-                    list.innerHTML =
-                        '<div class="text-center text-gray-500 text-xs mt-4">No snapshots found. Generate some in Monsters/Shops tabs!</div>';
-                    return;
-                }
-
-                list.innerHTML = "";
-
-                const visibleIds = snaps.map((s) => s.id);
-                if (bulkActions)
-                    bulkActions.injectSelectAllHeader(list, visibleIds);
-
-                snaps.forEach((snap) => {
-                    const el = document.createElement("div");
-                    el.className =
-                        "p-3 bg-gray-900 border border-gray-700 hover:border-blue-500 rounded cursor-pointer transition";
-                    el.id = `snap-${snap.id}`;
-
-                    const dateStr = new Date(snap.created).toLocaleString();
-                    const typesPresent = new Set();
-                    let hasCitadel = false;
-                    let hasCastle = false;
-
-                    if (snap.objects && snap.objects.length > 0) {
-                        snap.objects.forEach((o) => {
-                            if (o.type === "castle") {
-                                if (
-                                    o.icon === "🏯" ||
-                                    (o.name && o.name.includes("Citadel"))
-                                )
-                                    hasCitadel = true;
-                                else hasCastle = true;
-                            } else if (o.type) {
-                                typesPresent.add(o.type);
-                            }
-                        });
-                    } else if (snap.type) {
-                        if (snap.type === "castle") hasCastle = true;
-                        else typesPresent.add(snap.type);
-                    }
-
-                    let iconsHtml = "";
-                    if (typesPresent.has("monster"))
-                        iconsHtml +=
-                            '<i class="fas fa-skull text-purple-400" title="Monsters"></i>';
-                    if (typesPresent.has("shop"))
-                        iconsHtml +=
-                            '<i class="fas fa-store text-yellow-400 ml-1" title="Shops"></i>';
-                    if (typesPresent.has("vault"))
-                        iconsHtml +=
-                            '<i class="fas fa-box text-emerald-400 ml-1" title="Vaults"></i>';
-                    if (hasCastle)
-                        iconsHtml +=
-                            '<i class="fas fa-chess-rook text-blue-400 ml-1" title="Castles"></i>';
-                    if (hasCitadel)
-                        iconsHtml +=
-                            '<span class="ml-1 text-lg leading-none" title="Citadels">🏯</span>';
-
-                    if (!iconsHtml)
-                        iconsHtml =
-                            '<i class="fas fa-file-alt text-gray-500"></i>';
-
-                    el.innerHTML = `
-                            <div class="flex justify-between items-start mb-1">
-                                <div class="flex items-center gap-2 w-full overflow-hidden">
-                                    <div class="bulk-checkbox-container"></div>
-                                    <div class="flex flex-col overflow-hidden w-full">
-                                        <div class="flex items-center gap-2 pr-2">
-                                            <div class="font-bold text-sm text-gray-200 truncate">${snap.name || snap.id.substr(0, 15)}</div>
-                                            ${snap.isActive ? '<span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded uppercase">Active</span>' : ""}
-                                        </div>
-                                        <div class="text-[10px] text-gray-500">${dateStr}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="text-[10px] text-gray-400 flex items-center justify-between mt-2">
-                                <div>
-                                    <i class="fas fa-globe text-blue-500/50 mr-1"></i> ${snap.cityId ? snap.cityId.toUpperCase() : "UNKNOWN"}
-                                </div>
-                                <div>
-                                    ${iconsHtml}
-                                </div>
-                            </div>
-                            `;
-
-                    // Inject bulk checkbox
-                    if (bulkActions) {
-                        const cbContainer = el.querySelector(
-                            ".bulk-checkbox-container",
-                        );
-                        if (cbContainer) {
-                            cbContainer.appendChild(
-                                bulkActions.createCheckbox(snap.id),
-                            );
-                        }
-                    }
-
-                    el.addEventListener("click", (e) => {
-                        // Ignore click if clicking the checkbox
-                        if (e.target.tagName.toLowerCase() === "input") return;
-
-                        document
-                            .querySelectorAll("#snapshot-list > div")
-                            .forEach((d) =>
-                                d.classList.remove(
-                                    "border-blue-500",
-                                    "bg-gray-800",
-                                ),
-                            );
-                        el.classList.add("border-blue-500", "bg-gray-800");
-                        selectSnapshot(snap);
-                    });
-
-                    list.appendChild(el);
-                });
-
-                // Auto-select the first one (latest)
-                if (snaps.length > 0) {
-                    selectSnapshot(snaps[0]);
-                }
+                await mergeAndRenderSnapshots(snaps);
             }
 
-            async function previewGlobalWorld() {
-                const btn = document.getElementById("btn-preview-global");
-                const container = document.getElementById(
-                    "preview-progress-container",
-                );
-                const status = document.getElementById("preview-status");
-                const bar = document.getElementById("preview-progress-bar");
-
-                btn.disabled = true;
-                btn.classList.add("opacity-50", "cursor-not-allowed");
-                container.classList.remove("hidden");
-
-                try {
-                    status.textContent = "Loading world cities dataset...";
-                    bar.style.width = "5%";
-
-                    // Dynamically import WORLD_CITIES
-                    const { WORLD_CITIES } =
-                        await import("../gameplay/world_cities.js");
-
-                    status.textContent = "Fetching templates from database...";
-                    bar.style.width = "10%";
-                    const allCastles = await getTemplates("castle");
-                    const citadelsTemplates = allCastles.filter(
-                        (t) =>
-                            t.icon === "🏯" ||
-                            (t.name && t.name.includes("Citadel")) ||
-                            (t.id && t.id.includes("citadel")),
-                    );
-
-                    // Clear previous snapshot
-                    currentSnapshot = null;
-                    document.getElementById("selected-snap-title").innerHTML =
-                        `<span>Preview: Global World</span>`;
-                    document.getElementById("snap-details").innerHTML =
-                        `<div class="p-2 text-xs text-gray-300 space-y-2"><p>Showing deterministically generated zones and citadels globally (${WORLD_CITIES.length} cities). <b>Read-only preview.</b></p></div>`;
-
-                    if (markerClusterGroup) markerClusterGroup.clearLayers();
-                    if (markerLayerGroup) markerLayerGroup.clearLayers();
-                    if (districtLayerGroup) districtLayerGroup.clearLayers();
-                    if (cityBoundaryLayerGroup)
-                        cityBoundaryLayerGroup.clearLayers();
-
-                    const bounds = L.latLngBounds();
-                    let totalCitadels = 0;
-
-                    for (let i = 0; i < WORLD_CITIES.length; i++) {
-                        const city = WORLD_CITIES[i];
-
-                        if (i % 10 === 0) {
-                            status.textContent = `Calculating positions for ${city.name} (${i + 1}/${WORLD_CITIES.length})...`;
-                            bar.style.width = `${10 + (i / WORLD_CITIES.length) * 90}%`;
-                            await new Promise((r) => setTimeout(r, 10)); // allow UI update
-                        }
-
-                        // Generate a synthetic boundary based on population
-                        // Assume ~10km radius for 1M population, scaled by sqrt
-                        const population = city.population || 500000;
-                        const radiusMeters = Math.max(
-                            3000,
-                            Math.sqrt(population) * 10,
-                        );
-
-                        // Create a turf circle for the city boundary
-                        const center = [city.lng, city.lat];
-                        const options = { steps: 32, units: "meters" };
-                        let cityBoundary;
-                        try {
-                            if (window.turf) {
-                                cityBoundary = window.turf.circle(
-                                    center,
-                                    radiusMeters,
-                                    options,
-                                );
-                            }
-                        } catch (e) {
-                            console.warn("Turf error", e);
-                        }
-
-                        // We do not call Overpass! We use synthetic generation only.
-                        const targetCitadels = Math.max(
-                            1,
-                            Math.round(population / 200000),
-                        );
-
-                        const processedCitadels = [];
-                        let attempts = 0;
-                        const cityBounds = {
-                            minLat: city.lat - radiusMeters / 111320,
-                            maxLat: city.lat + radiusMeters / 111320,
-                            minLng:
-                                city.lng -
-                                radiusMeters /
-                                    (111320 *
-                                        Math.cos((city.lat * Math.PI) / 180)),
-                            maxLng:
-                                city.lng +
-                                radiusMeters /
-                                    (111320 *
-                                        Math.cos((city.lat * Math.PI) / 180)),
-                        };
-
-                        const citadelTemplate =
-                            citadelsTemplates.length > 0
-                                ? citadelsTemplates[
-                                      Math.floor(
-                                          Math.random() *
-                                              citadelsTemplates.length,
-                                      )
-                                  ]
-                                : null;
-
-                        while (
-                            processedCitadels.length < targetCitadels &&
-                            attempts < 500
-                        ) {
-                            attempts++;
-                            const lat =
-                                cityBounds.minLat +
-                                Math.random() *
-                                    (cityBounds.maxLat - cityBounds.minLat);
-                            const lng =
-                                cityBounds.minLng +
-                                Math.random() *
-                                    (cityBounds.maxLng - cityBounds.minLng);
-
-                            let isInside = true;
-                            if (cityBoundary && window.turf) {
-                                try {
-                                    isInside =
-                                        window.turf.booleanPointInPolygon(
-                                            [lng, lat],
-                                            cityBoundary,
-                                        );
-                                } catch (e) {
-                                    isInside = true;
-                                }
-                            }
-
-                            if (isInside && citadelTemplate) {
-                                processedCitadels.push({
-                                    id: `${city.id}_citadel_${Math.random().toString(36).substring(2, 9)}`,
-                                    type: "castle",
-                                    cityId: city.id,
-                                    lat,
-                                    lng,
-                                    templateId: citadelTemplate.id,
-                                    name: `${city.name} Citadel ${processedCitadels.length + 1}`,
-                                    icon: citadelTemplate.icon,
-                                    level: citadelTemplate.level || 15,
-                                    hp: (citadelTemplate.level || 15) * 200,
-                                    maxHp: (citadelTemplate.level || 15) * 200,
-                                });
-                            }
-                        }
-
-                        const finalCitadels = processedCitadels;
-                        totalCitadels += finalCitadels.length;
-
-                        // Render City Boundary
-                        if (cityBoundary && visibility.cityBoundary) {
-                            try {
-                                const coords =
-                                    cityBoundary.geometry.coordinates[0];
-                                const latLngs = coords.map((c) => [c[1], c[0]]);
-                                L.polygon(latLngs, {
-                                    color: "#10b981",
-                                    weight: 2,
-                                    dashArray: "5, 10",
-                                    fillOpacity: 0.05,
-                                    interactive: false,
-                                }).addTo(cityBoundaryLayerGroup);
-                            } catch (e) {
-                                console.error(
-                                    `Error rendering boundary for ${city.name}:`,
-                                    e,
-                                );
-                            }
-                        }
-
-                        // Use simple Voronoi for zones if Turf is available
-                        let zonesGeoJson = null;
-                        if (
-                            finalCitadels.length >= 2 &&
-                            window.turf &&
-                            visibility.district
-                        ) {
-                            try {
-                                const points = window.turf.featureCollection(
-                                    finalCitadels.map((c) =>
-                                        window.turf.point([c.lng, c.lat], {
-                                            id: c.id,
-                                            name: c.name,
-                                        }),
-                                    ),
-                                );
-                                const options = {
-                                    bbox: [
-                                        cityBounds.minLng,
-                                        cityBounds.minLat,
-                                        cityBounds.maxLng,
-                                        cityBounds.maxLat,
-                                    ],
-                                };
-                                const voronoiPolygons = window.turf.voronoi(
-                                    points,
-                                    options,
-                                );
-
-                                // Intersect with city boundary
-                                if (cityBoundary) {
-                                    const intersectedFeatures = [];
-                                    window.turf.featureEach(
-                                        voronoiPolygons,
-                                        (currentFeature) => {
-                                            if (!currentFeature) return;
-                                            try {
-                                                const intersection =
-                                                    window.turf.intersect(
-                                                        currentFeature,
-                                                        cityBoundary,
-                                                    );
-                                                if (intersection) {
-                                                    intersection.properties =
-                                                        currentFeature.properties;
-                                                    intersectedFeatures.push(
-                                                        intersection,
-                                                    );
-                                                }
-                                            } catch (e) {}
-                                        },
-                                    );
-                                    zonesGeoJson =
-                                        window.turf.featureCollection(
-                                            intersectedFeatures,
-                                        );
-                                } else {
-                                    zonesGeoJson = voronoiPolygons;
-                                }
-                            } catch (e) {
-                                console.warn("Voronoi error", e);
-                            }
-                        }
-
-                        // Render Zones
-                        if (zonesGeoJson && visibility.district) {
-                            zonesGeoJson.features.forEach((f) => {
-                                if (!f || !f.geometry) return;
-                                const coords =
-                                    f.geometry.type === "Polygon"
-                                        ? f.geometry.coordinates[0]
-                                        : f.geometry.coordinates[0][0];
-                                if (!coords) return;
-                                const latLngs = coords.map((c) => [c[1], c[0]]);
-                                L.polygon(latLngs, {
-                                    color: "#eab308",
-                                    weight: 2,
-                                    fillOpacity: 0.1,
-                                    fillColor: "#eab308",
-                                    interactive: true,
-                                })
-                                    .bindPopup(
-                                        `<div class="text-xs"><b>${f.properties.name || f.properties.id || "Zone"}</b></div>`,
-                                    )
-                                    .addTo(districtLayerGroup);
-                            });
-                        }
-
-                        // Render Citadels
-                        if (visibility.citadel) {
-                            const markersToCluster = [];
-                            finalCitadels.forEach((c) => {
-                                const latLng = [c.lat, c.lng];
-                                bounds.extend(latLng);
-
-                                const iconHtml = `
-                                    <div class="w-12 h-12 flex items-center justify-center relative bg-transparent">
-                                        <div class="absolute inset-0 rounded-full blur-md opacity-60 bg-cyan-500"></div>
-                                        <div class="text-3xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] z-10 leading-none select-none">${c.icon || "🏯"}</div>
-                                    </div>
-                                `;
-                                const markerIcon = L.divIcon({
-                                    html: iconHtml,
-                                    className: "custom-tpl-icon",
-                                    iconSize: [48, 48],
-                                    iconAnchor: [24, 24],
-                                });
-                                const m = L.marker(latLng, {
-                                    icon: markerIcon,
-                                    zIndexOffset: 3000,
-                                }).bindPopup(
-                                    `<div class="text-xs p-1">
-                                        <b class="text-sm text-cyan-400">${c.name}</b><br>
-                                        <span class="text-gray-400">#${c.id}</span><br>
-                                        <hr class="my-1 border-gray-700">
-                                        <code class="text-blue-300">${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}</code><br>
-                                        <span class="text-[10px] text-gray-500">Source: Deterministic Generator</span>
-                                    </div>`,
-                                );
-                                markersToCluster.push(m);
-                            });
-                            if (markersToCluster.length > 0) {
-                                markerClusterGroup.addLayers(markersToCluster);
-                            }
-                        }
-                    }
-
-                    if (bounds.isValid()) {
-                        map.fitBounds(bounds, { padding: [50, 50] });
-                    }
-
-                    bar.style.width = "100%";
-                    status.textContent = `Preview complete (${totalCitadels} citadels globally)`;
-                } catch (error) {
-                    console.error("Preview Error:", error);
-                    status.textContent = `Error: ${error.message}`;
-                } finally {
-                    btn.disabled = false;
-                    btn.classList.remove("opacity-50", "cursor-not-allowed");
-                    setTimeout(() => {
-                        container.classList.add("hidden");
-                        bar.style.width = "0%";
-                    }, 5000);
-                }
-            }
-
-            async function selectSnapshot(id) {
+            async function selectSnapshot(snap) {
                 currentSnapshot = snap;
 
                 // Remove active classes
@@ -1538,7 +1776,303 @@
                 renderSnapshotOnMap(snap);
                 loadDistrictsForPreview(snap.cityId);
                 loadCityMetadata(snap.cityId);
+
+                // Populate citadel data for manual zone generation
+                const citadelsByCity = {};
+                (snap.objects || []).forEach((o) => {
+                    const isCit =
+                        o.icon === "\ud83c\udfef" ||
+                        (o.name && o.name.includes("Citadel")) ||
+                        (o.templateId && o.templateId.includes("citadel"));
+                    if (isCit) {
+                        const cid = o.cityId || snap.cityId || "unknown";
+                        if (!citadelsByCity[cid]) citadelsByCity[cid] = [];
+                        citadelsByCity[cid].push(o);
+                    }
+                });
+                _lastCitadelsByCity =
+                    Object.keys(citadelsByCity).length > 0
+                        ? citadelsByCity
+                        : null;
+
+                // Add "Generate Zones" button if citadels exist
+                if (_lastCitadelsByCity) {
+                    const citadelCount =
+                        Object.values(citadelsByCity).flat().length;
+                    document.getElementById("snap-details").innerHTML +=
+                        `<div class="mt-2 flex flex-col gap-1 border-t border-gray-700/50 pt-2">
+                            <button onclick="window.generateSnapshotZones()" class="w-full py-1.5 bg-yellow-600 text-white rounded font-bold text-xs hover:bg-yellow-500 transition shadow">
+                                <i class="fas fa-project-diagram mr-1"></i> Generate Zones (${citadelCount} citadels)
+                            </button>
+                            <div id="recalc-status" class="text-[10px] text-gray-500">Click to generate 1 zone per citadel</div>
+                        </div>`;
+                }
             }
+
+            /**
+             * Generate Voronoi zones for the currently loaded snapshot.
+             * Algorithm:
+             * 1. Load land mask
+             * 2. Filter citadels → only those ON LAND
+             * 3. Voronoi for land citadels only
+             * 4. Clip Voronoi to land boundary
+             * Result: every citadel has a zone, every zone has a citadel,
+             * zones don't extend into ocean.
+             */
+            window.generateSnapshotZones = async function () {
+                const citadelsByCity = _lastCitadelsByCity;
+                if (!citadelsByCity) {
+                    alert("No snapshot loaded");
+                    return;
+                }
+
+                const statusEl = document.getElementById("recalc-status");
+                if (statusEl) {
+                    statusEl.innerText = "Loading land mask...";
+                    statusEl.className =
+                        "text-[10px] font-bold text-yellow-400 animate-pulse";
+                }
+
+                if (districtLayerGroup) districtLayerGroup.clearLayers();
+                if (cityBoundaryLayerGroup)
+                    cityBoundaryLayerGroup.clearLayers();
+
+                try {
+                    const turf = window.turf;
+                    if (!turf) {
+                        alert("Turf.js not loaded");
+                        return;
+                    }
+
+                    // 1. Load land mask for clipping later
+                    const land = await loadLandMask(statusEl);
+
+                    // 2. Load individual countries for accurate point-in-land check
+                    if (statusEl)
+                        statusEl.innerText = "Loading country boundaries...";
+                    const countryResp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const countryTopo = await countryResp.json();
+                    const countriesFC = window.topojson.feature(
+                        countryTopo,
+                        countryTopo.objects.countries,
+                    );
+                    // Fix antimeridian BEFORE using for clipping/filtering
+                    const fixedCountries = fixAntimeridianGeoJSON(countriesFC);
+                    // Pre-compute bboxes for fast rejection
+                    const countryBboxes = fixedCountries.features.map((f) => {
+                        const b = turf.bbox(f);
+                        return {
+                            feature: f,
+                            minLng: b[0],
+                            minLat: b[1],
+                            maxLng: b[2],
+                            maxLat: b[3],
+                        };
+                    });
+
+                    const allCitadels = Object.values(citadelsByCity).flat();
+                    if (allCitadels.length === 0) return;
+
+                    // 3. De-duplicate
+                    const seen = new Set();
+                    const unique = [];
+                    for (const c of allCitadels) {
+                        const key = `${c.lat.toFixed(6)}_${c.lng.toFixed(6)}`;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            unique.push(c);
+                        }
+                    }
+
+                    // 4. Filter: keep citadels inside ANY country polygon
+                    if (statusEl)
+                        statusEl.innerText = `Checking ${unique.length} citadels against countries...`;
+                    await new Promise((r) => setTimeout(r, 10));
+
+                    const landCitadels = [];
+                    for (let i = 0; i < unique.length; i++) {
+                        const c = unique[i];
+                        const pt = turf.point([c.lng, c.lat]);
+                        let onLand = false;
+                        for (const cb of countryBboxes) {
+                            // Fast bbox rejection
+                            if (
+                                c.lng < cb.minLng ||
+                                c.lng > cb.maxLng ||
+                                c.lat < cb.minLat ||
+                                c.lat > cb.maxLat
+                            )
+                                continue;
+                            try {
+                                if (
+                                    turf.booleanPointInPolygon(pt, cb.feature)
+                                ) {
+                                    onLand = true;
+                                    break;
+                                }
+                            } catch (e) {
+                                /* skip */
+                            }
+                        }
+                        if (onLand) landCitadels.push(c);
+
+                        if (i % 500 === 0 && i > 0) {
+                            if (statusEl)
+                                statusEl.innerText = `Filtering: ${i}/${unique.length} (${landCitadels.length} on land)...`;
+                            await new Promise((r) => setTimeout(r, 3));
+                        }
+                    }
+
+                    if (landCitadels.length === 0) {
+                        if (statusEl)
+                            statusEl.innerText = "No citadels on land!";
+                        return;
+                    }
+
+                    logConsole(
+                        `Land filter: ${landCitadels.length} on land / ${unique.length} total (${unique.length - landCitadels.length} in ocean)`,
+                    );
+
+                    // 4. Build turf points from land citadels only
+                    const allPoints = turf.featureCollection(
+                        landCitadels.map((c, i) =>
+                            turf.point([c.lng, c.lat], {
+                                id: c.id,
+                                name: c.name || `Citadel ${i + 1}`,
+                                cityId: c.cityId,
+                            }),
+                        ),
+                    );
+
+                    // 5. Bbox with generous padding
+                    let minLng = Infinity,
+                        minLat = Infinity,
+                        maxLng = -Infinity,
+                        maxLat = -Infinity;
+                    landCitadels.forEach((c) => {
+                        if (c.lng < minLng) minLng = c.lng;
+                        if (c.lat < minLat) minLat = c.lat;
+                        if (c.lng > maxLng) maxLng = c.lng;
+                        if (c.lat > maxLat) maxLat = c.lat;
+                    });
+                    const spanLng = maxLng - minLng || 2;
+                    const spanLat = maxLat - minLat || 2;
+                    const bbox = [
+                        minLng - spanLng * 0.15,
+                        Math.max(-85, minLat - spanLat * 0.15),
+                        maxLng + spanLng * 0.15,
+                        Math.min(85, maxLat + spanLat * 0.15),
+                    ];
+
+                    // 6. Voronoi
+                    if (statusEl)
+                        statusEl.innerText = `Voronoi for ${landCitadels.length} land citadels...`;
+                    await new Promise((r) => setTimeout(r, 10));
+
+                    const voronoi = turf.voronoi(allPoints, { bbox });
+                    if (!voronoi || !voronoi.features) {
+                        if (statusEl) statusEl.innerText = "Voronoi failed";
+                        return;
+                    }
+
+                    // Filter nulls and match to citadels
+                    const valid = voronoi.features.filter(
+                        (f) => f && f.geometry,
+                    );
+                    valid.forEach((poly, idx) => {
+                        let m = allPoints.features.find((pt) => {
+                            try {
+                                return turf.booleanPointInPolygon(pt, poly);
+                            } catch {
+                                return false;
+                            }
+                        });
+                        if (!m) {
+                            try {
+                                m = turf.nearestPoint(
+                                    turf.centroid(poly),
+                                    allPoints,
+                                );
+                            } catch {
+                                m =
+                                    allPoints.features[
+                                        idx % allPoints.features.length
+                                    ];
+                            }
+                        }
+                        if (m) poly.properties = { ...m.properties };
+                    });
+
+                    // 7. Fix Voronoi zones for antimeridian, then clip to land
+                    const voronoiFC = fixAntimeridianGeoJSON(
+                        turf.featureCollection(valid),
+                    );
+                    const clipped = await clipZonesAndDrawContour(
+                        voronoiFC,
+                        statusEl,
+                        countryBboxes,
+                    );
+
+                    // 8. Render (already in fixed coordinate space)
+                    if (clipped && clipped.features) {
+                        const features = clipped.features;
+                        for (let vi = 0; vi < features.length; vi++) {
+                            const f = features[vi];
+                            if (!f || !f.geometry) continue;
+                            const zoneNum = vi + 1;
+                            const name =
+                                f.properties.name || f.properties.id || "Zone";
+                            const polys =
+                                f.geometry.type === "Polygon"
+                                    ? [f.geometry.coordinates]
+                                    : f.geometry.type === "MultiPolygon"
+                                      ? f.geometry.coordinates
+                                      : [];
+                            polys.forEach((coords) => {
+                                if (!coords || !coords[0]) return;
+                                const latLngs = coords[0].map((c) => [
+                                    c[1],
+                                    c[0],
+                                ]);
+                                L.polygon(latLngs, {
+                                    color: "#eab308",
+                                    weight: 1,
+                                    fillOpacity: 0.08,
+                                    fillColor: "#eab308",
+                                    interactive: true,
+                                })
+                                    .bindPopup(
+                                        `<div class="text-xs"><b>Zone #${zoneNum}</b><br>${name}</div>`,
+                                    )
+                                    .addTo(districtLayerGroup);
+                            });
+                            if (vi % 500 === 0 && vi > 0) {
+                                if (statusEl)
+                                    statusEl.innerText = `Rendering ${vi}/${features.length}...`;
+                                await new Promise((r) => setTimeout(r, 5));
+                            }
+                        }
+
+                        if (statusEl) {
+                            statusEl.innerText = `${features.length} zones on land (${unique.length - landCitadels.length} citadels were in ocean)`;
+                            statusEl.className =
+                                "text-[10px] font-bold text-emerald-400";
+                        }
+                        logConsole(
+                            `Generated ${features.length} Voronoi zones from ${landCitadels.length} land citadels`,
+                        );
+                    }
+                } catch (e) {
+                    console.error("Zone generation error:", e);
+                    if (statusEl) {
+                        statusEl.innerText = `Error: ${e.message}`;
+                        statusEl.className =
+                            "text-[10px] font-bold text-red-400";
+                    }
+                }
+            };
 
             // --- Stats Distribution Logic ---
             window.switchStatsTab = (tab) => {
@@ -2317,12 +2851,8 @@
                                     </div>
                                 `);
 
-                    // ADD TO CLUSTER OR DIRECTLY TO MAP
-                    if (isCitadel) {
-                        markerLayerGroup.addLayer(marker);
-                    } else {
-                        markersToCluster.push(marker);
-                    }
+                    // ADD TO CLUSTER (citadels too — they group when zoomed out)
+                    markersToCluster.push(marker);
                 });
 
                 if (markersToCluster.length > 0) {
@@ -2471,6 +3001,33 @@
                     )
                 )
                     return;
+
+                // Handle local snapshots (IndexedDB)
+                if (
+                    currentSnapshot.id &&
+                    currentSnapshot.id.startsWith("local_")
+                ) {
+                    try {
+                        await LocalSnapshotsManager.deleteSnapshot(
+                            currentSnapshot.id,
+                        );
+                    } catch (e) {
+                        console.warn("Local delete error:", e);
+                    }
+                    currentSnapshot = null;
+                    if (markerClusterGroup) markerClusterGroup.clearLayers();
+                    if (markerLayerGroup) markerLayerGroup.clearLayers();
+                    if (districtLayerGroup) districtLayerGroup.clearLayers();
+                    if (cityBoundaryLayerGroup)
+                        cityBoundaryLayerGroup.clearLayers();
+                    document.getElementById("selected-snap-title").innerHTML =
+                        "<span>No Template Selected</span>";
+                    document.getElementById("snap-details").innerHTML =
+                        '<p class="py-10 text-center opacity-50 italic">Select a template from the left to preview.</p>';
+                    const firestoreSnaps = await getWorldSnapshots();
+                    await mergeAndRenderSnapshots(firestoreSnaps);
+                    return;
+                }
 
                 const success = await deleteSnapshot(currentSnapshot.id);
                 if (success) {

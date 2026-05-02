@@ -54,7 +54,7 @@ let _worldFetchPromise = null;
 let _cityZonesCache = {}; // {cityId: data}
 let _templatesCache = {}; // {type: [templates]}
 import { showNotification, addEventLog } from "../auth-ui/ui-controller.js";
-import { SyncEngine } from "../gameplay/sync-engine.js?v=debug_11";
+import { SyncEngine } from "../gameplay/sync-engine.js";
 
 // Configuration from google-services.json
 const firebaseConfig = {

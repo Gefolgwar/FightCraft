@@ -3,7 +3,7 @@
  * Strategy: "Meta-Check" (1 Read) -> IndexedDB
  */
 
-import { getStorageInstance } from "../firebase/firebase-service.js?v=debug_7";
+import { getStorageInstance } from "../firebase/firebase-service.js";
 
 const DB_NAME = "FightCraftDB";
 const DB_VERSION = 4;

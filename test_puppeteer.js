@@ -1,33 +1,38 @@
 const puppeteer = require('puppeteer');
+
 (async () => {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     
-    page.on('console', msg => console.log('[PAGE LOG]', msg.text()));
-    page.on('pageerror', err => console.log('[PAGE ERROR]', err.toString()));
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
     
-    await page.goto('http://localhost:5000/map/templates_map.html', { waitUntil: 'networkidle2' });
+    await page.goto('http://localhost:5000/map/templates_map.html', { waitUntil: 'networkidle0' });
     
-    console.log("Clicking button...");
+    console.log("Page loaded!");
+    
+    // Click the Global Preview button
     await page.evaluate(() => {
         const btn = document.getElementById('btn-preview-global');
-        if(btn) btn.click();
+        if (btn) {
+            console.log("Clicking preview button...");
+            btn.click();
+        } else {
+            console.log("Preview button not found!");
+        }
     });
     
-    console.log("Waiting up to 45 seconds for generation to complete...");
-    let timeWaited = 0;
-    while(timeWaited < 45000) {
-        await new Promise(r => setTimeout(r, 2000));
-        timeWaited += 2000;
-        const status = await page.evaluate(() => document.getElementById('preview-status')?.textContent);
-        if (status && (status.includes('complete') || status.includes('Error'))) {
-            console.log("Final status reached:", status);
-            break;
-        }
-    }
+    // Wait for a few seconds for the map to render
+    await new Promise(r => setTimeout(r, 6000));
     
-    const finalStatus = await page.evaluate(() => document.getElementById('preview-status')?.textContent);
-    console.log("Status at end:", finalStatus);
+    const stats = await page.evaluate(() => {
+        const paths = document.querySelectorAll('path.leaflet-interactive');
+        return {
+            pathCount: paths.length,
+            statusText: document.getElementById('preview-status') ? document.getElementById('preview-status').textContent : 'N/A'
+        };
+    });
+    
+    console.log(JSON.stringify(stats, null, 2));
     
     await browser.close();
 })();
