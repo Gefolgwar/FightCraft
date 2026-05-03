@@ -9,11 +9,11 @@
     - templates (admin-write, auth-read)
     - spawned_objects (admin-create/delete, auth-read, field-restricted update)
     
-    Also checks that no API keys are hardcoded in .agents/env/.
+    Also checks that no API keys are hardcoded in .ai_shared/env/.
     
 .NOTES
     Part of the DOE Execution Layer.
-    Run from project root: pwsh .agents/execution/validate-template-sync.ps1
+    Run from project root: pwsh .ai_shared/execution/validate-template-sync.ps1
 #>
 
 param(
@@ -93,8 +93,8 @@ if ($rulesContent -match $adminFnPattern) {
     $allPassed = $false
 }
 
-# 6. Check .agents/env/ for hardcoded keys
-$envDir = Join-Path (Join-Path $ProjectRoot ".agents") "env"
+# 6. Check .ai_shared/env/ for hardcoded keys
+$envDir = Join-Path (Join-Path $ProjectRoot ".ai_shared") "env"
 if (Test-Path $envDir) {
     $envFiles = Get-ChildItem -Path $envDir -File -ErrorAction SilentlyContinue
     foreach ($f in $envFiles) {
@@ -104,9 +104,9 @@ if (Test-Path $envDir) {
             $allPassed = $false
         }
     }
-    Write-Host "[PASS] .agents/env/ scanned (no hardcoded keys)" -ForegroundColor Green
+    Write-Host "[PASS] .ai_shared/env/ scanned (no hardcoded keys)" -ForegroundColor Green
 } else {
-    Write-Host "[INFO] .agents/env/ directory not found (OK if keys managed elsewhere)" -ForegroundColor DarkGray
+    Write-Host "[INFO] .ai_shared/env/ directory not found (OK if keys managed elsewhere)" -ForegroundColor DarkGray
 }
 
 # 7. Summary

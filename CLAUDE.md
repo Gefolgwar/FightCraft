@@ -108,6 +108,11 @@ www/                         ← Firebase Hosting root
 │   └── *-cleanup.js         ← Database cleanup utilities
 ├── css/style.css            ← Custom styles (14KB)
 └── assets/                  ← Static assets
+
+scripts/                     ← Node/Bash utility scripts (run from project root)
+├── generators/              ← Data generators (generate-cities.js, repair_firebase.js)
+├── diagnostics/             ← Playwright diagnostic tools (analyze-page.mjs, diagnose.mjs, play.mjs)
+└── tests/                   ← Standalone test scripts (test_logic.js, test_puppeteer.js)
 ```
 
 ### Firebase Rules (in `firebase/` directory, NOT project root)
@@ -336,22 +341,20 @@ FightCraft supports two AI agent systems sharing the same project context:
 | `fightcraft-game-dev.md` | Game-specific development |
 
 **Rules** (`.claude/rules/`):
-- `firebase-logic.md` — Always-on rule explaining all 3 Firebase rule files
-- `security-linting.md` — Security linting guidelines
+- `firebase-logic.md` — **Always-on rule**. Explains all 3 Firebase rule files, emphasizing `isAdmin()`, field protections (role/uid), monster cooldowns, and RTDB vulnerabilities.
+- `security-linting.md` — **Security linting guidelines**. Demands a 4-step security lint (Syntax, Skill Load, Pattern Matching, Drift Detection) before deploying any Firebase rules.
+- `multi-agent-orchestrator.md` — **Orchestrator Protocol**. Dictates the workflow for breaking down tasks, delegating to specialized agents (`.claude/agents/`), and formatting Tmux visualization markers (`🔄 [ORCHESTRATOR]`, `➡️ [DELEGATING TO]`, etc.).
 
-### Antigravity Agents (`.agents/`) — DOE Architecture
+### Shared AI Infrastructure (`.ai_shared/`) — DOE Architecture
 
 Three-layer DOE (Directive → Orchestration → Execution):
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
 | Orchestration | `INSTRUCTIONS.md` | Command routing, DOE algorithm, ACR role system |
-| Directives | `directives/` | 9 natural language SOPs (deploy, security, balance, etc.) |
-| Execution | `execution/` | 5 PowerShell scripts (validate-rules, drift-check, pre-deploy-gate, etc.) |
-| Protocols | `protocols/` | Self-annealing (fix-forward), parallel review (3-reviewer cycle) |
-| Rules | `rules/a-c-r.md` | ACR multi-agent system rules (Architect → Coder → Reviewer) |
-| Skills | `skills/` | 13 skills (5 custom FightCraft + 8 community) |
-| Environment | `env/` | Sensitive data isolation (.env, API keys, signing passwords) |
+| Directives | `directives/` | Natural-language SOPs (template-sync) |
+| Execution | `execution/` | PowerShell validation/audit scripts |
+| Context | `context/` | Shared design context |
 
 ### MCP Configuration
 

@@ -19,7 +19,7 @@ firebase_validate_security_rules(type: "rtdb", source_file: "firebase/database.r
 ❌ If there are syntax errors — STOP, do not deploy.
 
 ### Step 2: Load Skill
-Read `.agents/skills/security-audit/SKILL.md` for the full list of checks.
+Read `.ai_shared/directives/_index.md` for the security-related checks.
 
 ### Step 3: Pattern Matching
 Check against the 9 patterns from SKILL.md:

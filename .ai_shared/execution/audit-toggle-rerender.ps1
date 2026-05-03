@@ -26,7 +26,7 @@
 
 .NOTES
     Part of the DOE Execution Layer.
-    Run from project root: pwsh .agents/execution/audit-toggle-rerender.ps1
+    Run from project root: pwsh .ai_shared/execution/audit-toggle-rerender.ps1
 #>
 
 param(

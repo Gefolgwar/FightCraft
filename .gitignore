@@ -35,7 +35,8 @@ android/replay_pid*.log
 firebase-key.json
 .mcp.json
 
-# DOE Environment (sensitive data)
-.agents/env/.env
+# AI shared environment (sensitive data)
+.ai_shared/env/.env
 **/.env
 !**/.env.example
+.playwright-profile/

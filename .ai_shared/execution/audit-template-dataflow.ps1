@@ -25,7 +25,7 @@
 
 .NOTES
     Part of the DOE Execution Layer.
-    Run from project root: powershell -File .agents/execution/audit-template-dataflow.ps1
+    Run from project root: powershell -File .ai_shared/execution/audit-template-dataflow.ps1
 #>
 
 param(
