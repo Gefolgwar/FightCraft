@@ -1,0 +1,8 @@
+{
+  "codeAssist": {
+    "contextSources": [
+      "GEMINI.md",
+      ".ai_shared/INSTRUCTIONS.md"
+    ]
+  }
+}
