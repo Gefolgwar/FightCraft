@@ -1,6 +1,6 @@
 import fs from 'fs';
-import { CITY_ANCHORS } from "./www/gameplay/data.js";
-import { generateCitadelsAndZones } from "./www/maintenance/admin-citadel-generator.js";
+import { CITY_ANCHORS } from "../www/gameplay/data.js";
+import { generateCitadelsAndZones } from "../www/maintenance/admin-citadel-generator.js";
 
 // We need to mock OverpassService or let it run. It uses fetch. 
 // node 18+ has global fetch.
