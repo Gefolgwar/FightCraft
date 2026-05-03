@@ -32,7 +32,7 @@ Every implementation task is executed by three roles in sequence:
 
 ### Environment
 
-Sensitive data (API keys, Firebase credentials, signing passwords) lives in `.agents/env/`.
+Sensitive data (API keys, Firebase credentials, signing passwords) lives in `.ai_shared/env/`.
 - Never import directly into JS modules
 - Use environment variables or build-time injection
 - Firebase config in `firebase-service.js` is the CDN-key (public, acceptable)

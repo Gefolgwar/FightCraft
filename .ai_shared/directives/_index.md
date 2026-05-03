@@ -37,7 +37,7 @@ Admin UI → generateGlobalWorld() → Firestore (world_snapshots)
 - No `window.location.reload()` — all updates via Firestore `onSnapshot` listeners
 - No IndexedDB cache wipe on toggle — SyncEngine delta-sync handles consistency
 - No redundant `loadSnapshots()` inside toggle handlers — `onSnapshot` callback handles re-render
-- API keys sourced from `.agents/env/` — never hardcoded in JS modules
+- API keys sourced from `.ai_shared/env/` — never hardcoded in JS modules
 - All write operations gated by `isAdmin()` in Firestore security rules
 - Listener cleanup on `beforeunload` via `_snapshotUnsubscribe()`
 
@@ -52,18 +52,18 @@ Admin UI → generateGlobalWorld() → Firestore (world_snapshots)
 
 | # | Script | Purpose | Run Command |
 |---|--------|---------|-------------|
-| 1 | `validate-template-sync.ps1` | Validates Firebase security rules protect Template-Sync collections | `pwsh .agents/execution/validate-template-sync.ps1` |
-| 2 | `audit-template-dataflow.ps1` | Verifies end-to-end data flow: generation → save → listener → toggle → apply | `pwsh .agents/execution/audit-template-dataflow.ps1` |
-| 3 | `audit-toggle-rerender.ps1` | Detects anti-patterns: double re-renders, unnecessary cache wipes, missing cleanup | `pwsh .agents/execution/audit-toggle-rerender.ps1` |
+| 1 | `validate-template-sync.ps1` | Validates Firebase security rules protect Template-Sync collections | `pwsh .ai_shared/execution/validate-template-sync.ps1` |
+| 2 | `audit-template-dataflow.ps1` | Verifies end-to-end data flow: generation → save → listener → toggle → apply | `pwsh .ai_shared/execution/audit-template-dataflow.ps1` |
+| 3 | `audit-toggle-rerender.ps1` | Detects anti-patterns: double re-renders, unnecessary cache wipes, missing cleanup | `pwsh .ai_shared/execution/audit-toggle-rerender.ps1` |
 
 ### Execution Checklist
 
 Run all three scripts from the project root before deploying Template-Sync changes:
 
 ```
-pwsh .agents/execution/validate-template-sync.ps1
-pwsh .agents/execution/audit-template-dataflow.ps1
-pwsh .agents/execution/audit-toggle-rerender.ps1
+pwsh .ai_shared/execution/validate-template-sync.ps1
+pwsh .ai_shared/execution/audit-template-dataflow.ps1
+pwsh .ai_shared/execution/audit-toggle-rerender.ps1
 ```
 
 All checks should return `[PASS]`. `[WARN]` items are informational. `[FAIL]` items must be resolved before deploy.
