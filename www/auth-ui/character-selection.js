@@ -4,11 +4,23 @@ import { showNotification, addEventLog } from './ui-controller.js';
 
 let selectedAvatar = '🧙'; // Default avatar
 let currentUserId = null;
+let _initInProgress = null;
 
 /**
  * Initialize character selection system
  */
 export async function initCharacterSelection() {
+    if (_initInProgress) return _initInProgress;
+
+    _initInProgress = _doInitCharacterSelection();
+    try {
+        return await _initInProgress;
+    } finally {
+        _initInProgress = null;
+    }
+}
+
+async function _doInitCharacterSelection() {
     console.log('🎭 Initializing character selection...');
 
     // Wait for Firebase auth

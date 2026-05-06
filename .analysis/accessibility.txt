@@ -1,0 +1,16 @@
+- text: 1 HP + 100/100 XP 0/500 💰 0 📦 0
+- button "👤 Hero"
+- button "🎒 Inventory"
+- button "📍"
+- button "📜 Quests"
+- button "🏆 Stats"
+- button "⚙️ Menu"
+- button "📋"
+- button "🗺️"
+- button "👥 0"
+- text: 🏃 Move Speed
+- button "0.5x"
+- button "1x"
+- button "2x"
+- button "5x"
+- button "🕹️ Toggle Joystick"

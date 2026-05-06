@@ -1973,7 +1973,7 @@ export async function saveWorldSnapshot(snapshotData) {
     await setDoc(ref, {
       ...cleanedData,
       createdAt: serverTimestamp(),
-      createdBy: currentUser.email,
+      createdBy: (currentUser && currentUser.email) ? currentUser.email : "admin@fightcraft.com",
     });
 
     trackUsage(

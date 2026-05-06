@@ -1,0 +1,247 @@
+[
+  {
+    "tag": "DIV",
+    "id": "character-selection-screen",
+    "class": "fixed inset-0 z-[10000] bg-gradient-to-b from-gray-900 via-p",
+    "zIndex": "10000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "loading-screen",
+    "class": "fixed inset-0 z-[9999] bg-gray-900 flex flex-col items-cente",
+    "zIndex": "9999",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "victory-screen",
+    "class": "fixed inset-0 z-[5000] hidden flex items-center justify-cent",
+    "zIndex": "5000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "draw-screen",
+    "class": "fixed inset-0 z-[5000] hidden flex items-center justify-cent",
+    "zIndex": "5000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "defeat-screen",
+    "class": "fixed inset-0 z-[5000] hidden flex items-center justify-cent",
+    "zIndex": "5000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "encounter-dialog",
+    "class": "fixed inset-0 z-[4000] hidden flex items-center justify-cent",
+    "zIndex": "4000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "combat-screen",
+    "class": "fixed inset-0 z-[4000] hidden",
+    "zIndex": "4000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "item-modal",
+    "class": "fixed inset-0 z-[3000] hidden flex items-center justify-cent",
+    "zIndex": "3000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "citadel-dialog",
+    "class": "fixed inset-0 z-[2001] hidden flex items-center justify-cent",
+    "zIndex": "2001",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "character-panel",
+    "class": "fixed inset-0 z-[2000] hidden",
+    "zIndex": "2000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "inventory-panel",
+    "class": "fixed inset-0 z-[2000] hidden",
+    "zIndex": "2000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "quests-panel",
+    "class": "fixed inset-0 z-[2000] hidden",
+    "zIndex": "2000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "settings-panel",
+    "class": "fixed inset-0 z-[2000] hidden",
+    "zIndex": "2000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "statistics-panel",
+    "class": "fixed inset-0 z-[2000] hidden",
+    "zIndex": "2000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "online-players-panel",
+    "class": "hidden absolute top-[300px] right-3 z-[1002] w-72 max-h-[50v",
+    "zIndex": "1002",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "event-log-panel",
+    "class": "absolute bottom-[196px] right-3 z-[1002] hidden w-80 max-h-9",
+    "zIndex": "1002",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "debug-console-panel",
+    "class": "absolute bottom-40 right-3 z-[1002] hidden w-80 max-h-96 bg-",
+    "zIndex": "1002",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "income-tracker",
+    "class": "hidden absolute top-[130px] left-1/2 -translate-x-1/2 z-[100",
+    "zIndex": "1001",
+    "visible": false
+  },
+  {
+    "tag": "BUTTON",
+    "id": "event-log-btn",
+    "class": "absolute bottom-24 right-3 z-[1001] p-3 bg-purple-600 hover:",
+    "zIndex": "1001",
+    "visible": true
+  },
+  {
+    "tag": "BUTTON",
+    "id": "district-toggle-btn",
+    "class": "absolute top-[180px] right-3 z-[1001] w-12 h-12 backdrop-blu",
+    "zIndex": "1001",
+    "visible": true
+  },
+  {
+    "tag": "BUTTON",
+    "id": "online-players-btn",
+    "class": "absolute top-[240px] right-3 z-[1001] w-12 h-12 backdrop-blu",
+    "zIndex": "1001",
+    "visible": true
+  },
+  {
+    "tag": "DIV",
+    "id": "group-hud",
+    "class": "hidden absolute top-[296px] right-3 z-[1001] bg-black/60 bac",
+    "zIndex": "1001",
+    "visible": false
+  },
+  {
+    "tag": "BUTTON",
+    "id": "debug-console-btn",
+    "class": "absolute bottom-40 right-3 z-[1001] p-3 bg-slate-700 hover:b",
+    "zIndex": "1001",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "notifications",
+    "class": "absolute top-24 right-3 z-[1001] space-y-2 max-w-xs",
+    "zIndex": "1001",
+    "visible": true
+  },
+  {
+    "tag": "DIV",
+    "id": "debug-panel",
+    "class": "debug-panel hidden",
+    "zIndex": "1001",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "speed-control",
+    "class": "speed-control hidden",
+    "zIndex": "1001",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "joystick-container",
+    "class": "joystick-container hidden",
+    "zIndex": "1001",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "",
+    "class": "absolute top-0 left-0 right-0 z-[1000] p-3",
+    "zIndex": "1000",
+    "visible": true
+  },
+  {
+    "tag": "DIV",
+    "id": "",
+    "class": "absolute bottom-0 left-0 right-0 z-[1000] p-3",
+    "zIndex": "1000",
+    "visible": true
+  },
+  {
+    "tag": "BUTTON",
+    "id": "citadel-btn",
+    "class": "hidden absolute bottom-36 left-1/2 -translate-x-1/2 z-[1000]",
+    "zIndex": "1000",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "district-hud",
+    "class": "absolute top-[115px] left-0 right-0 z-[950] hidden flex just",
+    "zIndex": "950",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "fog",
+    "class": "fog-overlay",
+    "zIndex": "400",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "multiplayer-panel",
+    "class": "absolute bottom-[280px] left-5 z-[90] w-64 bg-slate-900/90 b",
+    "zIndex": "90",
+    "visible": false
+  },
+  {
+    "tag": "DIV",
+    "id": "mp-admin-overlay",
+    "class": "absolute bottom-[280px] left-5 z-[90] w-64 bg-slate-900/90 b",
+    "zIndex": "90",
+    "visible": true
+  },
+  {
+    "tag": "DIV",
+    "id": "map",
+    "class": "",
+    "zIndex": "1",
+    "visible": true
+  }
+]

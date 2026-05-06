@@ -44,6 +44,8 @@ Read `.ai_shared/INSTRUCTIONS.md` for the full DOE (Directive → Orchestration 
 
 ## Project Structure
 
+**Strict Project Structure Rule:** NO stray files are allowed in the project root. Every new file MUST go into its designated folder. Temporary files, test scripts, patch files, or loose documentation are strictly prohibited in the root directory.
+
 ```
 www/                         ← Firebase Hosting root
 ├── core/                    ← Application core (app.js, gameState.js, bridge.js)
@@ -58,7 +60,13 @@ www/                         ← Firebase Hosting root
 scripts/                     ← Node/Bash utility scripts
 ├── generators/              ← Data generators (generate-cities.js)
 ├── diagnostics/             ← Playwright diagnostic tools
-└── tests/                   ← Standalone test scripts
+├── patches/                 ← Temporary patches and fix scripts
+└── tests/                   ← Testing scripts and play logic
+
+docs/                        ← Documentation
+├── proposals/               ← RFCs and architecture proposals
+├── reports/                 ← Analysis and progress reports
+└── tasks/                   ← Ongoing task records
 
 .ai_shared/                  ← Shared AI infrastructure (DOE)
 ├── INSTRUCTIONS.md          ← Orchestration

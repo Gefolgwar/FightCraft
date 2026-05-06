@@ -35,6 +35,8 @@ A mobile geolocation RPG with real-time PvP combat. Explore the real world, figh
 
 ## 📁 Project Structure
 
+**Strict Project Structure Rule:** NO stray files are allowed in the project root. Every new file MUST go into its designated folder. Temporary files, test scripts, patch files, or loose documentation are strictly prohibited in the root directory.
+
 ```
 FightCraft/
 ├── firebase.json            ← Firebase configuration
@@ -44,10 +46,18 @@ FightCraft/
 ├── storage.rules            ← Storage Security Rules
 ├── capacitor.config.json    ← Capacitor configuration
 ├── CLAUDE.md                ← AI agent project context
-├── docs/
+├── docs/                    ← Documentation
+│   ├── proposals/           ← RFCs and architecture proposals
+│   ├── reports/             ← Analysis and progress reports
+│   ├── tasks/               ← Ongoing task records
 │   ├── PRD.md               ← Product Requirements Document
 │   ├── SRC.md               ← System Requirements Certificate (Tech Spec)
 │   └── DEV-QUICK-REFERENCE.md ← Developer quick reference
+├── scripts/                 ← Node/Bash utility scripts
+│   ├── generators/          ← Data generators
+│   ├── diagnostics/         ← Playwright diagnostic tools
+│   ├── patches/             ← Temporary patches and fix scripts
+│   └── tests/               ← Testing scripts and play logic
 ├── www/                     ← 🌐 Web app (Firebase Hosting)
 │   ├── index.html           ← Redirect to /core/index.html
 │   ├── manifest.json        ← PWA manifest

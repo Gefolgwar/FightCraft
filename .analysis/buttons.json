@@ -1,0 +1,542 @@
+[
+  {
+    "text": "➕ Create New Character",
+    "id": "show-create-btn",
+    "class": "w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold mb-4",
+    "visible": false
+  },
+  {
+    "text": "🧙",
+    "id": "",
+    "class": "avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 bord",
+    "visible": false
+  },
+  {
+    "text": "⚔️",
+    "id": "",
+    "class": "avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 bord",
+    "visible": false
+  },
+  {
+    "text": "🛡️",
+    "id": "",
+    "class": "avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 bord",
+    "visible": false
+  },
+  {
+    "text": "🏹",
+    "id": "",
+    "class": "avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 bord",
+    "visible": false
+  },
+  {
+    "text": "🧝",
+    "id": "",
+    "class": "avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 bord",
+    "visible": false
+  },
+  {
+    "text": "🧛",
+    "id": "",
+    "class": "avatar-btn text-3xl p-2 bg-gray-800 hover:bg-purple-900 rounded-lg border-2 bord",
+    "visible": false
+  },
+  {
+    "text": "✅ Create",
+    "id": "",
+    "class": "flex-1 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold",
+    "visible": false
+  },
+  {
+    "text": "Cancel",
+    "id": "",
+    "class": "flex-1 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg",
+    "visible": false
+  },
+  {
+    "text": "👤\n                        Hero",
+    "id": "",
+    "class": "flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition",
+    "visible": true
+  },
+  {
+    "text": "🎒\n                        Inventory",
+    "id": "",
+    "class": "flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition",
+    "visible": true
+  },
+  {
+    "text": "📍",
+    "id": "",
+    "class": "flex flex-col items-center p-3 bg-purple-600 hover:bg-purple-500 rounded-full -m",
+    "visible": true
+  },
+  {
+    "text": "📜\n                        Quests",
+    "id": "",
+    "class": "flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition",
+    "visible": true
+  },
+  {
+    "text": "🏆\n                        Stats",
+    "id": "",
+    "class": "flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition",
+    "visible": true
+  },
+  {
+    "text": "⚙️\n                        Menu",
+    "id": "",
+    "class": "flex flex-col items-center p-2 hover:bg-purple-900/50 rounded-lg transition",
+    "visible": true
+  },
+  {
+    "text": "📋",
+    "id": "event-log-btn",
+    "class": "absolute bottom-24 right-3 z-[1001] p-3 bg-purple-600 hover:bg-purple-500 rounde",
+    "visible": true
+  },
+  {
+    "text": "🗺️",
+    "id": "district-toggle-btn",
+    "class": "absolute top-[180px] right-3 z-[1001] w-12 h-12 backdrop-blur border border-purp",
+    "visible": true
+  },
+  {
+    "text": "👥\n            0",
+    "id": "online-players-btn",
+    "class": "absolute top-[240px] right-3 z-[1001] w-12 h-12 backdrop-blur border border-cyan",
+    "visible": true
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-gray-400 hover:text-white text-sm",
+    "visible": false
+  },
+  {
+    "text": "💻",
+    "id": "debug-console-btn",
+    "class": "absolute bottom-40 right-3 z-[1001] p-3 bg-slate-700 hover:bg-slate-600 rounded-",
+    "visible": false
+  },
+  {
+    "text": "🏰\n            Enter Citadel",
+    "id": "citadel-btn",
+    "class": "hidden absolute bottom-36 left-1/2 -translate-x-1/2 z-[1000] px-6 py-3 bg-gradie",
+    "visible": false
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "absolute top-4 right-4 text-gray-400 hover:text-white text-xl",
+    "visible": false
+  },
+  {
+    "text": "Action Button",
+    "id": "citadel-action-btn",
+    "class": "w-full py-3 bg-red-600 rounded-lg font-bold hover:bg-red-500 shadow-lg text-whit",
+    "visible": false
+  },
+  {
+    "text": "Clear",
+    "id": "",
+    "class": "text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded",
+    "visible": false
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-lg hover:text-purple-400",
+    "visible": false
+  },
+  {
+    "text": "Clear",
+    "id": "",
+    "class": "text-[10px] px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-gray-300 bord",
+    "visible": false
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-gray-400 hover:text-white",
+    "visible": false
+  },
+  {
+    "text": "📍 Teleport",
+    "id": "",
+    "class": "",
+    "visible": false
+  },
+  {
+    "text": "0.5x",
+    "id": "",
+    "class": "speed-btn",
+    "visible": false
+  },
+  {
+    "text": "1x",
+    "id": "",
+    "class": "speed-btn active",
+    "visible": false
+  },
+  {
+    "text": "2x",
+    "id": "",
+    "class": "speed-btn",
+    "visible": false
+  },
+  {
+    "text": "5x",
+    "id": "",
+    "class": "speed-btn",
+    "visible": false
+  },
+  {
+    "text": "🏆 Leaderboard",
+    "id": "",
+    "class": "w-full py-2 bg-blue-700 hover:bg-blue-600 rounded text-xs font-bold border borde",
+    "visible": false
+  },
+  {
+    "text": "🕹️ Toggle Joystick",
+    "id": "",
+    "class": "w-full py-1 bg-purple-700 hover:bg-purple-600 rounded text-[10px] border border-",
+    "visible": false
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-2xl hover:text-purple-400",
+    "visible": false
+  },
+  {
+    "text": "+",
+    "id": "",
+    "class": "stat-plus-btn hidden w-5 h-5 bg-orange-600 hover:bg-orange-500 rounded text-xs f",
+    "visible": false
+  },
+  {
+    "text": "+",
+    "id": "",
+    "class": "stat-plus-btn hidden w-5 h-5 bg-green-600 hover:bg-green-500 rounded text-xs fon",
+    "visible": false
+  },
+  {
+    "text": "+",
+    "id": "",
+    "class": "stat-plus-btn hidden w-5 h-5 bg-yellow-600 hover:bg-yellow-500 rounded text-xs f",
+    "visible": false
+  },
+  {
+    "text": "+",
+    "id": "",
+    "class": "stat-plus-btn hidden w-5 h-5 bg-red-600 hover:bg-red-500 rounded text-xs font-bo",
+    "visible": false
+  },
+  {
+    "text": "+",
+    "id": "",
+    "class": "stat-plus-btn hidden w-5 h-5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-",
+    "visible": false
+  },
+  {
+    "text": "+",
+    "id": "",
+    "class": "stat-plus-btn hidden w-5 h-5 bg-purple-600 hover:bg-purple-500 rounded text-xs f",
+    "visible": false
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-2xl hover:text-purple-400",
+    "visible": false
+  },
+  {
+    "text": "All",
+    "id": "",
+    "class": "px-3 py-1 bg-purple-700 rounded text-sm inv-filter",
+    "visible": false
+  },
+  {
+    "text": "Weapons",
+    "id": "",
+    "class": "px-3 py-1 bg-gray-700 rounded text-sm inv-filter",
+    "visible": false
+  },
+  {
+    "text": "Armor",
+    "id": "",
+    "class": "px-3 py-1 bg-gray-700 rounded text-sm inv-filter",
+    "visible": false
+  },
+  {
+    "text": "Resources",
+    "id": "",
+    "class": "px-3 py-1 bg-gray-700 rounded text-sm inv-filter",
+    "visible": false
+  },
+  {
+    "text": "⚔️ Fight",
+    "id": "",
+    "class": "flex-1 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold",
+    "visible": false
+  },
+  {
+    "text": "🏃 Retreat",
+    "id": "",
+    "class": "flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold",
+    "visible": false
+  },
+  {
+    "text": "🎯 Head",
+    "id": "",
+    "class": "combat-zone enemy-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "🎯 Body",
+    "id": "",
+    "class": "combat-zone enemy-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "🎯 Belt",
+    "id": "",
+    "class": "combat-zone enemy-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "🎯 Legs",
+    "id": "",
+    "class": "combat-zone enemy-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "Head + Body",
+    "id": "",
+    "class": "defense-btn combat-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "Body + Belt",
+    "id": "",
+    "class": "defense-btn combat-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "Belt + Legs",
+    "id": "",
+    "class": "defense-btn combat-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "Head + Legs",
+    "id": "",
+    "class": "defense-btn combat-zone text-xs py-2",
+    "visible": false
+  },
+  {
+    "text": "⚔️ ATTACK",
+    "id": "attack-btn",
+    "class": "flex-1 py-3 bg-red-700 hover:bg-red-600 rounded-lg font-bold disabled:opacity-50",
+    "visible": false
+  },
+  {
+    "text": "🏃 Flee",
+    "id": "",
+    "class": "px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-all",
+    "visible": false
+  },
+  {
+    "text": "Continue",
+    "id": "",
+    "class": "w-full py-3 btn-action rounded-lg font-bold",
+    "visible": false
+  },
+  {
+    "text": "Continue",
+    "id": "",
+    "class": "w-full py-3 btn-action rounded-lg font-bold",
+    "visible": false
+  },
+  {
+    "text": "Revive",
+    "id": "",
+    "class": "w-full py-3 btn-action rounded-lg font-bold",
+    "visible": false
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-2xl hover:text-purple-400",
+    "visible": false
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-2xl hover:text-purple-400",
+    "visible": false
+  },
+  {
+    "text": "🧪 Regen\n                            Monsters",
+    "id": "",
+    "class": "w-full py-2 bg-green-700 hover:bg-green-600 rounded-lg text-sm",
+    "visible": false
+  },
+  {
+    "text": "❤️ Full Heal",
+    "id": "",
+    "class": "w-full py-2 bg-red-700 hover:bg-red-600 rounded-lg text-sm",
+    "visible": false
+  },
+  {
+    "text": "🎁 Test\n                            Items",
+    "id": "",
+    "class": "w-full py-2 bg-purple-700 hover:bg-purple-600 rounded-lg text-sm",
+    "visible": false
+  },
+  {
+    "text": "⭐ +1000 XP",
+    "id": "",
+    "class": "w-full py-2 bg-yellow-700 hover:bg-yellow-600 rounded-lg text-sm",
+    "visible": false
+  },
+  {
+    "text": "💰 +500\n                            Gold",
+    "id": "",
+    "class": "w-full py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm",
+    "visible": false
+  },
+  {
+    "text": "Leveling Table",
+    "id": "",
+    "class": "w-full py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm flex items-cent",
+    "visible": false
+  },
+  {
+    "text": "Monsters Admin",
+    "id": "",
+    "class": "w-full py-2 bg-purple-900/50 hover:bg-purple-900 border border-purple-700 rounde",
+    "visible": false
+  },
+  {
+    "text": "Shops Admin",
+    "id": "",
+    "class": "w-full py-2 bg-blue-900/50 hover:bg-blue-900 border border-blue-700 rounded-lg t",
+    "visible": false
+  },
+  {
+    "text": "Castles Admin",
+    "id": "",
+    "class": "w-full py-2 bg-yellow-900/50 hover:bg-yellow-900 border border-yellow-700 rounde",
+    "visible": false
+  },
+  {
+    "text": "🛡️ Admin Dashboard",
+    "id": "",
+    "class": "w-full py-2 bg-gradient-to-r from-purple-900 to-indigo-900 hover:from-purple-800",
+    "visible": false
+  },
+  {
+    "text": "💾 DB Backup (Page)",
+    "id": "",
+    "class": "w-full py-2 bg-slate-700 hover:bg-slate-600 border border-slate-500 rounded-lg t",
+    "visible": false
+  },
+  {
+    "text": "📈 DB Usage",
+    "id": "",
+    "class": "w-full py-2 bg-blue-700/50 hover:bg-blue-600 border border-blue-500 rounded-lg t",
+    "visible": false
+  },
+  {
+    "text": "🚪 Logout",
+    "id": "",
+    "class": "w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg mb-2 text-white font-bold b",
+    "visible": false
+  },
+  {
+    "text": "🔄 Reset progress",
+    "id": "",
+    "class": "w-full py-2 bg-red-700 hover:bg-red-600 rounded-lg",
+    "visible": false
+  },
+  {
+    "text": "0.5x",
+    "id": "",
+    "class": "speed-btn py-1 bg-gray-700 hover:bg-gray-600 rounded text-[10px] border border-g",
+    "visible": true
+  },
+  {
+    "text": "1x",
+    "id": "",
+    "class": "speed-btn py-1 bg-blue-700 hover:bg-blue-600 rounded text-[10px] border border-b",
+    "visible": true
+  },
+  {
+    "text": "2x",
+    "id": "",
+    "class": "speed-btn py-1 bg-gray-700 hover:bg-gray-600 rounded text-[10px] border border-g",
+    "visible": true
+  },
+  {
+    "text": "5x",
+    "id": "",
+    "class": "speed-btn py-1 bg-gray-700 hover:bg-gray-600 rounded text-[10px] border border-g",
+    "visible": true
+  },
+  {
+    "text": "🕹️\n                    Toggle Joystick",
+    "id": "",
+    "class": "w-full py-1 bg-purple-700 hover:bg-purple-600 rounded text-[10px] shadow border ",
+    "visible": true
+  },
+  {
+    "text": "✕",
+    "id": "",
+    "class": "text-2xl hover:text-purple-400",
+    "visible": false
+  },
+  {
+    "text": "My Stats",
+    "id": "tab-stats-me",
+    "class": "flex-1 py-3 text-sm font-bold text-center border-b-2 border-purple-500 text-whit",
+    "visible": false
+  },
+  {
+    "text": "Leaderboard",
+    "id": "tab-stats-leaderboard",
+    "class": "flex-1 py-3 text-sm font-bold text-center border-b-2 border-transparent text-gra",
+    "visible": false
+  },
+  {
+    "text": "Street",
+    "id": "lb-btn-street",
+    "class": "px-3 py-1 bg-purple-700 rounded text-xs whitespace-nowrap lb-filter border borde",
+    "visible": false
+  },
+  {
+    "text": "Couch",
+    "id": "lb-btn-couch",
+    "class": "px-3 py-1 bg-gray-700 rounded text-xs whitespace-nowrap lb-filter border border-",
+    "visible": false
+  },
+  {
+    "text": "2vs2",
+    "id": "lb-btn-2vs2",
+    "class": "px-3 py-1 bg-gray-700 rounded text-xs whitespace-nowrap lb-filter border border-",
+    "visible": false
+  },
+  {
+    "text": "3vs3",
+    "id": "lb-btn-3vs3",
+    "class": "px-3 py-1 bg-gray-700 rounded text-xs whitespace-nowrap lb-filter border border-",
+    "visible": false
+  },
+  {
+    "text": "FFA",
+    "id": "lb-btn-ffa",
+    "class": "px-3 py-1 bg-gray-700 rounded text-xs whitespace-nowrap lb-filter border border-",
+    "visible": false
+  }
+]

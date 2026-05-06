@@ -19,7 +19,11 @@
       "Bash(dir /s /b)",
       "Bash(tmux split-window:*)",
       "Bash(sudo -n true)",
-      "mcp__plugin_firebase_firebase__firestore_list_documents"
+      "mcp__plugin_firebase_firebase__firestore_list_documents",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "Skill(hookify:list)",
+      "Bash(tmux kill-pane *)",
+      "Bash(sed -i 's/\"isActive\": true/\"isActive\": false/g' /home/user/.claude/teams/headful-test/config.json)"
     ],
     "defaultMode": "acceptEdits",
     "allowAll": true

@@ -1,0 +1,28 @@
+1
+HP
++
+100/100
+XP
+0/500
+💰 0 📦 0
+👤
+Hero
+🎒
+Inventory
+📍
+📜
+Quests
+🏆
+Stats
+⚙️
+Menu
+📋
+🗺️
+👥
+0
+🏃 Move Speed
+0.5x
+1x
+2x
+5x
+🕹️ Toggle Joystick

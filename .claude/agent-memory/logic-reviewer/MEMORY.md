@@ -1,0 +1,2 @@
+- [Combat Formulas](combat_formulas.md) — Three damage calc paths, stat derivation, affix gap
+- [Trust Boundaries](trust_boundary_violations.md) — Window globals and Firebase rule gaps enabling exploits

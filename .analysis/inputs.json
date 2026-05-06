@@ -1,0 +1,26 @@
+[
+  {
+    "tag": "INPUT",
+    "type": "text",
+    "id": "char-name-input",
+    "name": "char-name",
+    "placeholder": "Character name",
+    "visible": false
+  },
+  {
+    "tag": "INPUT",
+    "type": "text",
+    "id": "teleport-lat-old",
+    "name": "",
+    "placeholder": "lat",
+    "visible": false
+  },
+  {
+    "tag": "INPUT",
+    "type": "text",
+    "id": "teleport-lng-old",
+    "name": "",
+    "placeholder": "lng",
+    "visible": false
+  }
+]

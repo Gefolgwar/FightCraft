@@ -1,0 +1,19 @@
+{
+  "scripts": [
+    "https://cdn.tailwindcss.com/",
+    "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+    "https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js",
+    "https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js",
+    "http://localhost:5000/auth-ui/ui-loader.js",
+    "http://localhost:5000/core/app.js?v=1777669522"
+  ],
+  "styles": [
+    "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+    "https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css",
+    "https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css",
+    "http://localhost:5000/css/style.css"
+  ],
+  "modules": [
+    "http://localhost:5000/core/app.js?v=1777669522"
+  ]
+}

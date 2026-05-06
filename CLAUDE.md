@@ -59,6 +59,8 @@ FightCraft is a geolocation RPG (HTML5/JS/TailwindCSS) wrapped in Capacitor for 
 
 ## Project Structure
 
+**Strict Project Structure Rule:** NO stray files are allowed in the project root. Every new file MUST go into its designated folder. Temporary files, test scripts, patch files, or loose documentation are strictly prohibited in the root directory.
+
 ```
 www/                         ← Firebase Hosting root
 ├── core/                    ← Application core
@@ -111,8 +113,14 @@ www/                         ← Firebase Hosting root
 
 scripts/                     ← Node/Bash utility scripts (run from project root)
 ├── generators/              ← Data generators (generate-cities.js, repair_firebase.js)
-├── diagnostics/             ← Playwright diagnostic tools (analyze-page.mjs, diagnose.mjs, play.mjs)
-└── tests/                   ← Standalone test scripts (test_logic.js, test_puppeteer.js)
+├── diagnostics/             ← Playwright diagnostic tools
+├── patches/                 ← Temporary patches and fix scripts
+└── tests/                   ← Testing scripts and play logic
+
+docs/                        ← Documentation
+├── proposals/               ← RFCs and architecture proposals
+├── reports/                 ← Analysis and progress reports
+└── tasks/                   ← Ongoing task records
 ```
 
 ### Firebase Rules (in `firebase/` directory, NOT project root)
@@ -378,7 +386,9 @@ MCP servers configured in `.claude/settings.json`. Active plugins:
 
 ## Behavioral Guidelines
 
-Behavioral guidelines to reduce common LLM coding mistakes. These bias toward caution over speed. For trivial tasks, use judgment.
+### 0. Multi-Agent Orchestration (MANDATORY)
+
+**On EVERY user prompt, you MUST call `TeamCreate` before any other action.** This is non-negotiable. See `.claude/rules/multi-agent-orchestrator.md` for the full protocol. Delegate work to specialists from `.claude/agents/`. Never perform complex tasks (coding, auditing, architecting) yourself — spin up the appropriate agent via the `Agent` tool.
 
 ### 1. Think Before Coding
 

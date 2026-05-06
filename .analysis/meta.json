@@ -1,0 +1,22 @@
+[
+  {
+    "name": "",
+    "content": "",
+    "property": null
+  },
+  {
+    "name": "viewport",
+    "content": "width=device-width, initial-scale=1.0, user-scalable=no",
+    "property": null
+  },
+  {
+    "name": "theme-color",
+    "content": "#8b5cf6",
+    "property": null
+  },
+  {
+    "name": "apple-mobile-web-app-status-bar-style",
+    "content": "black-translucent",
+    "property": null
+  }
+]

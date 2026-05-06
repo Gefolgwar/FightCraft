@@ -1,21 +1,23 @@
 {
-    "env": {
-        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-        "CLAUDE_CODE_ENABLE_TASKS": "1",
-        "CLAUDE_CODE_TEAMS": "1",
-        "CLAUDE_CODE_DISABLE_LOGIN": "true"
-    },
-    "enabledPlugins": {
-        "superpowers@claude-plugins-official": true,
-        "firebase@claude-plugins-official": true,
-        "security-guidance@claude-plugins-official": true,
-        "code-review@claude-plugins-official": true,
-        "frontend-design@claude-plugins-official": true,
-        "context7@claude-plugins-official": true,
-        "claude-code-setup@claude-plugins-official": true,
-        "claude-md-management@claude-plugins-official": true,
-        "code-simplifier@claude-plugins-official": true,
-        "playwright@claude-plugins-official": true,
-        "hookify@claude-plugins-official": true
-    }
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_ENABLE_TASKS": "1",
+    "CLAUDE_CODE_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_LOGIN": "true",
+    "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH": "/home/user/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome"
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "firebase@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "playwright-skill@playwright-skill": true
+  }
 }
