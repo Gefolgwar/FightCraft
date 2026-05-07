@@ -2068,60 +2068,97 @@
                         // Save as a new snapshot
                         if (currentSnapshot) {
                             if (statusEl) {
-                                statusEl.innerText = "Saving new template with zones...";
-                                statusEl.className = "text-[10px] font-bold text-yellow-400 animate-pulse";
+                                statusEl.innerText =
+                                    "Saving new template with zones...";
+                                statusEl.className =
+                                    "text-[10px] font-bold text-yellow-400 animate-pulse";
                             }
-                            
+
                             const newSnapshot = {
                                 ...currentSnapshot,
                                 id: `${currentSnapshot.id}_zones_${Date.now()}`,
                                 name: `${currentSnapshot.name} (with Zones)`,
-                                zones: JSON.stringify(clipped),
-                                isActive: false
+                                zoneConfig: {
+                                    generated: true,
+                                    algorithm: "voronoi_clipped",
+                                },
+                                isActive: false,
                             };
                             
+                            // Remove massive data payloads from snapshot to respect 1MB limit
+                            delete newSnapshot.zones;
+                            delete newSnapshot.objects; // Ensure objects are NOT saved here!
+                            // Add a seed if one isn't present
+                            if (!newSnapshot.seed) {
+                                newSnapshot.seed = Math.floor(Math.random() * 2147483647);
+                            }
+
                             let success = false;
                             try {
-                                console.log("Preparing to save newSnapshot...", newSnapshot);
-                                
-                                // Truncate coordinates to save space (5 decimals = ~1m accuracy)
-                                if (window.turf && window.turf.truncate) {
-                                    newSnapshot.zones = JSON.stringify(window.turf.truncate(clipped, {precision: 5, coordinates: 2}));
-                                }
-                                
-                                const sizeStr = JSON.stringify(newSnapshot).length;
-                                console.log("New snapshot size approx:", sizeStr);
-                                
+                                console.log(
+                                    "Preparing to save newSnapshot...",
+                                    newSnapshot,
+                                );
+
+                                // We are no longer saving the full zones geometry.
+                                // Instead, we save the seed algorithm in zoneConfig.
+                                // The client must run turf.voronoi at runtime when encountering zoneConfig.
+
+                                const sizeStr =
+                                    JSON.stringify(newSnapshot).length;
+                                console.log(
+                                    "New snapshot size approx:",
+                                    sizeStr,
+                                );
+
                                 if (sizeStr > 1040000) {
-                                    alert("The generated template is too large (" + Math.round(sizeStr/1024) + " KB). Limit is 1024 KB. Cannot save.");
+                                    alert(
+                                        "The generated template is too large (" +
+                                            Math.round(sizeStr / 1024) +
+                                            " KB). Limit is 1024 KB. Cannot save.",
+                                    );
                                 } else {
-                                    success = await saveWorldSnapshot(newSnapshot);
+                                    success =
+                                        await saveWorldSnapshot(newSnapshot);
                                     if (!success) {
-                                        alert("saveWorldSnapshot returned false. Check console for 'Snapshot save error'");
+                                        alert(
+                                            "saveWorldSnapshot returned false. Check console for 'Snapshot save error'",
+                                        );
                                     }
                                 }
                             } catch (err) {
-                                console.error("Caught error in saveWorldSnapshot:", err);
+                                console.error(
+                                    "Caught error in saveWorldSnapshot:",
+                                    err,
+                                );
                                 alert("Error during save: " + err.message);
                             }
-                            
+
                             if (success) {
                                 if (statusEl) {
                                     statusEl.innerText = `✅ Saved new template with ${features.length} zones!`;
-                                    statusEl.className = "text-[10px] font-bold text-green-400";
+                                    statusEl.className =
+                                        "text-[10px] font-bold text-green-400";
                                 }
-                                logConsole(`Saved new snapshot: ${newSnapshot.name}`);
-                                
+                                logConsole(
+                                    `Saved new snapshot: ${newSnapshot.name}`,
+                                );
+
                                 // Refresh the snapshot list to show the new template
-                                if (typeof window.loadSnapshots === 'function') {
+                                if (
+                                    typeof window.loadSnapshots === "function"
+                                ) {
                                     window.loadSnapshots();
-                                } else if (typeof loadSnapshots === 'function') {
+                                } else if (
+                                    typeof loadSnapshots === "function"
+                                ) {
                                     loadSnapshots();
                                 }
                             } else {
                                 if (statusEl) {
                                     statusEl.innerText = `❌ Failed to save new template`;
-                                    statusEl.className = "text-[10px] font-bold text-red-400";
+                                    statusEl.className =
+                                        "text-[10px] font-bold text-red-400";
                                 }
                             }
                         }

@@ -8,6 +8,7 @@ import { CITY_ANCHORS } from "../gameplay/data.js";
 import { generateCityTerritory } from "../map/territory-service.js";
 import { generateCitadelsAndZones } from "./admin-citadel-generator.js";
 import { OverpassService } from "../map/overpass-service.js";
+import { SeededRandom } from "../core/random.js";
 import {
   collection,
   writeBatch,
@@ -48,6 +49,9 @@ async function fetchCityPopulation(city) {
 
 // Generates objects and creates World Snapshots (Templates) for each city
 window.generateGlobalWorld = async () => {
+  const globalSeed = Math.floor(Math.random() * 2147483647);
+  const rng = new SeededRandom(globalSeed);
+
   const maxCities = CITY_ANCHORS.length;
   const input = prompt(
     `⚠️ This will generate a World Snapshot Template for each city based on population.\n\nHow many cities do you want to generate? (1-${maxCities})`,
@@ -90,7 +94,7 @@ window.generateGlobalWorld = async () => {
 
     const getRandomTemplate = (templatesList) => {
       if (!templatesList || templatesList.length === 0) return null;
-      return templatesList[Math.floor(Math.random() * templatesList.length)];
+      return templatesList[Math.floor(rng.next() * templatesList.length)];
     };
 
     const radiusMeters = 9000;
@@ -183,11 +187,11 @@ window.generateGlobalWorld = async () => {
           if (template) objectPool.push({ type, template });
         }
       }
-      objectPool.sort(() => Math.random() - 0.5);
+      objectPool.sort(() => rng.next() - 0.5);
 
       const buildObject = (type, template, lat, lng) => {
         const obj = {
-          id: `${city.id}_${type}_${Math.random().toString(36).substring(2, 9)}`,
+          id: `${city.id}_${type}_${rng.generateId()}`,
           type,
           templateId: template.id,
           name: template.name,
@@ -195,6 +199,7 @@ window.generateGlobalWorld = async () => {
           lat,
           lng,
           cityId: city.id,
+          seed: globalSeed,
           spawnedAt: Date.now(),
         };
         if (type === "monster") {
@@ -229,8 +234,8 @@ window.generateGlobalWorld = async () => {
             attempts < 10000
           ) {
             attempts++;
-            const lat = bbox[1] + Math.random() * (bbox[3] - bbox[1]);
-            const lng = bbox[0] + Math.random() * (bbox[2] - bbox[0]);
+            const lat = bbox[1] + rng.next() * (bbox[3] - bbox[1]);
+            const lng = bbox[0] + rng.next() * (bbox[2] - bbox[0]);
 
             if (turf.booleanPointInPolygon([lng, lat], zone)) {
               const { type, template } = objectPool.pop();
@@ -247,8 +252,8 @@ window.generateGlobalWorld = async () => {
       while (objectPool.length > 0 && fallbackAttempts < 10000) {
         fallbackAttempts++;
         const { type, template } = objectPool.pop();
-        let randomAngle = Math.random() * Math.PI * 2;
-        let randomDist = Math.random() * radiusMeters;
+        let randomAngle = rng.next() * Math.PI * 2;
+        let randomDist = rng.next() * radiusMeters;
         const lat = city.lat + (randomDist / 111320) * Math.cos(randomAngle);
         const lng =
           city.lng +
@@ -282,14 +287,19 @@ window.generateGlobalWorld = async () => {
         const snapshotData = {
           id: `GlobalGen_${city.id}_${Date.now()}_${chunkIndex}`,
           name: snapshotName,
-          description: `Auto-generated from global world algorithm (${chunk.length} objects)`,
+          description: `Auto-generated from global world algorithm (Seed: ${globalSeed})`,
           cityId: city.id,
           type: "mixed",
-          objects: chunk,
-          zones:
-            chunkIndex === 0 && zonesGeoJson
-              ? JSON.stringify(zonesGeoJson)
-              : null,
+          seed: globalSeed,
+          config: {
+              monsterCount: counts.monster,
+              shopCount: counts.shop,
+              vaultCount: counts.vault,
+              castleCount: counts.castle,
+              citadelCount: counts.citadel
+          }
+          // Objects and zones are excluded to respect 1MB limit.
+          // They will be regenerated on the client dynamically using the seed!
         };
 
         status.textContent = `Saving Snapshot Template: ${snapshotName}...`;

@@ -1993,7 +1993,6 @@ export async function saveWorldSnapshot(snapshotData) {
 }
 
 export async function getWorldSnapshots() {
-  if (!isAdmin()) return [];
 
   // Cache Check
   const CACHE_KEY = "admin_snapshots_list";
@@ -2085,39 +2084,34 @@ export async function getSnapshotById(id) {
 export async function applyWorldSnapshot(snapshotId) {
   if (!isAdmin()) return false;
 
-  // 1. Get Snapshot
   const snap = await getSnapshotById(snapshotId);
   if (!snap) return false;
 
-  const { cityId, type, objects } = snap;
-  if (!cityId || !type || !objects) return false;
+  const { cityId, type } = snap;
+  if (!cityId || !type) return false;
 
-  console.log(`➕ Activating template: adding ${objects.length} objects.`);
+  console.log(`➕ Activating template: ${snapshotId}`);
 
-  // 2. Inject sourceTemplateId into objects
-  const taggedObjects = objects.map((obj) => ({
-    ...obj,
-    sourceTemplateId: snapshotId,
-  }));
-
-  // 3. Save Objects to Live
-  const success = await saveGeneratedObjects(taggedObjects);
-
-  if (success) {
-    // 4. Mark snapshot as active
-    try {
-      const { doc, updateDoc } =
-        await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-      await updateDoc(doc(db, "world_snapshots", snapshotId), {
-        isActive: true,
-      });
-      localStorage.removeItem("admin_snapshots_list");
-    } catch (e) {
-      console.error("Failed to update isActive flag on snapshot", e);
-    }
+  try {
+    const { doc, updateDoc, serverTimestamp } =
+      await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    
+    await updateDoc(doc(db, "world_snapshots", snapshotId), {
+      isActive: true,
+    });
+    
+    await updateDoc(doc(db, "world_metadata", "current_state"), {
+      last_global_update: serverTimestamp(),
+      world_data: null,
+      version_hash: snapshotId
+    });
+    
+    localStorage.removeItem("admin_snapshots_list");
+    return true;
+  } catch (e) {
+    console.error("Failed to apply snapshot", e);
+    return false;
   }
-
-  return success;
 }
 
 /**

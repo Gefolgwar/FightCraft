@@ -263,6 +263,16 @@ export async function getTerritoryZones(cityId) {
   // 1. Return from local memory if available
   if (_localZoneCache[cityId]) return _localZoneCache[cityId];
 
+  // 1.5. Check client-side generated zones
+  if (window._clientGeneratedZones) {
+     const cityZone = window._clientGeneratedZones.find(z => z.id === cityId);
+     if (cityZone && cityZone.features) {
+         const geoJson = { type: "FeatureCollection", features: cityZone.features };
+         _localZoneCache[cityId] = geoJson;
+         return geoJson;
+     }
+  }
+
   // 2. Fetch from Database
   const data = await getCityZones(cityId);
   if (data?.geoJson) {
