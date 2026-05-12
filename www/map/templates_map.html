@@ -2331,6 +2331,8 @@
                                 algorithm: "voronoi_clipped",
                                 totalFeatures: clipped.features.length,
                             };
+                            // Re-render details panel to show updated zone count
+                            renderDetailsPanel(currentSnapshot);
                             logConsole(
                                 `✅ <b>Зони згенеровані!</b> ${clipped.features.length} зон (тільки в пам'яті, детерміністичний результат з seed)`,
                             );
