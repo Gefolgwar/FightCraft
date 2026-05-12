@@ -12,6 +12,10 @@ import {
   getCurrentUser,
   initFirebase,
 } from "../firebase/firebase-service.js";
+import {
+  distributePointsInZone,
+  hashSeed,
+} from "../gameplay/zone-generator.js";
 
 let templates = [];
 let currentEditId = null;
@@ -448,9 +452,21 @@ window.loadWorldSnapshots = async function () {
 
   try {
     const snaps = await getWorldSnapshots();
-    logConsole(`📦 Found ${snaps.length} snapshots total.`);
 
-    snaps.forEach((snap) => {
+    // Also load local snapshots (from IndexedDB, created by Global World generation)
+    let localSnaps = [];
+    try {
+      const { LocalSnapshotsManager } = await import("./local-snapshots.js");
+      localSnaps = await LocalSnapshotsManager.getAll();
+    } catch (e) {
+      console.warn("Could not load local snapshots:", e);
+    }
+    const allSnaps = [...localSnaps, ...snaps];
+    logConsole(
+      `📦 Found ${allSnaps.length} snapshots total (${localSnaps.length} local + ${snaps.length} Firestore).`,
+    );
+
+    allSnaps.forEach((snap) => {
       const option = document.createElement("option");
       const display = snap.name ? snap.name : `${snap.id.substr(0, 10)}...`;
       const typeIcon =
@@ -515,7 +531,6 @@ window.startGeneration = async (overwrite = true) => {
   let snapName = "";
   let finalId = null;
   let existingObjects = [];
-  let zonesGeoJson = null;
   const { getSnapshotById } = await import("../firebase/firebase-service.js");
 
   if (targetTemplateId === "new") {
@@ -533,14 +548,24 @@ window.startGeneration = async (overwrite = true) => {
     finalId = targetTemplateId;
 
     // Fetch existing
-    const existingSnap = await getSnapshotById(finalId);
+    let existingSnap;
+    if (finalId && finalId.startsWith("local_")) {
+      // Load from local IndexedDB
+      try {
+        const { LocalSnapshotsManager } = await import("./local-snapshots.js");
+        existingSnap = await LocalSnapshotsManager.getById(finalId);
+      } catch (e) {
+        console.error("Failed to load local snapshot:", e);
+      }
+    } else {
+      existingSnap = await getSnapshotById(finalId);
+    }
     let allSavedObjects = [];
     if (existingSnap) {
       if (existingSnap.chunked && !existingSnap.objects) {
         const { loadSnapshotChunks } =
           await import("../firebase/firebase-service.js");
-        const chunks = await loadSnapshotChunks(finalId);
-        allSavedObjects = chunks.flatMap((c) => c.objects || []);
+        allSavedObjects = await loadSnapshotChunks(finalId);
       } else {
         allSavedObjects = existingSnap.objects || [];
       }
@@ -567,40 +592,6 @@ window.startGeneration = async (overwrite = true) => {
           `🛡️ RELOAD: Preserved ${infrastructure.length} infrastructure objects. Removed monsters.`,
         );
       }
-
-      // Load zones from chunks
-      if (existingSnap.zoneConfig && existingSnap.zoneConfig.generated) {
-        try {
-          const { loadZoneChunks } =
-            await import("../firebase/snapshot-service.js");
-          zonesGeoJson = await loadZoneChunks(
-            finalId,
-            existingSnap.zoneConfig.chunkCount,
-          );
-          if (zonesGeoJson) {
-            logConsole(
-              `✅ <b>Зони завантажені з бази даних!</b> ${zonesGeoJson.features.length} зон.`,
-            );
-          }
-        } catch (e) {
-          console.error("Zone loading error:", e);
-        }
-      }
-
-      // Fallback: try inline zones field (old format)
-      if (!zonesGeoJson && existingSnap.zones) {
-        try {
-          zonesGeoJson =
-            typeof existingSnap.zones === "string"
-              ? JSON.parse(existingSnap.zones)
-              : existingSnap.zones;
-          logConsole(
-            `✅ <b>Зони завантажені з бази даних!</b> ${zonesGeoJson.features.length} зон (inline).`,
-          );
-        } catch (e) {
-          console.error("Zone parse error:", e);
-        }
-      }
     }
   }
 
@@ -614,59 +605,25 @@ window.startGeneration = async (overwrite = true) => {
     )
     .map((c, idx) => ({
       ...c,
-      // Ensure every citadel has a unique ID for Voronoi purposes
+      powerMultiplier: c.powerMultiplier || 1,
       id: c.id || c.name || `citadel_${c.lat.toFixed(4)}_${c.lng.toFixed(4)}`,
     }));
 
-  // Zones MUST come from the snapshot — no recalculation
-  if (
-    !zonesGeoJson ||
-    !zonesGeoJson.features ||
-    zonesGeoJson.features.length === 0
-  ) {
+  // Need at least 2 citadels for distance-based zone ownership
+  if (citadels.length < 2) {
     alert(
-      "No zones found in this snapshot. Generate zones first in the Map Templates tab.",
+      `Need at least 2 citadels in the snapshot (found ${citadels.length}). Generate citadels first in the Citadels tab.`,
     );
     return;
   }
 
-  // Generate Points
-  let generatedMonsters = [];
-
-  // BALANCED DISTRIBUTION MODE
-  // Group features by citadelId (in case one citadel has multiple polygons/islands)
-  const zonesById = {};
-  zonesGeoJson.features.forEach((f, idx) => {
-    let id = f.properties?.citadelId || f.properties?.id || f.id;
-
-    if (!id || id === "Citadel" || id === "Castle") {
-      id = `zone_${idx}`;
-    }
-    if (!zonesById[id]) zonesById[id] = [];
-    zonesById[id].push(f);
-  });
-
-  const uniqueZoneIds = Object.keys(zonesById);
-  const totalLogicalZones = uniqueZoneIds.length;
-
   logConsole(
-    `⚖️ Distributing ${capacity} monsters per zone across ${totalLogicalZones} logical zones (Total: ${totalLogicalZones * capacity})...`,
+    `🏰 Found <b>${citadels.length}</b> citadels. Computing zones via distance-based ownership (no stored zones needed)...`,
   );
 
-  // Fetch OSM data removed — pure random placement only
+  // Generate Points using distributePointsInZone — computes zones on-the-fly from citadel positions
+  let generatedMonsters = [];
 
-  if (!window.turf) {
-    logConsole(`⏳ Loading Turf.js for spatial calculations...`);
-    await new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js";
-      script.onload = resolve;
-      script.onerror = () => reject(new Error("Failed to load Turf.js"));
-      document.head.appendChild(script);
-    });
-  }
-
-  const turf = window.turf;
   const selectionList = Array.from(selectedTemplates)
     .map((id) => templates.find((t) => t.id === id))
     .filter(Boolean);
@@ -675,69 +632,83 @@ window.startGeneration = async (overwrite = true) => {
     0,
   );
 
-  // Calculate exact template pool based on capacity
-  const exactTemplatePool = [];
-  selectionList.forEach((t) => {
-    const count =
-      totalWeight > 0 ? Math.round(capacity * (t.weight / totalWeight)) : 0;
-    for (let i = 0; i < count; i++) {
-      exactTemplatePool.push({
-        type: "monster",
-        templateId: t.id,
-        name: t.name,
-        icon: t.icon,
-        hp: t.maxHp || t.hp || 100,
-        maxHp: t.maxHp || t.hp || 100,
-        damage: t.damage || 10,
-        defense: t.defense || 0,
-        xpReward: t.xpReward || 50,
-        loot: t.loot || [],
-        level: t.level || 1,
-        respawnAt: null,
-      });
-    }
-  });
+  const baseSeed = hashSeed(citadels[0]?.cityId || "default");
 
-  uniqueZoneIds.forEach((citadelId, idx) => {
-    const zoneFeatures = zonesById[citadelId];
-    const zoneCityId = zoneFeatures[0]?.properties?.cityId || "unknown";
-    const zoneTemplatePool = [...exactTemplatePool].sort(
-      () => Math.random() - 0.5,
+  logConsole(
+    `⚖️ Distributing ${capacity} monsters per zone across ${citadels.length} zones (Total: ${citadels.length * capacity})...`,
+  );
+
+  for (let i = 0; i < citadels.length; i++) {
+    const citadel = citadels[i];
+    const zoneSeed = baseSeed + i * 7919; // prime offset per zone
+    const zoneCityId = citadel.cityId || "unknown";
+
+    // distributePointsInZone uses distance-based ownership to evenly fill the zone
+    const positions = distributePointsInZone(
+      citadel,
+      citadels,
+      capacity,
+      zoneSeed,
     );
+
+    // Assign templates by weight to positions
     const zoneMonsters = [];
+    if (positions.length > 0 && selectionList.length > 0) {
+      // Build cumulative weight array for O(log n) selection
+      const cumWeights = [];
+      let cumTotal = 0;
+      for (const t of selectionList) {
+        cumTotal += t.weight || 1;
+        cumWeights.push(cumTotal);
+      }
 
-    const pointsPerFeature = Math.ceil(
-      zoneTemplatePool.length / zoneFeatures.length,
-    );
-    for (const f of zoneFeatures) {
-      let featureNeeded = Math.min(
-        pointsPerFeature,
-        zoneTemplatePool.length - zoneMonsters.length,
-      );
-      for (let n = 0; n < featureNeeded; n++) {
-        const rndPt = generateRandomPointInPolygon(f);
-        if (rndPt) {
-          const template = zoneTemplatePool.pop();
-          if (!template) break;
-          zoneMonsters.push({
-            ...template,
-            lat: rndPt.lat,
-            lng: rndPt.lng,
-            cityId: zoneCityId,
-            type: "monster",
-            zoneId: citadelId,
-          });
+      // Simple seeded random for template assignment
+      let seed = zoneSeed + 1;
+      const rng = () => {
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+
+      for (const pos of positions) {
+        const roll = rng() * cumTotal;
+        let lo = 0,
+          hi = cumWeights.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi) >>> 1;
+          if (cumWeights[mid] <= roll) lo = mid + 1;
+          else hi = mid;
         }
+        const t = selectionList[lo];
+        zoneMonsters.push({
+          type: "monster",
+          lat: pos.lat,
+          lng: pos.lng,
+          cityId: zoneCityId,
+          zoneId: citadel.id,
+          templateId: t.id,
+          name: t.name,
+          icon: t.icon,
+          hp: t.maxHp || t.hp || 100,
+          maxHp: t.maxHp || t.hp || 100,
+          damage: t.damage || 10,
+          defense: t.defense || 0,
+          xpReward: t.xpReward || 50,
+          loot: t.loot || [],
+          level: t.level || 1,
+          respawnAt: null,
+        });
       }
     }
 
     logConsole(
-      `📍 Zone <b>${citadelId.split("_").pop()}</b>: ${zoneMonsters.length} monsters`,
+      `📍 Zone <b>${citadel.id.split("_").pop()}</b>: ${zoneMonsters.length} monsters (${positions.length} positions)`,
     );
     generatedMonsters.push(...zoneMonsters);
-  });
+  }
   logConsole(
-    `✅ DISTRIBUTION COMPLETE: Total ${generatedMonsters.length} monsters balanced.`,
+    `✅ DISTRIBUTION COMPLETE: Total ${generatedMonsters.length} monsters across ${citadels.length} zones.`,
   );
 
   if (generatedMonsters.length === 0) {
@@ -768,10 +739,6 @@ window.startGeneration = async (overwrite = true) => {
     type: finalType,
     objects: mergedObjects,
   };
-
-  if (zonesGeoJson) {
-    snapshotData.zones = JSON.stringify(zonesGeoJson);
-  }
 
   // Optimization: Strip identical/redundant fields from objects to save bandwidth/space
   snapshotData.objects = mergedObjects.map((o) => {
@@ -874,23 +841,6 @@ function generateGeoGrid(city, limit) {
 }
 
 // ==================== BALANCED HELPERS ====================
-
-function generateRandomPointInPolygon(feature) {
-  const turf = window.turf;
-  const bbox = turf.bbox(feature);
-  const [minLng, minLat, maxLng, maxLat] = bbox;
-
-  // Protection against infinite loops in weird geometries
-  for (let attempt = 0; attempt < 500; attempt++) {
-    const lng = minLng + Math.random() * (maxLng - minLng);
-    const lat = minLat + Math.random() * (maxLat - minLat);
-
-    if (turf.booleanPointInPolygon([lng, lat], feature)) {
-      return { lat, lng };
-    }
-  }
-  return null; // Fallback
-}
 
 // Utility
 function logConsole(msg) {
