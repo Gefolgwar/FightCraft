@@ -1943,23 +1943,6 @@
                             "Auto-generating land-clipped zones from seed...",
                         );
                         await window.generateSnapshotZones();
-                    } else if (_lastCitadelsByCity && window.turf) {
-                        // First-time render: lightweight Voronoi preview (admin can click "Generate Zones" later)
-                        const allCitadels =
-                            Object.values(_lastCitadelsByCity).flat();
-                        if (allCitadels.length >= 2) {
-                            const pointFC = window.turf.featureCollection(
-                                allCitadels.map((c, i) =>
-                                    window.turf.point([c.lng, c.lat], {
-                                        id: c.id,
-                                        citadelId: c.id,
-                                        name: c.name || `Citadel ${i + 1}`,
-                                        cityId: c.cityId || "unknown",
-                                    }),
-                                ),
-                            );
-                            processAndRenderZones(pointFC, "global");
-                        }
                     }
 
                     bar.style.width = "100%";
