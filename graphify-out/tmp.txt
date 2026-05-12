@@ -1,0 +1,39 @@
+## God Nodes (most connected - your core abstractions)
+1. `isAdmin()` - 30 edges
+2. `trackUsage()` - 24 edges
+3. `isAdmin()` - 23 edges
+4. `CanvasEntityLayer` - 23 edges
+5. `trackUsage()` - 19 edges
+6. `showNotification()` - 18 edges
+7. `showNotification()` - 17 edges
+8. `BulkActions` - 17 edges
+9. `OverpassService` - 16 edges
+10. `getCurrentUser()` - 15 edges
+## Surprising Connections (you probably didn't know these)
+- `Bundler-Free Architecture` --semantically_similar_to--> `CONTRIBUTING.md Guide`  [INFERRED] [semantically similar]
+  CLAUDE.md → CONTRIBUTING.md
+- `generateCitadelsAndZones()` --calls--> `getDistSq()`  [INFERRED]
+  www/maintenance/admin-citadel-generator.js → android/app/src/main/assets/public/js/admin-citadels.js
+- `run()` --calls--> `generateCitadelsAndZones()`  [EXTRACTED]
+  scripts/tests/test_logic.js → www/maintenance/admin-citadel-generator.js
+- `init()` --calls--> `initGroups()`  [INFERRED]
+  www/core/app.js → www/gameplay/groups.js
+- `loadProceduralMonsters()` --calls--> `getViewportCells()`  [INFERRED]
+  www/map/map.js → www/core/h3-spatial.js
+## Suggested Questions
+_Questions this graph is uniquely positioned to answer:_
+
+- **Why does `generateCitadelsAndZones()` connect `Community 54` to `H3 Global Discovery`, `Community 23`, `Community 44`, `Community 15`?**
+  _High betweenness centrality (0.325) - this node is a cross-community bridge._
+- **Why does `getDistSq()` connect `Community 54` to `Community 12`?**
+  _High betweenness centrality (0.324) - this node is a cross-community bridge._
+- **Why does `getCurrentUser()` connect `Community 30` to `Map & Initialization`, `Character & Combat Logic`, `Community 42`, `Community 13`, `Community 46`, `Community 15`, `Community 16`, `Community 17`, `Community 14`, `Community 22`, `Community 23`, `Community 25`, `Community 60`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+- **What connects `fs`, `html`, `startIdx` to the rest of the system?**
+  _842 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `H3 Global Discovery` be split into smaller, more focused modules?**
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+- **Should `UI Controller Elements` be split into smaller, more focused modules?**
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+- **Should `Firebase Service & Monitor` be split into smaller, more focused modules?**
+  _Cohesion score 0.04 - nodes in this community are weakly interconnected._

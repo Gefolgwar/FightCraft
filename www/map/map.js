@@ -473,6 +473,12 @@ export function createPlayerMarker(
 
 // ==================== MAP INITIALIZATION ====================
 export async function initMap() {
+  // Destroy previous map instance if it exists (prevents "already initialized" error)
+  if (map) {
+    map.remove();
+    map = null;
+  }
+
   map = L.map("map", {
     zoomControl: false,
     attributionControl: false,

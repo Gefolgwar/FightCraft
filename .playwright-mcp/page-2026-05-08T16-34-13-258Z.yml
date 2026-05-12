@@ -1,0 +1,21 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]: ⚔️
+    - heading "FightCraft" [level=1] [ref=e5]
+    - paragraph [ref=e6]: Geolocation RPG Adventure
+  - generic [ref=e7]:
+    - heading "Welcome Back" [level=2] [ref=e8]
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]: Email
+        - textbox "Email" [ref=e12]:
+          - /placeholder: your@email.com
+      - generic [ref=e13]:
+        - generic [ref=e14]: Password
+        - textbox "Password" [ref=e15]:
+          - /placeholder: ••••••••
+      - button "🔓 Login" [ref=e16]
+      - button "Forgot password?" [ref=e18]
+      - separator [ref=e19]
+      - paragraph [ref=e20]: Don't have an account?
+      - button "📝 Create Account" [ref=e21]

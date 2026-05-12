@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "h3-js": {
+      "source": "frontboat/h3-js",
+      "sourceType": "github",
+      "skillPath": "plugins/h3-js/skills/h3-js/SKILL.md",
+      "computedHash": "4b6a7a2cf5aecc14e468c815c72a1236339d195642bd3b361f9c777b40fdb671"
+    }
+  }
+}

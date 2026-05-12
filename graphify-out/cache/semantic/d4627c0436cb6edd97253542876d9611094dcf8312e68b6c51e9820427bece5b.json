@@ -1,0 +1,1 @@
+{"nodes": [{"id": "index_html_index", "label": "index.html", "file_type": "code", "source_file": "www/index.html"}], "edges": [{"source": "index_html_index", "target": "index_html_core_index", "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "www/index.html"}], "hyperedges": []}

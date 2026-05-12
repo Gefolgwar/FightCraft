@@ -63,6 +63,45 @@
                         Loading snapshots...
                     </div>
                 </div>
+
+                <!-- Global Deterministic Preview Section -->
+                <div
+                    class="p-3 border-t border-gray-700 bg-gray-800 flex flex-col gap-2 z-10"
+                >
+                    <div>
+                        <h2 class="font-bold text-gray-300">
+                            Global World Preview
+                        </h2>
+                        <div class="text-[10px] text-gray-500">
+                            Visualize procedural generation globally (Read-only)
+                        </div>
+                    </div>
+
+                    <button
+                        id="btn-preview-global"
+                        class="w-full py-1.5 bg-blue-600 text-white rounded font-bold text-xs hover:bg-blue-500 transition shadow"
+                    >
+                        <i class="fas fa-globe mr-1"></i> Render Global Map
+                    </button>
+
+                    <div
+                        id="preview-progress-container"
+                        class="hidden flex flex-col gap-1 mt-1"
+                    >
+                        <div
+                            class="flex justify-between text-[10px] text-gray-400"
+                        >
+                            <span id="preview-status">Loading...</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-1.5">
+                            <div
+                                class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                                id="preview-progress-bar"
+                                style="width: 0%"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
             </aside>
 
             <!-- Main Content: Map Viewer -->
@@ -100,6 +139,28 @@
                     </div>
 
                     <div id="right-panel-body">
+                        <!-- Loading progress bar -->
+                        <div id="snap-progress-container" class="hidden mb-1.5">
+                            <div
+                                class="flex items-center gap-2 text-[10px] text-gray-400 mb-0.5"
+                            >
+                                <span id="snap-progress-label">Loading...</span>
+                                <span
+                                    id="snap-progress-time"
+                                    class="ml-auto text-gray-500"
+                                ></span>
+                            </div>
+                            <div
+                                class="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden"
+                            >
+                                <div
+                                    id="snap-progress-bar"
+                                    class="h-full bg-blue-500 rounded-full transition-all duration-300"
+                                    style="width: 0%"
+                                ></div>
+                            </div>
+                        </div>
+
                         <div
                             class="text-xs text-gray-400 space-y-1 overflow-y-auto flex-1 pr-2 custom-scrollbar -mr-2"
                             id="snap-details"
@@ -394,6 +455,9 @@
                 forceSnapshotActiveState,
                 getTemplates,
                 saveWorldSnapshot,
+                saveWorldSnapshotChunked,
+                getDb,
+                loadSnapshotChunks,
             } from "../firebase/firebase-service.js";
             import { CITY_ANCHORS } from "../gameplay/data.js";
             import { OverpassService } from "./overpass-service.js";
@@ -417,6 +481,7 @@
             let contourVertexLayerGroup = null;
             let _snapshotUnsubscribe = null; // Real-time listener cleanup
             let _lastCitadelsByCity = null; // saved for manual zone generation
+            let _lastLoadedZonesFC = null; // cached zone FeatureCollection to avoid double-loading
 
             // === Right panel collapse ===
             let _rightPanelCollapsed = false;
@@ -1068,6 +1133,14 @@
 
                 logConsole("🚀 System initialized. Ready to explore.");
 
+                // Bind Global World Preview button
+                const btnGlobal = document.getElementById("btn-preview-global");
+                if (btnGlobal) {
+                    btnGlobal.addEventListener("click", () =>
+                        previewGlobalWorld(),
+                    );
+                }
+
                 // Template-Sync: Use real-time listener instead of polling
                 setTimeout(() => {
                     _snapshotUnsubscribe = subscribeToWorldSnapshots(
@@ -1374,33 +1447,7 @@
                 contourVertexLayerGroup = L.layerGroup().addTo(map);
             }
 
-            async function loadSnapshots() {
-                const list = document.getElementById("snapshot-list");
-
-                list.innerHTML =
-                    '<div class="text-center text-gray-500 text-xs mt-4">Fetching history...</div>';
-
-                const snaps = await getWorldSnapshots();
-                await mergeAndRenderSnapshots(snaps);
-            }
-
-            async function selectSnapshot(snap) {
-                currentSnapshot = snap;
-
-                // Remove active classes
-                document
-                    .querySelectorAll("#snapshot-list > div")
-                    .forEach((el) =>
-                        el.classList.remove("border-blue-500", "bg-gray-800"),
-                    );
-                const activeEl = document.getElementById(`snap-${snap.id}`);
-                if (activeEl)
-                    activeEl.classList.add("border-blue-500", "bg-gray-800");
-
-                // Update UI
-                document.getElementById("selected-snap-title").textContent =
-                    snap.name ||
-                    `${snap.cityId.toUpperCase()} - ${new Date(snap.created).toLocaleTimeString()}`;
+            function renderDetailsPanel(snap) {
                 // Calculate Stats
                 const counts = {
                     monster: 0,
@@ -1421,63 +1468,10 @@
                     citadelStats = {};
                 window.zoneNames = {};
                 let zoneCount = 0;
-                let geoFeatures = [];
 
-                if (snap.zones) {
-                    try {
-                        const z =
-                            typeof snap.zones === "string"
-                                ? JSON.parse(snap.zones)
-                                : snap.zones;
-                        if (z.features) {
-                            geoFeatures = z.features;
-                            zoneCount = geoFeatures.length;
-                            geoFeatures.forEach((f, idx) => {
-                                // Get zone ID - UNIQUE identifier (exclude name!)
-                                let id =
-                                    f.properties?.citadelId ||
-                                    f.properties?.id ||
-                                    f.id;
-
-                                // If ID is missing or generic/non-unique, use index fallback
-                                const checkId = String(id || "")
-                                    .trim()
-                                    .toLowerCase();
-                                if (
-                                    !id ||
-                                    checkId === "citadel" ||
-                                    checkId === "castle" ||
-                                    checkId === "zone"
-                                ) {
-                                    id = `zone_${idx}`;
-                                }
-
-                                // Get display name
-                                let name =
-                                    f.properties?.name ||
-                                    f.properties?.citadelName ||
-                                    f.properties?.label ||
-                                    id;
-
-                                // If name is generic "Citadel", append ID or index to distinguish
-                                if (name === "Citadel")
-                                    name = `${name} ${idx + 1}`;
-
-                                window.zoneNames[id] = name;
-
-                                // Store the ID back in properties for consistency (FORCE UPDATE)
-                                f.properties.citadelId = id;
-
-                                // Initialize with 0 to ensure they appear in the list
-                                monsterStats[id] = 0;
-                                shopStats[id] = 0;
-                                castleStats[id] = 0;
-                                citadelStats[id] = 0;
-                            });
-                        }
-                    } catch (e) {
-                        console.error("Error parsing stats zones:", e);
-                    }
+                // Zone count from metadata (no need to load full zone data for preview)
+                if (snap.zoneConfig && snap.zoneConfig.totalFeatures) {
+                    zoneCount = snap.zoneConfig.totalFeatures;
                 }
 
                 objects.forEach((o, idx) => {
@@ -1501,48 +1495,8 @@
                     if (lvl > levels.max) levels.max = lvl;
                     levels.sum += lvl;
 
-                    // 4. Determine Logical Zone (SPATIAL ONLY - Ignore stored zoneId for accuracy)
-                    let zid = null;
-
-                    // Always auto-assign zoneId using spatial check if zones exist
-                    if (geoFeatures.length > 0 && window.turf) {
-                        const point = [o.lng, o.lat];
-                        let found = null;
-
-                        for (const f of geoFeatures) {
-                            try {
-                                const isInside =
-                                    window.turf.booleanPointInPolygon(point, f);
-                                if (isInside) {
-                                    found = f;
-                                    break;
-                                }
-                            } catch (e) {
-                                // Silently continue - some features may have invalid geometry
-                            }
-                        }
-
-                        if (found) {
-                            // Use the citadelId that was set during initialization
-                            zid =
-                                found.properties.citadelId ||
-                                found.properties.id ||
-                                found.id;
-
-                            // Apply same fallback logic as above
-                            if (
-                                !zid ||
-                                zid === "Citadel" ||
-                                zid === "Castle" ||
-                                zid === "Zone"
-                            ) {
-                            }
-
-                            zid = found.properties.citadelId || found.id;
-
-                            if (zid) o.zoneId = zid;
-                        }
-                    }
+                    // 4. Determine Logical Zone (use stored zoneId)
+                    let zid = o.zoneId || null;
 
                     if (!zid) zid = "Outside Territories";
 
@@ -1648,6 +1602,16 @@
                                         <span class="text-yellow-600 font-bold uppercase">🧭 Territory Zones</span>
                                         <span class="text-yellow-400 font-bold">${zoneCount}</span>
                                     </div>
+                                    ${
+                                        snap.seed
+                                            ? `
+                                    <div class="mt-1 flex justify-between items-center text-[10px] bg-purple-900/20 px-2 py-1 rounded border border-purple-800/30">
+                                        <span class="text-purple-400 font-bold uppercase">🌱 Generation Seed</span>
+                                        <span class="text-purple-300 font-mono font-bold">${snap.seed}</span>
+                                    </div>
+                                    `
+                                            : ""
+                                    }
                                 </div>
 
                                 <!-- Level Range -->
@@ -1736,6 +1700,345 @@
                 )
                     renderZoneStats();
 
+                // Inject "Generate Zones" button if citadels exist
+                if (_lastCitadelsByCity) {
+                    const citadelCount =
+                        Object.values(_lastCitadelsByCity).flat().length;
+                    document.getElementById("snap-details").innerHTML +=
+                        '<div class="mt-2 flex flex-col gap-1 border-t border-gray-700/50 pt-2">' +
+                        '<button onclick="window.generateSnapshotZones()" class="w-full py-1.5 bg-yellow-600 text-white rounded font-bold text-xs hover:bg-yellow-500 transition shadow">' +
+                        '<i class="fas fa-project-diagram mr-1"></i> Generate Zones (' +
+                        citadelCount +
+                        " citadels)" +
+                        "</button>" +
+                        '<div id="recalc-status" class="text-[10px] text-gray-500">Click to generate 1 zone per citadel</div>' +
+                        "</div>";
+                }
+            }
+
+            async function previewGlobalWorld(existingSeed) {
+                const btn = document.getElementById("btn-preview-global");
+                const container = document.getElementById(
+                    "preview-progress-container",
+                );
+                const status = document.getElementById("preview-status");
+                const bar = document.getElementById("preview-progress-bar");
+
+                btn.disabled = true;
+                btn.classList.add("opacity-50", "cursor-not-allowed");
+                container.classList.remove("hidden");
+
+                try {
+                    const { SeededRandom } = await import("../core/random.js");
+                    const seed =
+                        existingSeed || Math.floor(Math.random() * 2147483647);
+                    const rng = new SeededRandom(seed);
+
+                    status.textContent = "Loading world cities dataset...";
+                    bar.style.width = "5%";
+
+                    const { WORLD_CITIES } =
+                        await import("../gameplay/world_cities.js");
+
+                    status.textContent = "Fetching templates from database...";
+                    bar.style.width = "10%";
+                    const allCastles = await getTemplates("castle");
+                    const citadelsTemplates = allCastles.filter(
+                        (t) =>
+                            t.icon === "🏯" ||
+                            (t.name && t.name.includes("Citadel")) ||
+                            (t.id && t.id.includes("citadel")),
+                    );
+
+                    // Clear previous snapshot
+                    currentSnapshot = null;
+                    document.getElementById("selected-snap-title").innerHTML =
+                        "<span>Preview: Global World</span>";
+
+                    if (markerClusterGroup) markerClusterGroup.clearLayers();
+                    if (markerLayerGroup) markerLayerGroup.clearLayers();
+                    if (districtLayerGroup) districtLayerGroup.clearLayers();
+                    if (cityBoundaryLayerGroup)
+                        cityBoundaryLayerGroup.clearLayers();
+
+                    status.textContent = "Generating citadels...";
+                    bar.style.width = "15%";
+                    await new Promise((r) => setTimeout(r, 0));
+
+                    // --- Phase 1: Generate all citadel data (pure math, no DOM, no turf) ---
+                    const allGeneratedCitadels = [];
+                    const totalCities = WORLD_CITIES.length;
+
+                    for (let i = 0; i < totalCities; i++) {
+                        const city = WORLD_CITIES[i];
+                        const population = city.population || 500000;
+                        const radiusMeters = Math.max(
+                            3000,
+                            Math.sqrt(population) * 10,
+                        );
+
+                        // Simple bounding box - no turf.circle needed
+                        const latSpan = radiusMeters / 111320;
+                        const lngSpan =
+                            radiusMeters /
+                            (111320 * Math.cos((city.lat * Math.PI) / 180));
+                        const minLat = city.lat - latSpan;
+                        const maxLat = city.lat + latSpan;
+                        const minLng = city.lng - lngSpan;
+                        const maxLng = city.lng + lngSpan;
+
+                        const targetCitadels = Math.max(
+                            1,
+                            Math.round(population / 200000),
+                        );
+
+                        const citadelTemplate =
+                            citadelsTemplates.length > 0
+                                ? citadelsTemplates[
+                                      Math.floor(
+                                          rng.next() * citadelsTemplates.length,
+                                      )
+                                  ]
+                                : null;
+                        if (!citadelTemplate) continue;
+
+                        // Place citadels within bounding box directly (no point-in-polygon)
+                        for (let c = 0; c < targetCitadels; c++) {
+                            const lat = minLat + rng.next() * (maxLat - minLat);
+                            const lng = minLng + rng.next() * (maxLng - minLng);
+                            allGeneratedCitadels.push({
+                                id: city.id + "_citadel_" + rng.generateId(7),
+                                type: "castle",
+                                cityId: city.id,
+                                lat,
+                                lng,
+                                templateId: citadelTemplate.id,
+                                name: city.name + " Citadel " + (c + 1),
+                                icon: citadelTemplate.icon,
+                                level: citadelTemplate.level || 15,
+                                hp: (citadelTemplate.level || 15) * 200,
+                                maxHp: (citadelTemplate.level || 15) * 200,
+                                country: city.country || "unknown",
+                            });
+                        }
+
+                        // Yield to UI every 500 cities
+                        if (i % 500 === 0 && i > 0) {
+                            status.textContent =
+                                "Generating citadels... (" +
+                                i +
+                                "/" +
+                                totalCities +
+                                " cities)";
+                            bar.style.width = 15 + (i / totalCities) * 50 + "%";
+                            await new Promise((r) => setTimeout(r, 0));
+                        }
+                    }
+
+                    // --- Phase 2: Render all markers at once (single canvas renderer) ---
+                    status.textContent =
+                        "Rendering " +
+                        allGeneratedCitadels.length +
+                        " citadels on map...";
+                    bar.style.width = "70%";
+                    await new Promise((r) => setTimeout(r, 0));
+
+                    const bounds = L.latLngBounds();
+                    if (visibility.citadel) {
+                        const canvasRenderer = L.canvas({ padding: 0.5 });
+                        for (let i = 0; i < allGeneratedCitadels.length; i++) {
+                            const c = allGeneratedCitadels[i];
+                            bounds.extend([c.lat, c.lng]);
+                            L.circleMarker([c.lat, c.lng], {
+                                renderer: canvasRenderer,
+                                radius: 5,
+                                fillColor: "#f97316",
+                                color: "#ea580c",
+                                weight: 1,
+                                fillOpacity: 0.8,
+                                interactive: false,
+                            }).addTo(markerLayerGroup);
+                        }
+                    }
+
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
+
+                    bar.style.width = "90%";
+                    status.textContent =
+                        "Saving snapshot with " +
+                        allGeneratedCitadels.length +
+                        " citadels...";
+
+                    // Store citadels in memory
+                    if (allGeneratedCitadels.length > 0) {
+                        currentSnapshot = {
+                            id: "global_world_" + seed,
+                            name:
+                                "Global World (" +
+                                allGeneratedCitadels.length +
+                                " citadels)",
+                            objects: allGeneratedCitadels,
+                            seed: seed,
+                        };
+
+                        // Populate _lastCitadelsByCity so Generate Zones button works
+                        const citadelsByCity = {};
+                        allGeneratedCitadels.forEach((o) => {
+                            const cid = o.cityId || "unknown";
+                            if (!citadelsByCity[cid]) citadelsByCity[cid] = [];
+                            citadelsByCity[cid].push(o);
+                        });
+                        _lastCitadelsByCity =
+                            Object.keys(citadelsByCity).length > 0
+                                ? citadelsByCity
+                                : null;
+                    }
+
+                    // Save lightweight seed-based metadata to Firestore
+                    if (allGeneratedCitadels.length > 0) {
+                        const snapshotId = "global_world_" + seed;
+
+                        const { doc, setDoc, serverTimestamp } =
+                            await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+                        const metaDoc = {
+                            seed: seed,
+                            name:
+                                "Global World (" +
+                                allGeneratedCitadels.length +
+                                " citadels)",
+                            cityId: "global",
+                            createdAt: serverTimestamp(),
+                            createdBy: getCurrentUser()?.email || "admin",
+                        };
+
+                        try {
+                            await setDoc(
+                                doc(getDb(), "world_snapshots", snapshotId),
+                                metaDoc,
+                            );
+                            logConsole(
+                                "💾 Saved seed-based snapshot: " + snapshotId,
+                            );
+                            loadSnapshots();
+                        } catch (saveErr) {
+                            console.error(
+                                "Failed to save snapshot metadata:",
+                                saveErr,
+                            );
+                            logConsole("❌ Failed to save: " + saveErr.message);
+                        }
+                    }
+
+                    // Render details panel and Voronoi preview
+                    if (currentSnapshot) {
+                        currentSnapshot.created = new Date();
+                        renderDetailsPanel(currentSnapshot);
+                    }
+                    if (existingSeed && _lastCitadelsByCity && window.turf) {
+                        // Ctrl+F5 flow: use the same full land-clipped algorithm as "Generate Zones" button
+                        logConsole(
+                            "Auto-generating land-clipped zones from seed...",
+                        );
+                        await window.generateSnapshotZones();
+                    } else if (_lastCitadelsByCity && window.turf) {
+                        // First-time render: lightweight Voronoi preview (admin can click "Generate Zones" later)
+                        const allCitadels =
+                            Object.values(_lastCitadelsByCity).flat();
+                        if (allCitadels.length >= 2) {
+                            const pointFC = window.turf.featureCollection(
+                                allCitadels.map((c, i) =>
+                                    window.turf.point([c.lng, c.lat], {
+                                        id: c.id,
+                                        citadelId: c.id,
+                                        name: c.name || `Citadel ${i + 1}`,
+                                        cityId: c.cityId || "unknown",
+                                    }),
+                                ),
+                            );
+                            processAndRenderZones(pointFC, "global");
+                        }
+                    }
+
+                    bar.style.width = "100%";
+                    status.textContent =
+                        "Preview complete (" +
+                        allGeneratedCitadels.length +
+                        " citadels globally)";
+                } catch (error) {
+                    console.error("Preview Error:", error);
+                    status.textContent = "Error: " + error.message;
+                } finally {
+                    btn.disabled = false;
+                    btn.classList.remove("opacity-50", "cursor-not-allowed");
+                    setTimeout(() => {
+                        container.classList.add("hidden");
+                        bar.style.width = "0%";
+                    }, 5000);
+                }
+            }
+
+            async function loadSnapshots() {
+                const list = document.getElementById("snapshot-list");
+
+                list.innerHTML =
+                    '<div class="text-center text-gray-500 text-xs mt-4">Fetching history...</div>';
+
+                const snaps = await getWorldSnapshots();
+                await mergeAndRenderSnapshots(snaps);
+            }
+
+            async function selectSnapshot(snap) {
+                _lastLoadedZonesFC = null; // reset cached zones for new snapshot
+
+                // SEED-BASED SNAPSHOT: regenerate from seed (deterministic)
+                if (snap.seed && !snap.chunked) {
+                    logConsole(
+                        `\ud83c\udf31 Regenerating from seed <b>${snap.seed}</b>...`,
+                    );
+                    await previewGlobalWorld(snap.seed);
+                    return;
+                }
+                // LEGACY: chunked snapshot — load objects from Firestore subcollection
+                if (
+                    snap.chunked &&
+                    (!snap.objects || snap.objects.length === 0)
+                ) {
+                    logConsole(
+                        "Loading " + snap.chunkCount + " country chunks...",
+                    );
+                    try {
+                        snap.objects = await loadSnapshotChunks(snap.id);
+                        logConsole(
+                            "Loaded " +
+                                snap.objects.length +
+                                " objects from chunks",
+                        );
+                    } catch (e) {
+                        console.error("Failed to load chunks:", e);
+                        snap.objects = [];
+                    }
+                }
+                currentSnapshot = snap;
+
+                // Remove active classes
+                document
+                    .querySelectorAll("#snapshot-list > div")
+                    .forEach((el) =>
+                        el.classList.remove("border-blue-500", "bg-gray-800"),
+                    );
+                const activeEl = document.getElementById(`snap-${snap.id}`);
+                if (activeEl)
+                    activeEl.classList.add("border-blue-500", "bg-gray-800");
+
+                // Update UI
+                document.getElementById("selected-snap-title").textContent =
+                    snap.name ||
+                    `${snap.cityId.toUpperCase()} - ${new Date(snap.created).toLocaleTimeString()}`;
+                renderDetailsPanel(snap);
+
                 const btnToggle = document.getElementById("btn-toggle-active");
                 const knob = document.getElementById("toggle-status-knob");
                 const statusText =
@@ -1775,10 +2078,8 @@
                     `📁 Loading template: <b>${snap.name || snap.id}</b> (${snap.objects?.length || 0} objects)`,
                 );
                 renderSnapshotOnMap(snap);
-                loadDistrictsForPreview(snap.cityId);
-                loadCityMetadata(snap.cityId);
 
-                // Populate citadel data for manual zone generation
+                // Populate citadel data BEFORE loadDistrictsForPreview (needed for lightweight Voronoi)
                 const citadelsByCity = {};
                 (snap.objects || []).forEach((o) => {
                     const isCit =
@@ -1796,18 +2097,29 @@
                         ? citadelsByCity
                         : null;
 
-                // Add "Generate Zones" button if citadels exist
-                if (_lastCitadelsByCity) {
-                    const citadelCount =
-                        Object.values(citadelsByCity).flat().length;
-                    document.getElementById("snap-details").innerHTML +=
-                        `<div class="mt-2 flex flex-col gap-1 border-t border-gray-700/50 pt-2">
-                            <button onclick="window.generateSnapshotZones()" class="w-full py-1.5 bg-yellow-600 text-white rounded font-bold text-xs hover:bg-yellow-500 transition shadow">
-                                <i class="fas fa-project-diagram mr-1"></i> Generate Zones (${citadelCount} citadels)
-                            </button>
-                            <div id="recalc-status" class="text-[10px] text-gray-500">Click to generate 1 zone per citadel</div>
-                        </div>`;
+                // Render zones: generate lightweight Voronoi from citadels (no Firebase load needed)
+                if (_lastCitadelsByCity && window.turf) {
+                    const allCitadels = Object.values(citadelsByCity).flat();
+                    if (allCitadels.length >= 2) {
+                        const pointFC = window.turf.featureCollection(
+                            allCitadels.map((c, i) =>
+                                window.turf.point([c.lng, c.lat], {
+                                    id: c.id,
+                                    citadelId: c.id,
+                                    name: c.name || `Citadel ${i + 1}`,
+                                    cityId: c.cityId || "unknown",
+                                }),
+                            ),
+                        );
+                        logConsole(
+                            `Generating Voronoi preview from ${allCitadels.length} citadels...`,
+                        );
+                        processAndRenderZones(pointFC, snap.cityId || "global");
+                    }
+                } else {
+                    loadDistrictsForPreview(snap.cityId);
                 }
+                loadCityMetadata(snap.cityId);
             }
 
             /**
@@ -2016,151 +2328,29 @@
                         countryBboxes,
                     );
 
-                    // 8. Render (already in fixed coordinate space)
+                    // 8. Render via single Canvas layer (same path as loading)
                     if (clipped && clipped.features) {
-                        const features = clipped.features;
-                        for (let vi = 0; vi < features.length; vi++) {
-                            const f = features[vi];
-                            if (!f || !f.geometry) continue;
-                            const zoneNum = vi + 1;
-                            const name =
-                                f.properties.name || f.properties.id || "Zone";
-                            const polys =
-                                f.geometry.type === "Polygon"
-                                    ? [f.geometry.coordinates]
-                                    : f.geometry.type === "MultiPolygon"
-                                      ? f.geometry.coordinates
-                                      : [];
-                            polys.forEach((coords) => {
-                                if (!coords || !coords[0]) return;
-                                const latLngs = coords[0].map((c) => [
-                                    c[1],
-                                    c[0],
-                                ]);
-                                L.polygon(latLngs, {
-                                    color: "#eab308",
-                                    weight: 1,
-                                    fillOpacity: 0.08,
-                                    fillColor: "#eab308",
-                                    interactive: true,
-                                })
-                                    .bindPopup(
-                                        `<div class="text-xs"><b>Zone #${zoneNum}</b><br>${name}</div>`,
-                                    )
-                                    .addTo(districtLayerGroup);
-                            });
-                            if (vi % 500 === 0 && vi > 0) {
-                                if (statusEl)
-                                    statusEl.innerText = `Rendering ${vi}/${features.length}...`;
-                                await new Promise((r) => setTimeout(r, 5));
-                            }
-                        }
+                        processAndRenderZones(clipped, "global");
 
                         if (statusEl) {
-                            statusEl.innerText = `${features.length} zones on land (${unique.length - landCitadels.length} citadels were in ocean)`;
+                            statusEl.innerText = `${clipped.features.length} zones on land (${unique.length - landCitadels.length} citadels were in ocean)`;
                             statusEl.className =
                                 "text-[10px] font-bold text-emerald-400";
                         }
                         logConsole(
-                            `Generated ${features.length} Voronoi zones from ${landCitadels.length} land citadels`,
+                            `Generated ${clipped.features.length} Voronoi zones from ${landCitadels.length} land citadels`,
                         );
 
-                        // Save as a new snapshot
+                        // Update in-memory zoneConfig only (seed-based, no Firebase save)
                         if (currentSnapshot) {
-                            if (statusEl) {
-                                statusEl.innerText =
-                                    "Saving new template with zones...";
-                                statusEl.className =
-                                    "text-[10px] font-bold text-yellow-400 animate-pulse";
-                            }
-
-                            const newSnapshot = {
-                                ...currentSnapshot,
-                                id: `${currentSnapshot.id}_zones_${Date.now()}`,
-                                name: `${currentSnapshot.name} (with Zones)`,
-                                zoneConfig: {
-                                    generated: true,
-                                    algorithm: "voronoi_clipped",
-                                },
-                                isActive: false,
+                            currentSnapshot.zoneConfig = {
+                                generated: true,
+                                algorithm: "voronoi_clipped",
+                                totalFeatures: clipped.features.length,
                             };
-                            
-                            // Remove massive data payloads from snapshot to respect 1MB limit
-                            delete newSnapshot.zones;
-                            delete newSnapshot.objects; // Ensure objects are NOT saved here!
-                            // Add a seed if one isn't present
-                            if (!newSnapshot.seed) {
-                                newSnapshot.seed = Math.floor(Math.random() * 2147483647);
-                            }
-
-                            let success = false;
-                            try {
-                                console.log(
-                                    "Preparing to save newSnapshot...",
-                                    newSnapshot,
-                                );
-
-                                // We are no longer saving the full zones geometry.
-                                // Instead, we save the seed algorithm in zoneConfig.
-                                // The client must run turf.voronoi at runtime when encountering zoneConfig.
-
-                                const sizeStr =
-                                    JSON.stringify(newSnapshot).length;
-                                console.log(
-                                    "New snapshot size approx:",
-                                    sizeStr,
-                                );
-
-                                if (sizeStr > 1040000) {
-                                    alert(
-                                        "The generated template is too large (" +
-                                            Math.round(sizeStr / 1024) +
-                                            " KB). Limit is 1024 KB. Cannot save.",
-                                    );
-                                } else {
-                                    success =
-                                        await saveWorldSnapshot(newSnapshot);
-                                    if (!success) {
-                                        alert(
-                                            "saveWorldSnapshot returned false. Check console for 'Snapshot save error'",
-                                        );
-                                    }
-                                }
-                            } catch (err) {
-                                console.error(
-                                    "Caught error in saveWorldSnapshot:",
-                                    err,
-                                );
-                                alert("Error during save: " + err.message);
-                            }
-
-                            if (success) {
-                                if (statusEl) {
-                                    statusEl.innerText = `✅ Saved new template with ${features.length} zones!`;
-                                    statusEl.className =
-                                        "text-[10px] font-bold text-green-400";
-                                }
-                                logConsole(
-                                    `Saved new snapshot: ${newSnapshot.name}`,
-                                );
-
-                                // Refresh the snapshot list to show the new template
-                                if (
-                                    typeof window.loadSnapshots === "function"
-                                ) {
-                                    window.loadSnapshots();
-                                } else if (
-                                    typeof loadSnapshots === "function"
-                                ) {
-                                    loadSnapshots();
-                                }
-                            } else {
-                                if (statusEl) {
-                                    statusEl.innerText = `❌ Failed to save new template`;
-                                    statusEl.className =
-                                        "text-[10px] font-bold text-red-400";
-                                }
-                            }
+                            logConsole(
+                                `✅ <b>Зони згенеровані!</b> ${clipped.features.length} зон (тільки в пам'яті, детерміністичний результат з seed)`,
+                            );
                         }
                     }
                 } catch (e) {
@@ -2418,7 +2608,10 @@
                 // Determine effective Cache Key
                 // If explicit zones exist in the current snapshot, cache against the snapshot ID to allow switching
                 let cacheKey = cityId;
-                if (currentSnapshot && currentSnapshot.zones) {
+                if (
+                    currentSnapshot &&
+                    (currentSnapshot.zones || currentSnapshot.zoneConfig)
+                ) {
                     cacheKey = `${cityId}_${currentSnapshot.id}`;
                 }
 
@@ -2431,9 +2624,41 @@
                 }
 
                 const city = CITY_ANCHORS.find((c) => c.id === cityId);
+
+                // 0. Load zones from zone_chunks/ subcollection (chunked format — highest priority)
+                if (
+                    currentSnapshot &&
+                    currentSnapshot.zoneConfig &&
+                    currentSnapshot.zoneConfig.generated &&
+                    currentSnapshot.zoneConfig.chunkCount
+                ) {
+                    logConsole("Loading zones from zone_chunks...");
+                    try {
+                        const { loadZoneChunks } =
+                            await import("../firebase/snapshot-service.js");
+                        const zonesGeoJson = await loadZoneChunks(
+                            currentSnapshot.id,
+                            currentSnapshot.zoneConfig.chunkCount,
+                        );
+                        if (
+                            zonesGeoJson &&
+                            zonesGeoJson.features &&
+                            zonesGeoJson.features.length > 0
+                        ) {
+                            logConsole(
+                                `\u2705 <b>\u0417\u043e\u043d\u0438 \u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0435\u043d\u0456!</b> ${zonesGeoJson.features.length} \u0437\u043e\u043d. \u0420\u0435\u043d\u0434\u0435\u0440\u0438\u043d\u0433...`,
+                            );
+                            processAndRenderZones(zonesGeoJson, cityId);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error("Zone chunks load error:", e);
+                    }
+                }
+
                 if (!city) return;
 
-                // 1. Check if Snapshot itself has zones (New Feature)
+                // 1. Check if Snapshot itself has zones inline (old format)
                 if (
                     currentSnapshot &&
                     currentSnapshot.cityId === cityId &&
@@ -2449,6 +2674,37 @@
                         return;
                     } catch (e) {
                         console.error("Failed to parse snapshot zones:", e);
+                    }
+                }
+
+                // 1.5 Check if Snapshot has zoneConfig + citadels -> lightweight Voronoi (NO network, NO land mask)
+                if (
+                    currentSnapshot &&
+                    currentSnapshot.zoneConfig &&
+                    _lastCitadelsByCity
+                ) {
+                    const allCitadels =
+                        Object.values(_lastCitadelsByCity).flat();
+                    if (allCitadels.length >= 2 && window.turf) {
+                        logConsole(
+                            `⚡ Lightweight Voronoi from ${allCitadels.length} citadels (no network)...`,
+                        );
+                        try {
+                            const pointFeatures = allCitadels.map((c, i) =>
+                                window.turf.point([c.lng, c.lat], {
+                                    id: c.id,
+                                    citadelId: c.id,
+                                    name: c.name || `Citadel ${i + 1}`,
+                                    cityId: c.cityId || cityId,
+                                }),
+                            );
+                            const pointFC =
+                                window.turf.featureCollection(pointFeatures);
+                            processAndRenderZones(pointFC, cityId);
+                            return;
+                        } catch (e) {
+                            console.error("Lightweight Voronoi failed:", e);
+                        }
                     }
                 }
 
@@ -2591,32 +2847,20 @@
                     let fc = gameZones;
                     if (typeof fc === "string") fc = JSON.parse(fc);
 
-                    console.log(
-                        `🔍 Processing ${fc.features.length} features...`,
-                    );
-
-                    // NEW: Detect Point-based citadel features (from new territory-service v2)
-                    // If all features are Points, generate Voronoi polygons for visualization
+                    // Detect Point-based citadel features → generate Voronoi for visualization
                     const allPoints = fc.features.every(
                         (f) => f.geometry?.type === "Point",
                     );
 
                     if (allPoints && fc.features.length >= 2 && window.turf) {
-                        console.log(
-                            "📐 Point-based citadels detected — generating Voronoi zones for visualization...",
-                        );
                         fc = generateVoronoiFromCitadels(fc, cityId);
                         if (!fc || !fc.features || fc.features.length === 0) {
                             console.warn(
-                                "⚠️ Voronoi generation returned empty result",
+                                "Voronoi generation returned empty result",
                             );
                             return;
                         }
                     } else if (allPoints && fc.features.length === 1) {
-                        // Single citadel — create a buffer circle as zone
-                        console.log(
-                            "📐 Single citadel — generating buffer zone...",
-                        );
                         const f = fc.features[0];
                         const center = turf.point(f.geometry.coordinates);
                         const buffered = turf.buffer(center, 5, {
@@ -2629,150 +2873,95 @@
                         fc = turf.featureCollection([buffered]);
                     }
 
-                    const zones = [];
-                    fc.features.forEach((f, idx) => {
-                        const type = f.geometry.type;
-                        const coords = f.geometry.coordinates;
+                    // Filter to only polygon/multipolygon features
+                    const polyFeatures = fc.features.filter(
+                        (f) =>
+                            f.geometry &&
+                            (f.geometry.type === "Polygon" ||
+                                f.geometry.type === "MultiPolygon"),
+                    );
 
-                        if (idx === 0)
-                            console.log(`🔍 Feature 0 Type: ${type}`, coords);
+                    if (polyFeatures.length === 0) {
+                        console.warn("No polygon features to render");
+                        return;
+                    }
 
-                        if (type === "Polygon") {
-                            if (coords.length > 0) {
-                                zones.push({
-                                    name:
-                                        "Zone " +
-                                        (f.properties.citadelId
-                                            ? f.properties.citadelId.substr(
-                                                  0,
-                                                  4,
-                                              )
-                                            : "Unknown"),
-                                    points: coords[0].map((coord) => ({
-                                        lat: coord[1],
-                                        lng: coord[0],
-                                    })),
-                                    center: {
-                                        lat: coords[0][0][1],
-                                        lng: coords[0][0][0],
-                                    },
-                                });
-                            }
-                        } else if (type === "MultiPolygon") {
-                            coords.forEach((polyCoords) => {
-                                if (polyCoords.length > 0) {
-                                    zones.push({
-                                        name:
-                                            "Zone " +
-                                            (f.properties.citadelId
-                                                ? f.properties.citadelId.substr(
-                                                      0,
-                                                      4,
-                                                  )
-                                                : "Unknown"),
-                                        points: polyCoords[0].map((coord) => ({
-                                            lat: coord[1],
-                                            lng: coord[0],
-                                        })),
-                                        center: {
-                                            lat: polyCoords[0][0][1],
-                                            lng: polyCoords[0][0][0],
-                                        },
-                                    });
-                                }
-                            });
-                        }
-                    });
+                    console.log(
+                        `Rendering ${polyFeatures.length} zone polygons via Canvas...`,
+                    );
 
-                    if (zones.length > 0) {
-                        console.log(
-                            `✅ Loaded ${zones.length} custom zones with valid geometry.`,
-                        );
+                    // Cache the GeoJSON FeatureCollection directly (no intermediate conversion)
+                    let cacheKey = cityId;
+                    if (currentSnapshot && currentSnapshot.zoneConfig) {
+                        cacheKey = `${cityId}_${currentSnapshot.id}`;
+                    }
+                    const geoFC = {
+                        type: "FeatureCollection",
+                        features: polyFeatures,
+                    };
+                    districtCache[cacheKey] = geoFC;
 
-                        let cacheKey = cityId;
-                        if (
-                            currentSnapshot &&
-                            currentSnapshot.zones &&
-                            currentSnapshot.cityId === cityId
-                        ) {
-                            cacheKey = `${cityId}_${currentSnapshot.id}`;
-                        }
-
-                        districtCache[cacheKey] = zones;
-                        if (visibility && visibility.district) {
-                            renderDistrictsFromData(zones);
-                        } else {
-                            console.warn(
-                                "⚠️ Zones loaded but visibility.district is FALSE",
-                            );
-                        }
-                    } else {
-                        console.warn(
-                            "⚠️ Zones processed but result array is empty!",
-                            fc,
-                        );
+                    if (visibility && visibility.district) {
+                        renderDistrictsFromData(geoFC);
                     }
                 } catch (e) {
                     console.error("Error processing zones:", e);
                 }
             }
 
-            function renderDistrictsFromData(districts) {
-                console.log(
-                    `🎨 Rendering ${districts.length} polygons to map...`,
-                );
-                if (!districtLayerGroup) {
-                    console.error("❌ districtLayerGroup is missing!");
-                    return;
-                }
+            /**
+             * Render zones on the Leaflet map using a single Canvas-based L.geoJSON layer.
+             * Accepts either a GeoJSON FeatureCollection or a legacy array of {points} objects.
+             */
+            function renderDistrictsFromData(data) {
+                if (!districtLayerGroup) return;
                 if (!map.hasLayer(districtLayerGroup)) {
-                    console.warn(
-                        "⚠️ districtLayerGroup was not on map. Re-adding...",
-                    );
                     districtLayerGroup.addTo(map);
                 }
-
                 districtLayerGroup.clearLayers();
 
-                const bounds = L.latLngBounds();
+                let fc;
 
-                districts.forEach((d) => {
-                    try {
-                        const poly = L.polygon(d.points, {
-                            color: "#FFFF00",
-                            weight: 1.5,
-                            fillOpacity: 0.1,
-                            fillColor: "#FFFF00",
-                            interactive: false,
-                            zIndex: 10, // Base layer
+                if (data && data.type === "FeatureCollection") {
+                    // Direct GeoJSON — no conversion needed
+                    fc = data;
+                } else if (Array.isArray(data)) {
+                    // Legacy format: [{points: [{lat,lng},...], name},...]
+                    const features = [];
+                    for (const d of data) {
+                        if (!d.points || d.points.length < 3) continue;
+                        features.push({
+                            type: "Feature",
+                            properties: { name: d.name },
+                            geometry: {
+                                type: "Polygon",
+                                coordinates: [
+                                    d.points.map((p) => [p.lng, p.lat]),
+                                ],
+                            },
                         });
-                        districtLayerGroup.addLayer(poly);
-
-                        // Expand bounds
-                        d.points.forEach((p) => bounds.extend(p));
-
-                        // Add tiny label
-                        if (d.center && d.center.lat) {
-                            const label = L.marker(d.center, {
-                                icon: L.divIcon({
-                                    html: `<div class="text-[9px] text-yellow-500/50 font-bold whitespace-nowrap">${d.name}</div>`,
-                                    className: "bg-transparent",
-                                    iconSize: [100, 20],
-                                    iconAnchor: [50, 10],
-                                }),
-                                interactive: false,
-                            });
-                            districtLayerGroup.addLayer(label);
-                        }
-                    } catch (err) {
-                        console.warn("Skipping bad polygon", err);
                     }
-                });
-
-                // Optional: Fit bounds if valid
-                if (bounds.isValid()) {
-                    // map.fitBounds(bounds); // Disable auto-zoom to avoid annoying jumps
+                    fc = { type: "FeatureCollection", features };
+                } else {
+                    return;
                 }
+
+                if (!fc.features || fc.features.length === 0) return;
+
+                console.log(`Rendering ${fc.features.length} zone polygons...`);
+
+                const canvasRenderer = L.canvas({ padding: 0.5 });
+                const geoLayer = L.geoJSON(fc, {
+                    renderer: canvasRenderer,
+                    style: {
+                        color: "#eab308",
+                        weight: 0.5,
+                        fillOpacity: 0.08,
+                        fillColor: "#eab308",
+                        interactive: false,
+                    },
+                });
+                districtLayerGroup.addLayer(geoLayer);
             }
 
             async function showCityBoundary(cityId) {
@@ -2835,127 +3024,173 @@
                     if (city) map.flyTo([city.lat, city.lng], 13);
                 }
 
-                // Render Objects
-                const markersToCluster = [];
+                const objectCount = snap.objects.length;
+                const useLightMode = objectCount > 1000;
 
-                snap.objects.forEach((obj) => {
-                    // Coordinate Extraction
-                    const lat = obj.lat || (obj.center && obj.center.lat);
-                    const lng =
-                        obj.lng ||
-                        (obj.center && obj.center.lng) ||
-                        (obj.center && obj.center.lon);
+                if (useLightMode) {
+                    // LIGHT MODE: Canvas circleMarkers — no DOM, no clusters
+                    // Handles 10k+ objects smoothly
+                    const canvasRenderer = L.canvas({ padding: 0.5 });
+                    const colorMap = {
+                        citadel: {
+                            fill: "#f97316",
+                            stroke: "#ea580c",
+                            radius: 5,
+                        },
+                        monster: {
+                            fill: "#a855f7",
+                            stroke: "#7c3aed",
+                            radius: 3,
+                        },
+                        shop: { fill: "#3b82f6", stroke: "#2563eb", radius: 3 },
+                        vault: {
+                            fill: "#10b981",
+                            stroke: "#059669",
+                            radius: 3,
+                        },
+                        castle: {
+                            fill: "#78716c",
+                            stroke: "#57534e",
+                            radius: 4,
+                        },
+                        other: {
+                            fill: "#6b7280",
+                            stroke: "#4b5563",
+                            radius: 3,
+                        },
+                    };
 
-                    if (!lat || !lng) return;
+                    snap.objects.forEach((obj) => {
+                        const lat = obj.lat || (obj.center && obj.center.lat);
+                        const lng =
+                            obj.lng ||
+                            (obj.center && obj.center.lng) ||
+                            (obj.center && obj.center.lon);
+                        if (!lat || !lng) return;
 
-                    let iconChar = obj.icon || "📍";
-                    const objectType =
-                        obj.type ||
-                        (snap.type === "monster"
-                            ? "monster"
-                            : snap.type === "shop"
-                              ? "shop"
-                              : snap.type === "castle"
-                                ? "castle"
-                                : "unknown");
-                    const isCitadel =
-                        obj.icon === "🏯" ||
-                        (obj.name && obj.name.includes("Citadel"));
+                        const isCitadel =
+                            obj.icon === "\ud83c\udfef" ||
+                            (obj.name && obj.name.includes("Citadel")) ||
+                            (obj.templateId &&
+                                obj.templateId.includes("citadel"));
+                        const objectType = isCitadel
+                            ? "citadel"
+                            : obj.type || "other";
 
-                    // Visiblity Check
-                    if (objectType === "monster" && !visibility.monster) return;
-                    if (objectType === "shop" && !visibility.shop) return;
-                    if (objectType === "vault" && !visibility.vault) return;
-                    if (
-                        objectType === "castle" &&
-                        !isCitadel &&
-                        !visibility.castle
-                    )
-                        return;
-                    if (isCitadel && !visibility.citadel) return;
+                        // Visibility check
+                        if (objectType === "monster" && !visibility.monster)
+                            return;
+                        if (objectType === "shop" && !visibility.shop) return;
+                        if (objectType === "vault" && !visibility.vault) return;
+                        if (objectType === "castle" && !visibility.castle)
+                            return;
+                        if (isCitadel && !visibility.citadel) return;
 
-                    // Icon logic
-                    if (objectType === "castle" && !obj.icon) {
-                        if (obj.name && obj.name.includes("Citadel"))
-                            iconChar = "Detailed Icon"; // Legacy
-                        else iconChar = "🏰";
-                    } else if (objectType === "shop" && !obj.icon) {
-                        iconChar = "🏪";
-                    } else if (objectType === "vault" && !obj.icon) {
-                        iconChar = "📦";
-                    } else if (objectType === "monster" && !obj.icon) {
-                        iconChar = "👾";
-                    }
-
-                    // Premium styling
-                    let colorClass = "bg-gray-900/80 border-gray-500";
-                    let iconHtml = "";
-                    let actualIconSize = [32, 32];
-                    let actualIconAnchor = [16, 16];
-                    let zIndex = isCitadel
-                        ? 3000
-                        : objectType === "castle"
-                          ? 1800
-                          : objectType === "monster"
-                            ? 1200
-                            : 1500;
-
-                    if (isCitadel) {
-                        // PREMIUM CITADEL STYLING (Same as main map)
-                        iconHtml = `
-                                    <div class="w-12 h-12 flex items-center justify-center relative bg-transparent">
-                                        <div class="absolute inset-0 rounded-full blur-md opacity-40 bg-orange-500"></div>
-                                        <div class="text-3xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] z-10 leading-none select-none">🏯</div>
-                                    </div>
-                                `;
-                        actualIconSize = [48, 48];
-                        actualIconAnchor = [24, 24];
-                    } else if (objectType === "monster") {
-                        iconHtml = `<div class="flex items-center justify-center w-8 h-8 text-2xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none">
-                                                ${iconChar}
-                                            </div>`;
-                    } else {
-                        if (objectType === "shop")
-                            colorClass =
-                                "bg-blue-900/80 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]";
-                        else if (objectType === "vault")
-                            colorClass =
-                                "bg-emerald-900/80 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
-                        else if (objectType === "castle")
-                            colorClass =
-                                "bg-[#5d4037] border-[#3e2723] shadow-md";
-
-                        iconHtml = `<div class="relative flex items-center justify-center w-8 h-8 rounded-full border-2 ${colorClass} shadow-lg backdrop-blur-sm text-lg">
-                                        <span class="leading-none select-none">${iconChar}</span>
-                                    </div>`;
-                    }
-
-                    const markerIcon = L.divIcon({
-                        html: iconHtml,
-                        className: "custom-tpl-icon",
-                        iconSize: actualIconSize,
-                        iconAnchor: actualIconAnchor,
+                        const style = colorMap[objectType] || colorMap.other;
+                        L.circleMarker([lat, lng], {
+                            renderer: canvasRenderer,
+                            radius: style.radius,
+                            fillColor: style.fill,
+                            color: style.stroke,
+                            weight: 1,
+                            fillOpacity: 0.8,
+                            interactive: false,
+                        }).addTo(markerLayerGroup);
                     });
 
-                    const marker = L.marker([lat, lng], {
-                        icon: markerIcon,
-                        zIndexOffset: zIndex,
-                    }).bindPopup(`
-                                    <div class="text-xs p-1 select-text">
-                                        <b class="text-sm text-blue-400">${obj.name || "Unknown"}</b><br>
-                                        <span class="text-gray-400">#${obj.id || "Template"}</span><br>
-                                        <hr class="my-1 border-gray-700">
-                                        <span class="text-gray-300">Type: ${objectType}</span><br>
-                                        <code class="text-blue-300">${lat.toFixed(6)}, ${lng.toFixed(6)}</code>
-                                    </div>
-                                `);
+                    console.log(
+                        `Rendered ${objectCount} objects as Canvas circleMarkers (light mode)`,
+                    );
+                } else {
+                    // FULL MODE: DOM divIcon markers with clustering (for <1000 objects)
+                    const markersToCluster = [];
 
-                    // ADD TO CLUSTER (citadels too — they group when zoomed out)
-                    markersToCluster.push(marker);
-                });
+                    snap.objects.forEach((obj) => {
+                        const lat = obj.lat || (obj.center && obj.center.lat);
+                        const lng =
+                            obj.lng ||
+                            (obj.center && obj.center.lng) ||
+                            (obj.center && obj.center.lon);
+                        if (!lat || !lng) return;
 
-                if (markersToCluster.length > 0) {
-                    markerClusterGroup.addLayers(markersToCluster);
+                        let iconChar = obj.icon || "\ud83d\udccd";
+                        const objectType =
+                            obj.type ||
+                            (snap.type === "monster"
+                                ? "monster"
+                                : snap.type === "shop"
+                                  ? "shop"
+                                  : snap.type === "castle"
+                                    ? "castle"
+                                    : "unknown");
+                        const isCitadel =
+                            obj.icon === "\ud83c\udfef" ||
+                            (obj.name && obj.name.includes("Citadel"));
+
+                        if (objectType === "monster" && !visibility.monster)
+                            return;
+                        if (objectType === "shop" && !visibility.shop) return;
+                        if (objectType === "vault" && !visibility.vault) return;
+                        if (
+                            objectType === "castle" &&
+                            !isCitadel &&
+                            !visibility.castle
+                        )
+                            return;
+                        if (isCitadel && !visibility.citadel) return;
+
+                        if (objectType === "castle" && !obj.icon)
+                            iconChar =
+                                obj.name && obj.name.includes("Citadel")
+                                    ? "\ud83c\udfef"
+                                    : "\ud83c\udff0";
+                        else if (objectType === "shop" && !obj.icon)
+                            iconChar = "\ud83c\udfea";
+                        else if (objectType === "vault" && !obj.icon)
+                            iconChar = "\ud83d\udce6";
+                        else if (objectType === "monster" && !obj.icon)
+                            iconChar = "\ud83d\udc7e";
+
+                        let iconHtml, actualIconSize, actualIconAnchor;
+                        if (isCitadel) {
+                            iconHtml = `<div class="w-12 h-12 flex items-center justify-center relative bg-transparent"><div class="absolute inset-0 rounded-full blur-md opacity-40 bg-orange-500"></div><div class="text-3xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] z-10 leading-none select-none">\ud83c\udfef</div></div>`;
+                            actualIconSize = [48, 48];
+                            actualIconAnchor = [24, 24];
+                        } else {
+                            let colorClass = "bg-gray-900/80 border-gray-500";
+                            if (objectType === "shop")
+                                colorClass = "bg-blue-900/80 border-blue-500";
+                            else if (objectType === "vault")
+                                colorClass =
+                                    "bg-emerald-900/80 border-emerald-500";
+                            else if (objectType === "castle")
+                                colorClass = "bg-[#5d4037] border-[#3e2723]";
+                            iconHtml = `<div class="relative flex items-center justify-center w-8 h-8 rounded-full border-2 ${colorClass} shadow-lg text-lg"><span class="leading-none select-none">${iconChar}</span></div>`;
+                            actualIconSize = [32, 32];
+                            actualIconAnchor = [16, 16];
+                        }
+
+                        const marker = L.marker([lat, lng], {
+                            icon: L.divIcon({
+                                html: iconHtml,
+                                className: "custom-tpl-icon",
+                                iconSize: actualIconSize,
+                                iconAnchor: actualIconAnchor,
+                            }),
+                            zIndexOffset: isCitadel
+                                ? 3000
+                                : objectType === "castle"
+                                  ? 1800
+                                  : 1200,
+                        }).bindPopup(
+                            `<div class="text-xs p-1"><b class="text-sm text-blue-400">${obj.name || "Unknown"}</b><br><span class="text-gray-400">#${obj.id || "Template"}</span><br><hr class="my-1 border-gray-700"><span class="text-gray-300">Type: ${objectType}</span><br><code class="text-blue-300">${lat.toFixed(6)}, ${lng.toFixed(6)}</code></div>`,
+                        );
+                        markersToCluster.push(marker);
+                    });
+
+                    if (markersToCluster.length > 0) {
+                        markerClusterGroup.addLayers(markersToCluster);
+                    }
                 }
             }
 
@@ -3128,7 +3363,10 @@
                     return;
                 }
 
+                console.log("Deleting Firestore snapshot:", currentSnapshot.id);
+                localStorage.removeItem("admin_snapshots_list");
                 const success = await deleteSnapshot(currentSnapshot.id);
+                console.log("deleteSnapshot result:", success);
                 if (success) {
                     currentSnapshot = null;
 

@@ -403,12 +403,42 @@ export const ITEMS_DB = {
  * See: docs/REFACTOR-PLAN-GLOBAL-TERRITORY.md
  */
 export const CITY_ANCHORS = [
-  { id: "berlin", name: "Berlin", lat: 52.52, lng: 13.405 },
-  { id: "kyiv", name: "Kyiv", lat: 50.4501, lng: 30.5234 },
-  { id: "lviv", name: "Lviv", lat: 49.8397, lng: 24.0297 },
-  { id: "warsaw", name: "Warsaw", lat: 52.2297, lng: 21.0122 },
-  { id: "prague", name: "Prague", lat: 50.0755, lng: 14.4378 },
-  { id: "vienna", name: "Vienna", lat: 48.2082, lng: 16.3738 },
+  {
+    id: "berlin",
+    name: "Berlin",
+    lat: 52.52,
+    lng: 13.405,
+    population: 3_700_000,
+  },
+  {
+    id: "kyiv",
+    name: "Kyiv",
+    lat: 50.4501,
+    lng: 30.5234,
+    population: 3_000_000,
+  },
+  { id: "lviv", name: "Lviv", lat: 49.8397, lng: 24.0297, population: 720_000 },
+  {
+    id: "warsaw",
+    name: "Warsaw",
+    lat: 52.2297,
+    lng: 21.0122,
+    population: 1_800_000,
+  },
+  {
+    id: "prague",
+    name: "Prague",
+    lat: 50.0755,
+    lng: 14.4378,
+    population: 1_300_000,
+  },
+  {
+    id: "vienna",
+    name: "Vienna",
+    lat: 48.2082,
+    lng: 16.3738,
+    population: 1_900_000,
+  },
 ];
 
 export const GRID_SETTINGS = {

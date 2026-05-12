@@ -1,0 +1,2853 @@
+
+            import {
+                initFirebase,
+                isAdmin,
+                getCurrentUser,
+                getWorldSnapshots,
+                subscribeToWorldSnapshots,
+                getSnapshotById,
+                applyWorldSnapshot,
+                deactivateWorldSnapshot,
+                deleteSnapshot,
+                forceSnapshotActiveState,
+                getTemplates,
+                saveWorldSnapshot,
+            } from "../firebase/firebase-service.js";
+            import { CITY_ANCHORS } from "../gameplay/data.js";
+            import { OverpassService } from "./overpass-service.js";
+            import { generateCitadelsAndZones } from "../maintenance/admin-citadel-generator.js";
+            import {
+                regenerateCityTerritory,
+                getTerritoryZones,
+            } from "./territory-service.js";
+            import { BulkActions } from "../maintenance/template-bulk-actions.js";
+            import "../maintenance/admin-world.js";
+
+            let map;
+            let currentSnapshot = null;
+            let bulkActions = null;
+            let markerClusterGroup = null;
+            let markerLayerGroup = null;
+            let districtLayerGroup = null;
+            let cityBoundaryLayerGroup = null;
+            let waterLayerGroup = null;
+            let landLayerGroup = null;
+            let countriesLayerGroup = null;
+            let contourVertexLayerGroup = null;
+            let _snapshotUnsubscribe = null; // Real-time listener cleanup
+            let _lastCitadelsByCity = null; // saved for manual zone generation
+
+            // Local IndexedDB manager for saving global map runs without hitting Firestore
+            window.LocalSnapshotsManager = {
+                dbName: "FightCraftLocalTemplates",
+                storeName: "local_snapshots",
+                async init() {
+                    return new Promise((resolve, reject) => {
+                        const request = indexedDB.open(this.dbName, 1);
+                        request.onupgradeneeded = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains(this.storeName)) {
+                                db.createObjectStore(this.storeName, {
+                                    keyPath: "id",
+                                });
+                            }
+                        };
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                },
+                async saveSnapshot(data) {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readwrite");
+                        const store = tx.objectStore(this.storeName);
+                        store.put(data);
+                        tx.oncomplete = () => resolve(data);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                },
+                async getAll() {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readonly");
+                        const store = tx.objectStore(this.storeName);
+                        const request = store.getAll();
+                        request.onsuccess = () => {
+                            const result = request.result || [];
+                            result.sort((a, b) => b.created - a.created);
+                            resolve(result);
+                        };
+                        request.onerror = () => reject(request.error);
+                    });
+                },
+                async getById(id) {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readonly");
+                        const store = tx.objectStore(this.storeName);
+                        const request = store.get(id);
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                },
+                async deleteSnapshot(id) {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readwrite");
+                        const store = tx.objectStore(this.storeName);
+                        store.delete(id);
+                        tx.oncomplete = () => resolve();
+                        tx.onerror = () => reject(tx.error);
+                    });
+                },
+            };
+
+            // === Right panel collapse ===
+            let _rightPanelCollapsed = false;
+            window.toggleRightPanel = function () {
+                _rightPanelCollapsed = !_rightPanelCollapsed;
+                const body = document.getElementById("right-panel-body");
+                const chevron = document.getElementById("right-panel-chevron");
+                const panel = document.getElementById("right-panel");
+                if (_rightPanelCollapsed) {
+                    body.style.display = "none";
+                    chevron.className = "fas fa-chevron-down";
+                    panel.style.minWidth = "auto";
+                } else {
+                    body.style.display = "";
+                    chevron.className = "fas fa-chevron-up";
+                    panel.style.minWidth = "300px";
+                }
+            };
+
+            const districtCache = {};
+            const adminDistrictCache = {};
+
+            // Cached land polygon for zone clipping
+            let _validLandMask = null;
+            let _oceanMask = null; // lazy, only for Water layer
+            let _landMaskLoading = false;
+
+            /**
+             * Load land polygon (countries merged + 20km buffer).
+             * Used for zone clipping via turf.intersect(zone, land).
+             * NO turf.mask() here — avoids the bbox rectangle bug.
+             */
+            async function loadLandMask(statusEl) {
+                if (_validLandMask) return _validLandMask;
+                if (_landMaskLoading) {
+                    while (_landMaskLoading)
+                        await new Promise((r) => setTimeout(r, 100));
+                    return _validLandMask;
+                }
+                _landMaskLoading = true;
+                try {
+                    const turf = window.turf;
+                    if (!turf || !window.topojson) return null;
+
+                    if (statusEl)
+                        statusEl.textContent = "Loading land boundaries...";
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    const mergedGeo = window.topojson.merge(
+                        topoData,
+                        topoData.objects.countries.geometries,
+                    );
+
+                    // Fix antimeridian: remove rings that cross 180/-180
+                    // (creates horizontal artifact through Russia)
+                    function fixAntimeridian(geo) {
+                        const polys =
+                            geo.type === "MultiPolygon"
+                                ? geo.coordinates
+                                : [geo.coordinates];
+                        const fixed = [];
+                        for (const poly of polys) {
+                            const goodRings = [];
+                            for (const ring of poly) {
+                                let crosses = false;
+                                for (let i = 0; i < ring.length - 1; i++) {
+                                    if (
+                                        Math.abs(ring[i][0] - ring[i + 1][0]) >
+                                        180
+                                    ) {
+                                        crosses = true;
+                                        break;
+                                    }
+                                }
+                                if (!crosses) goodRings.push(ring);
+                            }
+                            if (goodRings.length > 0) fixed.push(goodRings);
+                        }
+                        return {
+                            type: "MultiPolygon",
+                            coordinates: fixed,
+                        };
+                    }
+
+                    const cleanGeo = fixAntimeridian(mergedGeo);
+                    const rawLand = {
+                        type: "Feature",
+                        geometry: cleanGeo,
+                        properties: {},
+                    };
+
+                    if (statusEl)
+                        statusEl.textContent = "Buffering coastline +20km...";
+                    const bufferedLand = turf.buffer(rawLand, 20, {
+                        units: "kilometers",
+                    });
+
+                    _validLandMask = bufferedLand;
+                    logConsole(
+                        "Land mask ready (antimeridian-fixed + 20km buffer)",
+                    );
+                    return bufferedLand;
+                } catch (e) {
+                    console.error("Failed to load land mask:", e);
+                    return null;
+                } finally {
+                    _landMaskLoading = false;
+                }
+            }
+
+            /**
+             * Get ocean polygon (lazy, only for Water layer display).
+             * Uses turf.mask(land) — the bbox rectangle is fine for display only.
+             */
+            async function getOceanForDisplay() {
+                if (_oceanMask) return _oceanMask;
+                const land = await loadLandMask();
+                if (!land) return null;
+                try {
+                    _oceanMask = window.turf.mask(land);
+                    return _oceanMask;
+                } catch (e) {
+                    console.warn("Ocean mask error:", e);
+                    return null;
+                }
+            }
+
+            /**
+             * Clip zones to land using turf.intersect(zone, land).
+             * No ocean polygon, no bbox rectangle — direct land intersection.
+             * Optimized: skip inland zones via vertex check.
+             */
+            /**
+             * Clip Voronoi zones to land using individual country polygons.
+             * For each zone: intersect with every overlapping country,
+             * collect all land parts. Zones never extend beyond land.
+             * @param {Object} voronoiFC - turf FeatureCollection of Voronoi zones
+             * @param {Object} statusEl - status DOM element
+             * @param {Array} countryBboxes - pre-computed [{feature, minLng, minLat, maxLng, maxLat}]
+             */
+            async function clipZonesAndDrawContour(
+                voronoiFC,
+                statusEl,
+                countryBboxes,
+            ) {
+                const turf = window.turf;
+                if (!turf || !voronoiFC?.features) return voronoiFC;
+                if (!countryBboxes || countryBboxes.length === 0)
+                    return voronoiFC;
+
+                if (statusEl)
+                    statusEl.textContent = "Clipping zones to land...";
+                await new Promise((r) => setTimeout(r, 10));
+
+                const clippedFeatures = [];
+                const total = voronoiFC.features.length;
+                let trimmed = 0,
+                    removed = 0;
+
+                for (let i = 0; i < total; i++) {
+                    const zone = voronoiFC.features[i];
+                    if (!zone || !zone.geometry) continue;
+
+                    // Get zone bbox for fast rejection
+                    let zBbox;
+                    try {
+                        zBbox = turf.bbox(zone);
+                    } catch (e) {
+                        continue;
+                    }
+
+                    // Collect all land intersections from overlapping countries
+                    const parts = [];
+                    for (const cb of countryBboxes) {
+                        // Fast bbox rejection
+                        if (
+                            zBbox[2] < cb.minLng ||
+                            zBbox[0] > cb.maxLng ||
+                            zBbox[3] < cb.minLat ||
+                            zBbox[1] > cb.maxLat
+                        )
+                            continue;
+                        try {
+                            const part = turf.intersect(zone, cb.feature);
+                            if (part && part.geometry) {
+                                part.properties = { ...zone.properties };
+                                parts.push(part);
+                            }
+                        } catch (e) {
+                            /* geometry error */
+                        }
+                    }
+
+                    if (parts.length > 0) {
+                        // Add all land parts (may be multiple polygons for coastal zones)
+                        for (const p of parts) clippedFeatures.push(p);
+                        trimmed++;
+                    } else {
+                        removed++;
+                    }
+
+                    if (i % 50 === 0 && i > 0) {
+                        if (statusEl)
+                            statusEl.textContent = `Clipping: ${i}/${total} (${trimmed} clipped, ${removed} ocean)...`;
+                        await new Promise((r) => setTimeout(r, 3));
+                    }
+                }
+
+                logConsole(
+                    `Clipped: ${trimmed} zones to land, ${removed} fully ocean (of ${total})`,
+                );
+                return turf.featureCollection(clippedFeatures);
+            }
+
+            /**
+             * Render water as "everything that is NOT land".
+             * Draws a world-covering polygon with country shapes cut out as holes.
+             * No turf.mask, no topojson.merge — uses individual countries.
+             */
+            async function renderWaterLayer() {
+                if (!waterLayerGroup) return;
+                waterLayerGroup.clearLayers();
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    const fixed = fixAntimeridianGeoJSON(countriesFC);
+
+                    // Outer ring: covers the entire visible map area
+                    // Must go counter-clockwise for Leaflet to treat it as outer boundary
+                    const outerRing = [
+                        [-90, -200],
+                        [-90, 200],
+                        [90, 200],
+                        [90, -200],
+                        [-90, -200],
+                    ];
+
+                    // Collect ALL land rings as holes (clockwise = hole in Leaflet)
+                    const holes = [];
+                    for (const feature of fixed.features) {
+                        const geo = feature.geometry;
+                        let polys = [];
+                        if (geo.type === "Polygon") polys = [geo.coordinates];
+                        else if (geo.type === "MultiPolygon")
+                            polys = geo.coordinates;
+                        for (const poly of polys) {
+                            // Only outer ring of each polygon (index 0), skip inner holes
+                            if (poly[0] && poly[0].length >= 4) {
+                                holes.push(poly[0]);
+                            }
+                        }
+                    }
+
+                    // Build Leaflet polygon: outer ring + holes
+                    // Leaflet expects [lat, lng], GeoJSON has [lng, lat]
+                    const outerLatLngs = outerRing.map(([lat, lng]) => [
+                        lat,
+                        lng,
+                    ]);
+                    const holeLatLngs = holes.map((ring) =>
+                        ring.map(([lng, lat]) => [lat, lng]),
+                    );
+
+                    L.polygon([outerLatLngs, ...holeLatLngs], {
+                        color: "#1e40af",
+                        weight: 0,
+                        fillColor: "#1e3a5f",
+                        fillOpacity: 0.35,
+                        interactive: false,
+                    }).addTo(waterLayerGroup);
+                } catch (e) {
+                    console.warn("Water layer error:", e);
+                }
+            }
+
+            /**
+             * Render the land polygon as a green semi-transparent layer.
+             */
+            async function renderLandLayer() {
+                if (!landLayerGroup) return;
+                landLayerGroup.clearLayers();
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    // Use individual country features instead of merge
+                    // to avoid antimeridian artifact (horizontal black band)
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    L.geoJSON(fixAntimeridianGeoJSON(countriesFC), {
+                        style: {
+                            color: "#16a34a",
+                            weight: 2,
+                            fillColor: "transparent",
+                            fillColor: "#15803d",
+                            fillOpacity: 0.15,
+                        },
+                        interactive: false,
+                    }).addTo(landLayerGroup);
+                } catch (e) {
+                    console.warn("Land layer error:", e);
+                }
+            }
+
+            // ==================== ANTIMERIDIAN FIX ====================
+            /**
+             * Fix antimeridian crossing in a coordinate ring.
+             *
+             * Two cases:
+             * 1. SMALL crossing (Chukotka, Fiji): ring spans <180° around
+             *    the antimeridian → shift negative lngs by +360°.
+             * 2. GLOBE-WRAPPING (Antarctica): ring spans >180° (goes all
+             *    the way around) → leave as-is (seam at antimeridian
+             *    is the standard cylindrical representation).
+             */
+            function _fixRing(ring) {
+                let crosses = false;
+                for (let i = 0; i < ring.length - 1; i++) {
+                    if (Math.abs(ring[i][0] - ring[i + 1][0]) > 180) {
+                        crosses = true;
+                        break;
+                    }
+                }
+                if (!crosses) return ring;
+
+                // Unwrap longitudes to measure the TRUE angular span.
+                // If span > 180° the ring wraps around the globe — skip.
+                const lngs = [ring[0][0]];
+                let offset = 0;
+                for (let i = 1; i < ring.length; i++) {
+                    let lng = ring[i][0] + offset;
+                    while (lng - lngs[i - 1] > 180) {
+                        lng -= 360;
+                        offset -= 360;
+                    }
+                    while (lngs[i - 1] - lng > 180) {
+                        lng += 360;
+                        offset += 360;
+                    }
+                    lngs.push(lng);
+                }
+                let minL = lngs[0],
+                    maxL = lngs[0];
+                for (const l of lngs) {
+                    if (l < minL) minL = l;
+                    if (l > maxL) maxL = l;
+                }
+                if (maxL - minL > 180) return ring; // Antarctica etc.
+
+                // Small crossing — shift negative lngs to +360°
+                return ring.map(([lng, lat]) => [
+                    lng < 0 ? lng + 360 : lng,
+                    lat,
+                ]);
+            }
+
+            /**
+             * Deep-fix all coordinate rings in any GeoJSON structure.
+             * Handles Feature, FeatureCollection, Polygon, MultiPolygon.
+             */
+            function fixAntimeridianGeoJSON(geojson) {
+                function fixGeometry(geo) {
+                    if (!geo) return geo;
+                    if (geo.type === "Polygon") {
+                        return {
+                            ...geo,
+                            coordinates: geo.coordinates.map(_fixRing),
+                        };
+                    }
+                    if (geo.type === "MultiPolygon") {
+                        return {
+                            ...geo,
+                            coordinates: geo.coordinates.map((poly) =>
+                                poly.map(_fixRing),
+                            ),
+                        };
+                    }
+                    return geo;
+                }
+                if (geojson.type === "FeatureCollection") {
+                    return {
+                        ...geojson,
+                        features: geojson.features.map((f) => ({
+                            ...f,
+                            geometry: fixGeometry(f.geometry),
+                        })),
+                    };
+                }
+                if (geojson.type === "Feature") {
+                    return {
+                        ...geojson,
+                        geometry: fixGeometry(geojson.geometry),
+                    };
+                }
+                return fixGeometry(geojson);
+            }
+
+            /**
+             * Haversine distance in km between two [lng, lat] coords.
+             */
+            function _haversineKm(c1, c2) {
+                const R = 6371;
+                const dLat = ((c2[1] - c1[1]) * Math.PI) / 180;
+                const dLng = ((c2[0] - c1[0]) * Math.PI) / 180;
+                const a =
+                    Math.sin(dLat / 2) ** 2 +
+                    Math.cos((c1[1] * Math.PI) / 180) *
+                        Math.cos((c2[1] * Math.PI) / 180) *
+                        Math.sin(dLng / 2) ** 2;
+                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            }
+
+            /**
+             * Render clickable markers at each vertex of the land contour
+             * where an adjacent segment is >= ~1000km (indicating low-resolution
+             * coastline that may cause incorrect land/water classification).
+             */
+            async function renderLandContourVertices() {
+                if (!contourVertexLayerGroup) return;
+                contourVertexLayerGroup.clearLayers();
+
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    // Fix antimeridian before extracting rings
+                    const fixedFC = fixAntimeridianGeoJSON(countriesFC);
+
+                    let rings = [];
+                    for (const feature of fixedFC.features) {
+                        const geo = feature.geometry;
+                        if (geo.type === "Polygon") {
+                            rings.push(...geo.coordinates);
+                        } else if (geo.type === "MultiPolygon") {
+                            for (const poly of geo.coordinates) {
+                                rings.push(...poly);
+                            }
+                        }
+                    }
+
+                    let totalMarkers = 0;
+                    for (const ring of rings) {
+                        const len = ring.length;
+                        for (let i = 0; i < len; i++) {
+                            const prev = ring[(i - 1 + len) % len];
+                            const curr = ring[i];
+                            const next = ring[(i + 1) % len];
+
+                            const distPrev = _haversineKm(prev, curr);
+                            const distNext = _haversineKm(curr, next);
+                            const maxDist = Math.max(distPrev, distNext);
+
+                            // Color: green=short, yellow=medium, orange=long, red=very long
+                            const color =
+                                maxDist >= 300
+                                    ? "#ef4444"
+                                    : maxDist >= 200
+                                      ? "#f97316"
+                                      : maxDist >= 100
+                                        ? "#eab308"
+                                        : "#22c55e";
+
+                            const marker = L.circleMarker([curr[1], curr[0]], {
+                                radius: 3,
+                                color: color,
+                                fillColor: color,
+                                fillOpacity: 0.85,
+                                weight: 1,
+                            });
+                            marker.bindPopup(
+                                `<div class="text-xs">
+                                    <b style="color:${color}">Contour Vertex #${totalMarkers + 1}</b><br>
+                                    <code>${curr[1].toFixed(3)}, ${curr[0].toFixed(3)}</code><br>
+                                    <hr class="my-1 border-gray-600">
+                                    \u2190 prev: <b>${distPrev.toFixed(0)} km</b><br>
+                                    \u2192 next: <b>${distNext.toFixed(0)} km</b>
+                                </div>`,
+                            );
+                            marker.addTo(contourVertexLayerGroup);
+                            totalMarkers++;
+                        }
+                    }
+                    logConsole(
+                        `Contour vertices: ${totalMarkers} markers (all)`,
+                    );
+                } catch (e) {
+                    console.warn("Contour vertex error:", e);
+                }
+            }
+
+            /**
+             * Render country borders as a toggleable layer.
+             */
+            async function renderCountriesLayer() {
+                if (!countriesLayerGroup) return;
+                countriesLayerGroup.clearLayers();
+                try {
+                    const resp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const topoData = await resp.json();
+                    // Render each country as a closed polygon (no fill, only border)
+                    const countriesFC = window.topojson.feature(
+                        topoData,
+                        topoData.objects.countries,
+                    );
+                    L.geoJSON(fixAntimeridianGeoJSON(countriesFC), {
+                        style: {
+                            color: "#9ca3af",
+                            weight: 1,
+                            fillColor: "transparent",
+                            fillOpacity: 0,
+                            opacity: 0.5,
+                        },
+                        interactive: false,
+                    }).addTo(countriesLayerGroup);
+                } catch (e) {
+                    console.warn("Countries layer error:", e);
+                }
+            }
+
+            const visibility = {
+                monster: true,
+                shop: true,
+                vault: true,
+                castle: true,
+                citadel: true,
+                district: true,
+                cityBoundary: false,
+                water: false,
+                land: false,
+                countries: false,
+                contourVertices: false,
+            };
+
+            window.toggleLayer = (type) => {
+                const idMap = {
+                    monster: "toggle-monsters",
+                    shop: "toggle-shops",
+                    vault: "toggle-vaults",
+                    castle: "toggle-castles",
+                    citadel: "toggle-citadels",
+                    district: "toggle-districts",
+                    cityBoundary: "toggle-city-boundary",
+                    water: "toggle-water",
+                    land: "toggle-land",
+                    countries: "toggle-countries",
+                    contourVertices: "toggle-contour-vertices",
+                };
+
+                const checkbox = document.getElementById(idMap[type]);
+                if (!checkbox) return;
+                visibility[type] = checkbox.checked;
+
+                if (type === "water") {
+                    if (visibility.water) {
+                        renderWaterLayer();
+                    } else {
+                        waterLayerGroup.clearLayers();
+                    }
+                    return;
+                }
+                if (type === "land") {
+                    if (visibility.land) {
+                        renderLandLayer();
+                    } else {
+                        landLayerGroup.clearLayers();
+                    }
+                    return;
+                }
+                if (type === "countries") {
+                    if (visibility.countries) {
+                        renderCountriesLayer();
+                    } else {
+                        countriesLayerGroup.clearLayers();
+                    }
+                    return;
+                }
+                if (type === "contourVertices") {
+                    if (visibility.contourVertices) {
+                        renderLandContourVertices();
+                    } else {
+                        contourVertexLayerGroup.clearLayers();
+                    }
+                    return;
+                }
+
+                if (currentSnapshot) {
+                    if (type === "district") {
+                        if (visibility.district) {
+                            let cacheKey = currentSnapshot.cityId;
+                            if (currentSnapshot.zones)
+                                cacheKey = `${currentSnapshot.cityId}_${currentSnapshot.id}`;
+                            if (districtCache[cacheKey])
+                                renderDistrictsFromData(
+                                    districtCache[cacheKey],
+                                );
+                            else
+                                loadDistrictsForPreview(currentSnapshot.cityId);
+                        } else {
+                            districtLayerGroup.clearLayers();
+                        }
+                    } else if (type === "cityBoundary") {
+                        if (visibility.cityBoundary) {
+                            loadCityMetadata(currentSnapshot.cityId);
+                        } else {
+                            cityBoundaryLayerGroup.clearLayers();
+                        }
+                    } else {
+                        renderSnapshotOnMap(currentSnapshot);
+                    }
+                }
+            };
+
+            // Init
+            document.addEventListener("DOMContentLoaded", async () => {
+                await initFirebase();
+
+                bulkActions = new BulkActions(deleteSnapshot, loadSnapshots);
+
+                if (!isAdmin()) {
+                    document
+                        .getElementById("admin-lock")
+                        .classList.remove("hidden");
+                    return;
+                }
+
+                const user = getCurrentUser();
+                document.getElementById("admin-status").innerHTML =
+                    `<span class="text-green-400">● Online (${user ? user.email : "test@admin.com"})</span>`;
+
+                initMap();
+
+                logConsole("🚀 System initialized. Ready to explore.");
+
+                // Template-Sync: Use real-time listener instead of polling
+                setTimeout(() => {
+                    _snapshotUnsubscribe = subscribeToWorldSnapshots(
+                        (snapshots) => {
+                            mergeAndRenderSnapshots(snapshots);
+                            // On first load, trigger city metadata after a delay
+                            if (currentSnapshot && !_initialMetadataLoaded) {
+                                _initialMetadataLoaded = true;
+                                setTimeout(
+                                    () =>
+                                        loadCityMetadata(
+                                            currentSnapshot.cityId,
+                                        ),
+                                    1500,
+                                );
+                            }
+                        },
+                    );
+                    logConsole("📡 Real-time snapshot listener active.");
+                }, 500);
+            });
+
+            window.addEventListener("beforeunload", () => {
+                if (_snapshotUnsubscribe) _snapshotUnsubscribe();
+            });
+
+            let _initialMetadataLoaded = false;
+
+            // Local IndexedDB manager for saving global map runs without hitting Firestore
+            const LocalSnapshotsManager = {
+                dbName: "FightCraftLocalTemplates",
+                storeName: "local_snapshots",
+                async init() {
+                    return new Promise((resolve, reject) => {
+                        const request = indexedDB.open(this.dbName, 1);
+                        request.onupgradeneeded = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains(this.storeName)) {
+                                db.createObjectStore(this.storeName, {
+                                    keyPath: "id",
+                                });
+                            }
+                        };
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                },
+                async saveSnapshot(data) {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readwrite");
+                        const store = tx.objectStore(this.storeName);
+                        store.put(data);
+                        tx.oncomplete = () => resolve(data);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                },
+                async getAll() {
+                    const db = await this.init();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, "readonly");
+                        const store = tx.objectStore(this.storeName);
+                        const request = store.getAll();
+                        request.onsuccess = () => {
+                            const result = request.result || [];
+                            result.sort((a, b) => b.created - a.created);
+                            resolve(result);
+                        };
+                        request.onerror = () => reject(request.error);
+                    });
+                },
+                async deleteSnapshot(id) {
+                    const db = await this.init();
+                    const tx = db.transaction(this.storeName, "readwrite");
+                    const store = tx.objectStore(this.storeName);
+                    store.delete(id);
+                    return new Promise((resolve, reject) => {
+                        tx.oncomplete = () => resolve(true);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                },
+            };
+            window.LocalSnapshotsManager = LocalSnapshotsManager;
+
+            async function mergeAndRenderSnapshots(firestoreSnapshots) {
+                try {
+                    const localSnaps = await LocalSnapshotsManager.getAll();
+                    const combined = [...localSnaps, ...firestoreSnapshots];
+                    combined.sort((a, b) => b.created - a.created);
+                    renderSnapshotList(combined);
+                } catch (e) {
+                    console.error("Local IDB error:", e);
+                    renderSnapshotList(firestoreSnapshots);
+                }
+            }
+
+            /**
+             * Renders the snapshot sidebar list from real-time data.
+             * Replaces the old loadSnapshots() polling function.
+             */
+            function renderSnapshotList(snaps) {
+                const list = document.getElementById("snapshot-list");
+
+                if (!snaps || snaps.length === 0) {
+                    list.innerHTML =
+                        '<div class="text-center text-gray-500 text-xs mt-4">No snapshots found. Generate some!</div>';
+                    return;
+                }
+
+                // Preserve current selection if it still exists
+                const previousSelectedId = currentSnapshot
+                    ? currentSnapshot.id
+                    : null;
+
+                list.innerHTML = "";
+
+                const visibleIds = snaps.map((s) => s.id);
+                if (bulkActions)
+                    bulkActions.injectSelectAllHeader(list, visibleIds);
+
+                snaps.forEach((snap) => {
+                    const el = document.createElement("div");
+                    el.className =
+                        "p-3 bg-gray-900 border border-gray-700 hover:border-blue-500 rounded cursor-pointer transition";
+                    el.id = `snap-${snap.id}`;
+
+                    const dateStr = new Date(snap.created).toLocaleString();
+                    const typesPresent = new Set();
+                    let hasCitadel = false;
+                    let hasCastle = false;
+
+                    if (snap.objects && snap.objects.length > 0) {
+                        snap.objects.forEach((o) => {
+                            if (o.type === "castle") {
+                                if (
+                                    o.icon === "🏯" ||
+                                    (o.name && o.name.includes("Citadel"))
+                                )
+                                    hasCitadel = true;
+                                else hasCastle = true;
+                            } else if (o.type) {
+                                typesPresent.add(o.type);
+                            }
+                        });
+                    } else if (snap.type) {
+                        if (snap.type === "castle") hasCastle = true;
+                        else typesPresent.add(snap.type);
+                    }
+
+                    let iconsHtml = "";
+                    if (typesPresent.has("monster"))
+                        iconsHtml +=
+                            '<i class="fas fa-skull text-purple-400" title="Monsters"></i>';
+                    if (typesPresent.has("shop"))
+                        iconsHtml +=
+                            '<i class="fas fa-store text-yellow-400 ml-1" title="Shops"></i>';
+                    if (typesPresent.has("vault"))
+                        iconsHtml +=
+                            '<i class="fas fa-box text-emerald-400 ml-1" title="Vaults"></i>';
+                    if (hasCastle)
+                        iconsHtml +=
+                            '<i class="fas fa-chess-rook text-blue-400 ml-1" title="Castles"></i>';
+                    if (hasCitadel)
+                        iconsHtml +=
+                            '<span class="ml-1 text-lg leading-none" title="Citadels">🏯</span>';
+                    if (!iconsHtml)
+                        iconsHtml =
+                            '<i class="fas fa-file-alt text-gray-500"></i>';
+
+                    el.innerHTML = `
+                            <div class="flex justify-between items-start mb-1">
+                                <div class="flex items-center gap-2 w-full overflow-hidden">
+                                    <div class="bulk-checkbox-container"></div>
+                                    <div class="flex flex-col overflow-hidden w-full">
+                                        <div class="flex items-center gap-2 pr-2">
+                                            <div class="font-bold text-sm text-gray-200 truncate">${snap.name || snap.id.substr(0, 15)}</div>
+                                            ${snap.isActive ? '<span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded uppercase">Active</span>' : ""}
+                                        </div>
+                                        <div class="text-[10px] text-gray-500">${dateStr}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-[10px] text-gray-400 flex items-center justify-between mt-2">
+                                <div>
+                                    <i class="fas fa-globe text-blue-500/50 mr-1"></i> ${snap.cityId ? snap.cityId.toUpperCase() : "UNKNOWN"}
+                                </div>
+                                <div>
+                                    ${iconsHtml}
+                                </div>
+                            </div>
+                            `;
+
+                    // Inject bulk checkbox
+                    if (bulkActions) {
+                        const cbContainer = el.querySelector(
+                            ".bulk-checkbox-container",
+                        );
+                        if (cbContainer) {
+                            cbContainer.appendChild(
+                                bulkActions.createCheckbox(snap.id),
+                            );
+                        }
+                    }
+
+                    el.addEventListener("click", (e) => {
+                        if (e.target.tagName.toLowerCase() === "input") return;
+                        document
+                            .querySelectorAll("#snapshot-list > div")
+                            .forEach((d) =>
+                                d.classList.remove(
+                                    "border-blue-500",
+                                    "bg-gray-800",
+                                ),
+                            );
+                        el.classList.add("border-blue-500", "bg-gray-800");
+                        selectSnapshot(snap);
+                    });
+
+                    list.appendChild(el);
+                });
+
+                // Re-select previous or auto-select first
+                if (previousSelectedId) {
+                    const stillExists = snaps.find(
+                        (s) => s.id === previousSelectedId,
+                    );
+                    if (stillExists) {
+                        // Update currentSnapshot data but don't re-render map (avoid flicker)
+                        currentSnapshot = stillExists;
+                        const activeEl = document.getElementById(
+                            `snap-${previousSelectedId}`,
+                        );
+                        if (activeEl)
+                            activeEl.classList.add(
+                                "border-blue-500",
+                                "bg-gray-800",
+                            );
+                    } else {
+                        selectSnapshot(snaps[0]);
+                    }
+                } else if (snaps.length > 0) {
+                    selectSnapshot(snaps[0]);
+                }
+            }
+
+            window.toggleConsole = () => {
+                const panel = document.getElementById("console-panel");
+                panel.classList.toggle("hidden");
+            };
+
+            function logConsole(msg) {
+                const con = document.getElementById("console-log");
+                if (!con) return;
+                const div = document.createElement("div");
+                div.className =
+                    "mb-1 border-b border-gray-800/30 pb-1 last:border-0";
+                div.innerHTML = `<span class="text-blue-500/70 mr-1">[${new Date().toLocaleTimeString([], { hour12: false })}]</span> ${msg}`;
+                con.prepend(div);
+
+                // Limited history
+                if (con.children.length > 50) con.removeChild(con.lastChild);
+            }
+
+            function initMap() {
+                if (map) map.remove();
+
+                // Cylindrical projection (Mercator), fit all continents
+                map = L.map("map", {
+                    renderer: L.canvas(),
+                    preferCanvas: true,
+                    worldCopyJump: false,
+                    minZoom: 1,
+                    maxZoom: 18,
+                }).fitBounds(
+                    [
+                        [-86, -180], // SW: Antarctica bottom-left
+                        [84, 195], //   NE: top-right (Chukotka shifted to ~190°)
+                    ],
+                    { padding: [10, 10] },
+                );
+
+                L.tileLayer(
+                    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+                    {
+                        attribution: "\u00a9OpenStreetMap",
+                    },
+                ).addTo(map);
+
+                // MARKER CLUSTERING (Excluding Citadels)
+                markerClusterGroup = L.markerClusterGroup({
+                    spiderfyOnMaxZoom: true,
+                    disableClusteringAtZoom: 16,
+                    maxClusterRadius: 120, // High density for performance
+                    chunkedLoading: true,
+                    animate: false,
+                });
+                map.addLayer(markerClusterGroup);
+
+                markerLayerGroup = L.layerGroup().addTo(map);
+                districtLayerGroup = L.layerGroup().addTo(map);
+                cityBoundaryLayerGroup = L.layerGroup().addTo(map);
+                waterLayerGroup = L.layerGroup().addTo(map);
+                landLayerGroup = L.layerGroup().addTo(map);
+                countriesLayerGroup = L.layerGroup().addTo(map);
+                contourVertexLayerGroup = L.layerGroup().addTo(map);
+            }
+
+            async function loadSnapshots() {
+                const list = document.getElementById("snapshot-list");
+
+                list.innerHTML =
+                    '<div class="text-center text-gray-500 text-xs mt-4">Fetching history...</div>';
+
+                const snaps = await getWorldSnapshots();
+                await mergeAndRenderSnapshots(snaps);
+            }
+
+            async function selectSnapshot(snap) {
+                currentSnapshot = snap;
+
+                // Remove active classes
+                document
+                    .querySelectorAll("#snapshot-list > div")
+                    .forEach((el) =>
+                        el.classList.remove("border-blue-500", "bg-gray-800"),
+                    );
+                const activeEl = document.getElementById(`snap-${snap.id}`);
+                if (activeEl)
+                    activeEl.classList.add("border-blue-500", "bg-gray-800");
+
+                // Update UI
+                document.getElementById("selected-snap-title").textContent =
+                    snap.name ||
+                    `${snap.cityId.toUpperCase()} - ${new Date(snap.created).toLocaleTimeString()}`;
+                // Calculate Stats
+                const counts = {
+                    monster: 0,
+                    shop: 0,
+                    vault: 0,
+                    castle: 0,
+                    citadel: 0,
+                    other: 0,
+                };
+                const levels = { min: 999, max: 0, avg: 0, sum: 0 };
+                const objects = snap.objects || [];
+
+                // Distribution Maps
+                const monsterStats = {},
+                    shopStats = {},
+                    vaultStats = {},
+                    castleStats = {},
+                    citadelStats = {};
+                window.zoneNames = {};
+                let zoneCount = 0;
+                let geoFeatures = [];
+
+                if (snap.zones) {
+                    try {
+                        const z =
+                            typeof snap.zones === "string"
+                                ? JSON.parse(snap.zones)
+                                : snap.zones;
+                        if (z.features) {
+                            geoFeatures = z.features;
+                            zoneCount = geoFeatures.length;
+                            geoFeatures.forEach((f, idx) => {
+                                // Get zone ID - UNIQUE identifier (exclude name!)
+                                let id =
+                                    f.properties?.citadelId ||
+                                    f.properties?.id ||
+                                    f.id;
+
+                                // If ID is missing or generic/non-unique, use index fallback
+                                const checkId = String(id || "")
+                                    .trim()
+                                    .toLowerCase();
+                                if (
+                                    !id ||
+                                    checkId === "citadel" ||
+                                    checkId === "castle" ||
+                                    checkId === "zone"
+                                ) {
+                                    id = `zone_${idx}`;
+                                }
+
+                                // Get display name
+                                let name =
+                                    f.properties?.name ||
+                                    f.properties?.citadelName ||
+                                    f.properties?.label ||
+                                    id;
+
+                                // If name is generic "Citadel", append ID or index to distinguish
+                                if (name === "Citadel")
+                                    name = `${name} ${idx + 1}`;
+
+                                window.zoneNames[id] = name;
+
+                                // Store the ID back in properties for consistency (FORCE UPDATE)
+                                f.properties.citadelId = id;
+
+                                // Initialize with 0 to ensure they appear in the list
+                                monsterStats[id] = 0;
+                                shopStats[id] = 0;
+                                castleStats[id] = 0;
+                                citadelStats[id] = 0;
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Error parsing stats zones:", e);
+                    }
+                }
+
+                objects.forEach((o, idx) => {
+                    // 1. Identify Category
+                    const isCitadel =
+                        o.icon === "🏯" ||
+                        (o.name && o.name.includes("Citadel")) ||
+                        (o.templateId && o.templateId.includes("citadel"));
+
+                    // 2. Population Counts
+                    if (isCitadel) counts.citadel++;
+                    else if (o.type === "monster") counts.monster++;
+                    else if (o.type === "shop") counts.shop++;
+                    else if (o.type === "vault") counts.vault++;
+                    else if (o.type === "castle") counts.castle++;
+                    else counts.other++;
+
+                    // 3. Level stats
+                    const lvl = o.level || 1;
+                    if (lvl < levels.min) levels.min = lvl;
+                    if (lvl > levels.max) levels.max = lvl;
+                    levels.sum += lvl;
+
+                    // 4. Determine Logical Zone (SPATIAL ONLY - Ignore stored zoneId for accuracy)
+                    let zid = null;
+
+                    // Always auto-assign zoneId using spatial check if zones exist
+                    if (geoFeatures.length > 0 && window.turf) {
+                        const point = [o.lng, o.lat];
+                        let found = null;
+
+                        for (const f of geoFeatures) {
+                            try {
+                                const isInside =
+                                    window.turf.booleanPointInPolygon(point, f);
+                                if (isInside) {
+                                    found = f;
+                                    break;
+                                }
+                            } catch (e) {
+                                // Silently continue - some features may have invalid geometry
+                            }
+                        }
+
+                        if (found) {
+                            // Use the citadelId that was set during initialization
+                            zid =
+                                found.properties.citadelId ||
+                                found.properties.id ||
+                                found.id;
+
+                            // Apply same fallback logic as above
+                            if (
+                                !zid ||
+                                zid === "Citadel" ||
+                                zid === "Castle" ||
+                                zid === "Zone"
+                            ) {
+                            }
+
+                            zid = found.properties.citadelId || found.id;
+
+                            if (zid) o.zoneId = zid;
+                        }
+                    }
+
+                    if (!zid) zid = "Outside Territories";
+
+                    // 5. Add to Distribution
+                    const target = isCitadel
+                        ? citadelStats
+                        : o.type === "monster"
+                          ? monsterStats
+                          : o.type === "shop"
+                            ? shopStats
+                            : o.type === "vault"
+                              ? vaultStats
+                              : o.type === "castle"
+                                ? castleStats
+                                : null;
+                    if (target) {
+                        target[zid] = (target[zid] || 0) + 1;
+                    }
+                });
+
+                levels.avg = objects.length
+                    ? (levels.sum / objects.length).toFixed(1)
+                    : 0;
+                if (levels.min === 999) levels.min = 0;
+
+                const mapper = (map) =>
+                    Object.entries(map).map(([id, count]) => ({ id, count }));
+                const monsterDist = mapper(monsterStats);
+                const shopDist = mapper(shopStats);
+                const vaultDist = mapper(vaultStats);
+                const castleDist = mapper(castleStats);
+                const citadelDist = mapper(citadelStats);
+
+                if (zoneCount === 0) {
+                    const uniqueIds = new Set([
+                        ...Object.keys(monsterStats),
+                        ...Object.keys(shopStats),
+                        ...Object.keys(vaultStats),
+                        ...Object.keys(castleStats),
+                        ...Object.keys(citadelStats),
+                    ]);
+                    uniqueIds.delete("Outside Territories");
+                    zoneCount = uniqueIds.size;
+                }
+
+                window.currentZoneStats = {
+                    monsters: monsterDist,
+                    shops: shopDist,
+                    vaults: vaultDist,
+                    castles: castleDist,
+                    citadels: citadelDist,
+                };
+                window.activeStatsTab = "monsters";
+
+                const detailsHtml = `
+                            <div class="space-y-1.5">
+                                <!-- Core Stats Grid -->
+                                <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                                    <div class="bg-gray-700/30 p-2 rounded-lg border border-gray-700/50">
+                                        <span class="text-gray-500 block uppercase tracking-tighter">Snap ID</span>
+                                        <span class="text-white font-mono font-bold">${snap.id ? snap.id.substring(0, 10) : "N/A"}</span>
+                                    </div>
+                                    <div class="bg-gray-700/30 p-2 rounded-lg border border-gray-700/50">
+                                        <span class="text-gray-500 block uppercase tracking-tighter">City</span>
+                                        <span class="text-white font-bold uppercase">${snap.cityId || "Unknown"}</span>
+                                    </div>
+                                    <div class="bg-gray-700/30 p-2 rounded-lg border border-gray-700/50">
+                                        <span class="text-gray-500 block uppercase tracking-tighter">Type</span>
+                                        <span class="text-white font-bold uppercase text-blue-400">${snap.type || "Mixed"}</span>
+                                    </div>
+                                    <div class="bg-gray-700/30 p-2 rounded-lg border border-gray-700/50">
+                                        <span class="text-gray-500 block uppercase tracking-tighter">Date</span>
+                                        <span class="text-white font-bold">${new Date(snap.created).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Object Counts -->
+                                <div class="bg-gray-900/40 p-1.5 rounded-xl border border-gray-700/50">
+                                    <h4 class="text-[9px] font-bold text-gray-500 mb-1 uppercase tracking-widest">Population Stats</h4>
+                                    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                        <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                                            <span class="text-gray-400">👾 Monsters</span>
+                                            <span class="text-purple-400 font-bold">${counts.monster}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                                            <span class="text-gray-400">🏪 Shops</span>
+                                            <span class="text-yellow-400 font-bold">${counts.shop}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                                            <span class="text-gray-400">📦 Vaults</span>
+                                            <span class="text-emerald-400 font-bold">${counts.vault || 0}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                                            <span class="text-gray-400">🏰 Castles</span>
+                                            <span class="text-blue-400 font-bold">${counts.castle}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                                            <span class="text-gray-400">🏯 Citadels</span>
+                                            <span class="text-orange-400 font-bold">${counts.citadel}</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 flex justify-between items-center text-[10px] bg-yellow-900/20 px-2 py-1 rounded border border-yellow-800/30">
+                                        <span class="text-yellow-600 font-bold uppercase">🧭 Territory Zones</span>
+                                        <span class="text-yellow-400 font-bold">${zoneCount}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Level Range -->
+                                <div class="bg-gray-900/40 p-1.5 rounded-xl border border-gray-700/50">
+                                    <h4 class="text-[9px] font-bold text-gray-500 mb-1 uppercase tracking-widest text-center">Challenge Level</h4>
+                                    <div class="flex justify-around items-center text-xs">
+                                        <div class="text-center">
+                                            <div class="text-[9px] text-gray-500 uppercase">Min</div>
+                                            <div class="text-white font-bold">${levels.min}</div>
+                                        </div>
+                                        <div class="h-6 w-px bg-gray-800"></div>
+                                        <div class="text-center">
+                                            <div class="text-[9px] text-gray-500 uppercase">Avg</div>
+                                            <div class="text-white font-bold">${levels.avg}</div>
+                                        </div>
+                                        <div class="h-6 w-px bg-gray-800"></div>
+                                        <div class="text-center">
+                                            <div class="text-[9px] text-gray-500 uppercase">Max</div>
+                                            <div class="text-white font-bold">${levels.max}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Distribution with Tabs and Search -->
+                                ${
+                                    zoneCount > 0 ||
+                                    monsterDist.length > 0 ||
+                                    shopDist.length > 0 ||
+                                    castleDist.length > 0 ||
+                                    citadelDist.length > 0
+                                        ? `
+                                <div class="border-t border-gray-700 pt-1.5">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <h4 class="text-[10px] font-bold text-gray-300 uppercase tracking-tight">Zone Distribution</h4>
+                                        <div class="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700 overflow-x-auto max-w-full no-scrollbar">
+                                            <button onclick="switchStatsTab('monsters')" id="tab-monsters"
+                                                class="px-2 py-1 rounded-md text-[9px] font-bold transition-all whitespace-nowrap ${window.activeStatsTab === "monsters" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}">
+                                                👾 MON
+                                            </button>
+                                            <button onclick="switchStatsTab('shops')" id="tab-shops"
+                                                class="px-2 py-1 rounded-md text-[9px] font-bold transition-all whitespace-nowrap ${window.activeStatsTab === "shops" ? "bg-yellow-600 text-white" : "text-gray-500 hover:text-gray-300"}">
+                                                🏪 SHOP
+                                            </button>
+                                            <button onclick="switchStatsTab('vaults')" id="tab-vaults"
+                                                class="px-2 py-1 rounded-md text-[9px] font-bold transition-all whitespace-nowrap ${window.activeStatsTab === "vaults" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-300"}">
+                                                📦 VAU
+                                            </button>
+                                            <button onclick="switchStatsTab('castles')" id="tab-castles"
+                                                class="px-2 py-1 rounded-md text-[9px] font-bold transition-all whitespace-nowrap ${window.activeStatsTab === "castles" ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-300"}">
+                                                🏰 CAS
+                                            </button>
+                                            <button onclick="switchStatsTab('citadels')" id="tab-citadels"
+                                                class="px-2 py-1 rounded-md text-[9px] font-bold transition-all whitespace-nowrap ${window.activeStatsTab === "citadels" ? "bg-orange-600 text-white" : "text-gray-500 hover:text-gray-300"}">
+                                                🏯 CIT
+                                            </button>
+                                            <button onclick="switchStatsTab('boundaries')" id="tab-boundaries"
+                                                class="px-2 py-1 rounded-md text-[9px] font-bold transition-all whitespace-nowrap ${window.activeStatsTab === "boundaries" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-300"}">
+                                                🌐 ZON
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Search Box -->
+                                    <div class="relative mb-2">
+                                        <i class="fas fa-search absolute left-2 top-1.5 text-[10px] text-gray-600"></i>
+                                        <input type="text" id="zone-search" oninput="filterZoneStats(this.value)" placeholder="Search zones..."
+                                            class="w-full bg-gray-900 border border-gray-800 rounded-lg py-1 pl-7 pr-2 text-[10px] text-gray-300 focus:outline-none focus:border-gray-600 transition">
+                                    </div>
+
+                                    <!-- List Container -->
+                                    <div id="stats-list-container" class="max-h-24 overflow-y-auto pr-1 space-y-1 custom-scrollbar">
+                                        <!-- Items will be rendered here by renderZoneStats() -->
+                                    </div>
+                                </div>
+                                `
+                                        : ""
+                                }
+                            </div>
+                        `;
+
+                document.getElementById("snap-details").innerHTML = detailsHtml;
+                if (
+                    monsterDist.length > 0 ||
+                    shopDist.length > 0 ||
+                    castleDist.length > 0
+                )
+                    renderZoneStats();
+
+                const btnToggle = document.getElementById("btn-toggle-active");
+                const knob = document.getElementById("toggle-status-knob");
+                const statusText =
+                    document.getElementById("toggle-status-text");
+
+                btnToggle.disabled = false;
+                btnToggle.classList.remove("opacity-50", "cursor-not-allowed");
+
+                if (snap.isActive) {
+                    statusText.textContent = "ACTIVE";
+                    statusText.className = "text-xs font-bold text-green-400";
+                    btnToggle.className =
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-green-500 shadow-inner";
+                    knob.className =
+                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6 shadow";
+                } else {
+                    statusText.textContent = "INACTIVE";
+                    statusText.className = "text-xs font-bold text-gray-500";
+                    btnToggle.className =
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-gray-600 shadow-inner";
+                    knob.className =
+                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1 shadow";
+                }
+
+                const btnDel = document.getElementById("btn-delete-snap");
+                btnDel.disabled = false;
+                btnDel.classList.remove("opacity-50", "cursor-not-allowed");
+
+                const btnForce = document.getElementById("btn-force-state");
+                if (!snap.isActive) {
+                    btnForce.classList.remove("hidden");
+                } else {
+                    btnForce.classList.add("hidden");
+                }
+
+                logConsole(
+                    `📁 Loading template: <b>${snap.name || snap.id}</b> (${snap.objects?.length || 0} objects)`,
+                );
+                renderSnapshotOnMap(snap);
+                loadDistrictsForPreview(snap.cityId);
+                loadCityMetadata(snap.cityId);
+
+                // Populate citadel data for manual zone generation
+                const citadelsByCity = {};
+                (snap.objects || []).forEach((o) => {
+                    const isCit =
+                        o.icon === "\ud83c\udfef" ||
+                        (o.name && o.name.includes("Citadel")) ||
+                        (o.templateId && o.templateId.includes("citadel"));
+                    if (isCit) {
+                        const cid = o.cityId || snap.cityId || "unknown";
+                        if (!citadelsByCity[cid]) citadelsByCity[cid] = [];
+                        citadelsByCity[cid].push(o);
+                    }
+                });
+                _lastCitadelsByCity =
+                    Object.keys(citadelsByCity).length > 0
+                        ? citadelsByCity
+                        : null;
+
+                // Add "Generate Zones" button if citadels exist
+                if (_lastCitadelsByCity) {
+                    const citadelCount =
+                        Object.values(citadelsByCity).flat().length;
+                    document.getElementById("snap-details").innerHTML +=
+                        `<div class="mt-2 flex flex-col gap-1 border-t border-gray-700/50 pt-2">
+                            <button onclick="window.generateSnapshotZones()" class="w-full py-1.5 bg-yellow-600 text-white rounded font-bold text-xs hover:bg-yellow-500 transition shadow">
+                                <i class="fas fa-project-diagram mr-1"></i> Generate Zones (${citadelCount} citadels)
+                            </button>
+                            <div id="recalc-status" class="text-[10px] text-gray-500">Click to generate 1 zone per citadel</div>
+                        </div>`;
+                }
+            }
+
+            /**
+             * Generate Voronoi zones for the currently loaded snapshot.
+             * Algorithm:
+             * 1. Load land mask
+             * 2. Filter citadels → only those ON LAND
+             * 3. Voronoi for land citadels only
+             * 4. Clip Voronoi to land boundary
+             * Result: every citadel has a zone, every zone has a citadel,
+             * zones don't extend into ocean.
+             */
+            window.generateSnapshotZones = async function () {
+                const citadelsByCity = _lastCitadelsByCity;
+                if (!citadelsByCity) {
+                    alert("No snapshot loaded");
+                    return;
+                }
+
+                const statusEl = document.getElementById("recalc-status");
+                if (statusEl) {
+                    statusEl.innerText = "Loading land mask...";
+                    statusEl.className =
+                        "text-[10px] font-bold text-yellow-400 animate-pulse";
+                }
+
+                if (districtLayerGroup) districtLayerGroup.clearLayers();
+                if (cityBoundaryLayerGroup)
+                    cityBoundaryLayerGroup.clearLayers();
+
+                try {
+                    const turf = window.turf;
+                    if (!turf) {
+                        alert("Turf.js not loaded");
+                        return;
+                    }
+
+                    // 1. Load land mask for clipping later
+                    const land = await loadLandMask(statusEl);
+
+                    // 2. Load individual countries for accurate point-in-land check
+                    if (statusEl)
+                        statusEl.innerText = "Loading country boundaries...";
+                    const countryResp = await fetch(
+                        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+                    );
+                    const countryTopo = await countryResp.json();
+                    const countriesFC = window.topojson.feature(
+                        countryTopo,
+                        countryTopo.objects.countries,
+                    );
+                    // Fix antimeridian BEFORE using for clipping/filtering
+                    const fixedCountries = fixAntimeridianGeoJSON(countriesFC);
+                    // Pre-compute bboxes for fast rejection
+                    const countryBboxes = fixedCountries.features.map((f) => {
+                        const b = turf.bbox(f);
+                        return {
+                            feature: f,
+                            minLng: b[0],
+                            minLat: b[1],
+                            maxLng: b[2],
+                            maxLat: b[3],
+                        };
+                    });
+
+                    const allCitadels = Object.values(citadelsByCity).flat();
+                    if (allCitadels.length === 0) return;
+
+                    // 3. De-duplicate
+                    const seen = new Set();
+                    const unique = [];
+                    for (const c of allCitadels) {
+                        const key = `${c.lat.toFixed(6)}_${c.lng.toFixed(6)}`;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            unique.push(c);
+                        }
+                    }
+
+                    // 4. Filter: keep citadels inside ANY country polygon
+                    if (statusEl)
+                        statusEl.innerText = `Checking ${unique.length} citadels against countries...`;
+                    await new Promise((r) => setTimeout(r, 10));
+
+                    const landCitadels = [];
+                    for (let i = 0; i < unique.length; i++) {
+                        const c = unique[i];
+                        const pt = turf.point([c.lng, c.lat]);
+                        let onLand = false;
+                        for (const cb of countryBboxes) {
+                            // Fast bbox rejection
+                            if (
+                                c.lng < cb.minLng ||
+                                c.lng > cb.maxLng ||
+                                c.lat < cb.minLat ||
+                                c.lat > cb.maxLat
+                            )
+                                continue;
+                            try {
+                                if (
+                                    turf.booleanPointInPolygon(pt, cb.feature)
+                                ) {
+                                    onLand = true;
+                                    break;
+                                }
+                            } catch (e) {
+                                /* skip */
+                            }
+                        }
+                        if (onLand) landCitadels.push(c);
+
+                        if (i % 500 === 0 && i > 0) {
+                            if (statusEl)
+                                statusEl.innerText = `Filtering: ${i}/${unique.length} (${landCitadels.length} on land)...`;
+                            await new Promise((r) => setTimeout(r, 3));
+                        }
+                    }
+
+                    if (landCitadels.length === 0) {
+                        if (statusEl)
+                            statusEl.innerText = "No citadels on land!";
+                        return;
+                    }
+
+                    logConsole(
+                        `Land filter: ${landCitadels.length} on land / ${unique.length} total (${unique.length - landCitadels.length} in ocean)`,
+                    );
+
+                    // 4. Build turf points from land citadels only
+                    const allPoints = turf.featureCollection(
+                        landCitadels.map((c, i) =>
+                            turf.point([c.lng, c.lat], {
+                                id: c.id,
+                                name: c.name || `Citadel ${i + 1}`,
+                                cityId: c.cityId,
+                            }),
+                        ),
+                    );
+
+                    // 5. Bbox with generous padding
+                    let minLng = Infinity,
+                        minLat = Infinity,
+                        maxLng = -Infinity,
+                        maxLat = -Infinity;
+                    landCitadels.forEach((c) => {
+                        if (c.lng < minLng) minLng = c.lng;
+                        if (c.lat < minLat) minLat = c.lat;
+                        if (c.lng > maxLng) maxLng = c.lng;
+                        if (c.lat > maxLat) maxLat = c.lat;
+                    });
+                    const spanLng = maxLng - minLng || 2;
+                    const spanLat = maxLat - minLat || 2;
+                    const bbox = [
+                        minLng - spanLng * 0.15,
+                        Math.max(-85, minLat - spanLat * 0.15),
+                        maxLng + spanLng * 0.15,
+                        Math.min(85, maxLat + spanLat * 0.15),
+                    ];
+
+                    // 6. Voronoi
+                    if (statusEl)
+                        statusEl.innerText = `Voronoi for ${landCitadels.length} land citadels...`;
+                    await new Promise((r) => setTimeout(r, 10));
+
+                    const voronoi = turf.voronoi(allPoints, { bbox });
+                    if (!voronoi || !voronoi.features) {
+                        if (statusEl) statusEl.innerText = "Voronoi failed";
+                        return;
+                    }
+
+                    // Filter nulls and match to citadels
+                    const valid = voronoi.features.filter(
+                        (f) => f && f.geometry,
+                    );
+                    valid.forEach((poly, idx) => {
+                        let m = allPoints.features.find((pt) => {
+                            try {
+                                return turf.booleanPointInPolygon(pt, poly);
+                            } catch {
+                                return false;
+                            }
+                        });
+                        if (!m) {
+                            try {
+                                m = turf.nearestPoint(
+                                    turf.centroid(poly),
+                                    allPoints,
+                                );
+                            } catch {
+                                m =
+                                    allPoints.features[
+                                        idx % allPoints.features.length
+                                    ];
+                            }
+                        }
+                        if (m) poly.properties = { ...m.properties };
+                    });
+
+                    // 7. Fix Voronoi zones for antimeridian, then clip to land
+                    const voronoiFC = fixAntimeridianGeoJSON(
+                        turf.featureCollection(valid),
+                    );
+                    const clipped = await clipZonesAndDrawContour(
+                        voronoiFC,
+                        statusEl,
+                        countryBboxes,
+                    );
+
+                    // 8. Render (already in fixed coordinate space)
+                    if (clipped && clipped.features) {
+                        const features = clipped.features;
+                        for (let vi = 0; vi < features.length; vi++) {
+                            const f = features[vi];
+                            if (!f || !f.geometry) continue;
+                            const zoneNum = vi + 1;
+                            const name =
+                                f.properties.name || f.properties.id || "Zone";
+                            const polys =
+                                f.geometry.type === "Polygon"
+                                    ? [f.geometry.coordinates]
+                                    : f.geometry.type === "MultiPolygon"
+                                      ? f.geometry.coordinates
+                                      : [];
+                            polys.forEach((coords) => {
+                                if (!coords || !coords[0]) return;
+                                const latLngs = coords[0].map((c) => [
+                                    c[1],
+                                    c[0],
+                                ]);
+                                L.polygon(latLngs, {
+                                    color: "#eab308",
+                                    weight: 1,
+                                    fillOpacity: 0.08,
+                                    fillColor: "#eab308",
+                                    interactive: true,
+                                })
+                                    .bindPopup(
+                                        `<div class="text-xs"><b>Zone #${zoneNum}</b><br>${name}</div>`,
+                                    )
+                                    .addTo(districtLayerGroup);
+                            });
+                            if (vi % 500 === 0 && vi > 0) {
+                                if (statusEl)
+                                    statusEl.innerText = `Rendering ${vi}/${features.length}...`;
+                                await new Promise((r) => setTimeout(r, 5));
+                            }
+                        }
+
+                        if (statusEl) {
+                            statusEl.innerText = `${features.length} zones on land (${unique.length - landCitadels.length} citadels were in ocean)`;
+                            statusEl.className =
+                                "text-[10px] font-bold text-emerald-400";
+                        }
+                        logConsole(
+                            `Generated ${features.length} Voronoi zones from ${landCitadels.length} land citadels`,
+                        );
+
+                        // Save as a new snapshot
+                        if (currentSnapshot) {
+                            if (statusEl) {
+                                statusEl.innerText =
+                                    "Saving new template with zones...";
+                                statusEl.className =
+                                    "text-[10px] font-bold text-yellow-400 animate-pulse";
+                            }
+
+                            const newSnapshot = {
+                                ...currentSnapshot,
+                                id: `${currentSnapshot.id}_zones_${Date.now()}`,
+                                name: `${currentSnapshot.name} (with Zones)`,
+                                zoneConfig: {
+                                    generated: true,
+                                    algorithm: "voronoi_clipped",
+                                },
+                                isActive: false,
+                            };
+
+                            // Remove massive data payloads from snapshot to respect 1MB limit
+                            delete newSnapshot.zones;
+                            delete newSnapshot.objects; // Ensure objects are NOT saved here!
+                            // Add a seed if one isn't present
+                            if (!newSnapshot.seed) {
+                                newSnapshot.seed = Math.floor(
+                                    Math.random() * 2147483647,
+                                );
+                            }
+
+                            let success = false;
+                            try {
+                                console.log(
+                                    "Preparing to save newSnapshot...",
+                                    newSnapshot,
+                                );
+
+                                // We are no longer saving the full zones geometry.
+                                // Instead, we save the seed algorithm in zoneConfig.
+                                // The client must run turf.voronoi at runtime when encountering zoneConfig.
+
+                                const sizeStr =
+                                    JSON.stringify(newSnapshot).length;
+                                console.log(
+                                    "New snapshot size approx:",
+                                    sizeStr,
+                                );
+
+                                if (sizeStr > 1040000) {
+                                    alert(
+                                        "The generated template is too large (" +
+                                            Math.round(sizeStr / 1024) +
+                                            " KB). Limit is 1024 KB. Cannot save.",
+                                    );
+                                } else {
+                                    success =
+                                        await saveWorldSnapshot(newSnapshot);
+                                    if (!success) {
+                                        alert(
+                                            "saveWorldSnapshot returned false. Check console for 'Snapshot save error'",
+                                        );
+                                    }
+                                }
+                            } catch (err) {
+                                console.error(
+                                    "Caught error in saveWorldSnapshot:",
+                                    err,
+                                );
+                                alert("Error during save: " + err.message);
+                            }
+
+                            if (success) {
+                                if (statusEl) {
+                                    statusEl.innerText = `✅ Saved new template with ${features.length} zones!`;
+                                    statusEl.className =
+                                        "text-[10px] font-bold text-green-400";
+                                }
+                                logConsole(
+                                    `Saved new snapshot: ${newSnapshot.name}`,
+                                );
+
+                                // Refresh the snapshot list to show the new template
+                                if (
+                                    typeof window.loadSnapshots === "function"
+                                ) {
+                                    window.loadSnapshots();
+                                } else if (
+                                    typeof loadSnapshots === "function"
+                                ) {
+                                    loadSnapshots();
+                                }
+                            } else {
+                                if (statusEl) {
+                                    statusEl.innerText = `❌ Failed to save new template`;
+                                    statusEl.className =
+                                        "text-[10px] font-bold text-red-400";
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Zone generation error:", e);
+                    if (statusEl) {
+                        statusEl.innerText = `Error: ${e.message}`;
+                        statusEl.className =
+                            "text-[10px] font-bold text-red-400";
+                    }
+                }
+            };
+
+            // --- Stats Distribution Logic ---
+            window.switchStatsTab = (tab) => {
+                window.activeStatsTab = tab;
+                // Update Buttons
+                const btnMon = document.getElementById("tab-monsters");
+                const btnShop = document.getElementById("tab-shops");
+                const btnVau = document.getElementById("tab-vaults");
+                const btnCas = document.getElementById("tab-castles");
+                const btnCit = document.getElementById("tab-citadels");
+                const btnZon = document.getElementById("tab-boundaries");
+
+                // Reset styles
+                [btnMon, btnShop, btnVau, btnCas, btnCit, btnZon].forEach(
+                    (b) => {
+                        if (b)
+                            b.className =
+                                "px-2 py-1 rounded-md text-[9px] font-bold text-gray-500 hover:text-gray-300";
+                    },
+                );
+
+                // Set active style
+                if (tab === "monsters") {
+                    btnMon.className =
+                        "px-2 py-1 rounded-md text-[9px] font-bold bg-purple-600 text-white";
+                } else if (tab === "shops") {
+                    btnShop.className =
+                        "px-2 py-1 rounded-md text-[9px] font-bold bg-yellow-600 text-white";
+                } else if (tab === "vaults") {
+                    btnVau.className =
+                        "px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-600 text-white";
+                } else if (tab === "castles") {
+                    btnCas.className =
+                        "px-2 py-1 rounded-md text-[9px] font-bold bg-blue-600 text-white";
+                } else if (tab === "citadels") {
+                    btnCit.className =
+                        "px-2 py-1 rounded-md text-[9px] font-bold bg-orange-600 text-white";
+                } else if (tab === "boundaries") {
+                    btnZon.className =
+                        "px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-600 text-white";
+                }
+                renderZoneStats();
+            };
+
+            window.filterZoneStats = (query) => {
+                renderZoneStats(query.toLowerCase());
+            };
+
+            function renderZoneStats(filter = "") {
+                const container = document.getElementById(
+                    "stats-list-container",
+                );
+                if (!container) return;
+
+                if (window.activeStatsTab === "boundaries") {
+                    renderBoundaryStats(container, filter);
+                    return;
+                }
+
+                const data =
+                    window.currentZoneStats[window.activeStatsTab] || [];
+
+                const accentColor =
+                    window.activeStatsTab === "monsters"
+                        ? "text-purple-400"
+                        : window.activeStatsTab === "shops"
+                          ? "text-yellow-400"
+                          : window.activeStatsTab === "vaults"
+                            ? "text-emerald-400"
+                            : window.activeStatsTab === "citadels"
+                              ? "text-orange-400"
+                              : "text-blue-400";
+
+                const filtered = filter
+                    ? data.filter((d) => d.id.toLowerCase().includes(filter))
+                    : data;
+                const sorted = filtered.sort((a, b) => b.count - a.count);
+
+                if (sorted.length === 0) {
+                    container.innerHTML = `<div class="text-[10px] text-gray-600 text-center py-4">No results found</div>`;
+                    return;
+                }
+
+                container.innerHTML = sorted
+                    .map((zd) => {
+                        const displayName =
+                            window.zoneNames && window.zoneNames[zd.id]
+                                ? window.zoneNames[zd.id]
+                                : zd.id.split("_").pop();
+                        return `
+                            <div class="flex justify-between items-center bg-gray-900/40 px-2 py-1.5 rounded-lg text-[10px] border border-gray-800/50 hover:border-gray-700 transition group">
+                                <span class="text-gray-400 truncate mr-2 font-mono flex items-center gap-1" title="${zd.id}">
+                                    <i class="fas fa-location-dot text-[8px] opacity-40 group-hover:opacity-100 transition"></i>
+                                    ${displayName}
+                                </span>
+                                <b class="${accentColor} font-mono">${zd.count}</b>
+                            </div>
+                        `;
+                    })
+                    .join("");
+            }
+
+            function renderBoundaryStats(container, filter) {
+                if (!currentSnapshot) return;
+                const cache = adminDistrictCache[currentSnapshot.cityId];
+
+                if (!cache || !cache.boundary) {
+                    container.innerHTML = `<div class="text-[10px] text-gray-500 text-center py-4">City Boundary not loaded</div>`;
+                    return;
+                }
+
+                const turf = window.turf;
+                if (!turf) {
+                    container.innerHTML = `<div class="text-[10px] text-red-500 text-center py-4">Turf.js not loaded</div>`;
+                    return;
+                }
+
+                // Construct Turf boundary (Polygon)
+                let cityPoly;
+                try {
+                    const rings = cache.boundary;
+                    if (rings.length > 0 && Array.isArray(rings[0][0])) {
+                        cityPoly = turf.multiPolygon(rings.map((r) => [r]));
+                    } else {
+                        cityPoly = turf.polygon(rings);
+                    }
+                    // buffer(0) fixes self-intersections for consistent boolean checks
+                    cityPoly = turf.buffer(cityPoly, 0);
+                } catch (e) {
+                    console.error("Failed to construct boundary poly:", e);
+                    container.innerHTML = `<div class="text-[10px] text-red-500 text-center py-4">Boundary Geometry Error</div>`;
+                    return;
+                }
+
+                const objects = currentSnapshot.objects || [];
+                const citadels = objects.filter(
+                    (o) =>
+                        o.icon === "🏯" ||
+                        (o.name && o.name.includes("Citadel")),
+                );
+
+                const results = citadels.map((c) => {
+                    const isInside = turf.booleanPointInPolygon(
+                        [c.lng, c.lat],
+                        cityPoly,
+                    );
+                    return { name: c.name, id: c.id, inside: isInside };
+                });
+
+                const filtered = filter
+                    ? results.filter((r) =>
+                          r.name.toLowerCase().includes(filter),
+                      )
+                    : results;
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `<div class="text-[10px] text-gray-600 text-center py-4">No citadels to show</div>`;
+                    return;
+                }
+
+                const boundaryId = cache.boundaryId || "Unknown";
+                container.innerHTML =
+                    `
+                            <div class="text-[9px] text-gray-500 mb-2 px-1 font-mono uppercase tracking-widest border-b border-gray-800 pb-1">
+                                Checking vs OSM Relation: <b>${boundaryId}</b>
+                            </div>
+                        ` +
+                    filtered
+                        .map(
+                            (r) => `
+                            <div class="flex justify-between items-center bg-gray-900/40 px-2 py-1.5 rounded-lg text-[10px] border ${r.inside ? "border-emerald-700/30" : "border-red-700/50 bg-red-900/10"} hover:border-gray-700 transition">
+                                <span class="text-gray-400 truncate mr-2 font-mono flex items-center gap-1">
+                                    <i class="fas ${r.inside ? "fa-check-circle text-emerald-400" : "fa-times-circle text-red-400"} text-[10px]"></i>
+                                    ${r.name}
+                                </span>
+                                <b class="${r.inside ? "text-emerald-400" : "text-red-400"} font-bold">${r.inside ? "INSIDE" : "OUTSIDE"}</b>
+                            </div>
+                        `,
+                        )
+                        .join("");
+            }
+
+            async function loadCityMetadata(cityId) {
+                if (!cityBoundaryLayerGroup) return;
+
+                const city = CITY_ANCHORS.find((c) => c.id === cityId);
+                if (!city) return;
+
+                cityBoundaryLayerGroup.clearLayers();
+                if (!visibility.cityBoundary) return;
+
+                if (adminDistrictCache[cityId]) {
+                    const data = adminDistrictCache[cityId];
+                    if (data.boundary) renderCityBoundary(data.boundary);
+                    return;
+                }
+
+                logConsole(
+                    `🏙️ Fetching city context for ${city.name} (OSM Unified)...`,
+                );
+                try {
+                    const context = await OverpassService.fetchCityContext(
+                        city.name,
+                        { lat: city.lat, lng: city.lng },
+                    );
+                    adminDistrictCache[cityId] = context;
+                    if (context.boundary) renderCityBoundary(context.boundary);
+                    if (context.boundary)
+                        logConsole(
+                            `✅ City metadata synchronized from OpenStreetMap.`,
+                        );
+                } catch (e) {
+                    console.error("Context load failed:", e);
+                    logConsole(`❌ Failed to sync city metadata.`);
+                }
+            }
+
+            function renderCityBoundary(rings) {
+                if (!cityBoundaryLayerGroup || !rings) return;
+                cityBoundaryLayerGroup.clearLayers();
+
+                let latLngs;
+                if (rings.length > 0 && Array.isArray(rings[0][0])) {
+                    latLngs = rings.map((ring) =>
+                        ring.map((p) => [p[1], p[0]]),
+                    );
+                } else {
+                    latLngs = rings.map((p) => [p[1], p[0]]);
+                }
+
+                L.polygon(latLngs, {
+                    color: "#10b981",
+                    weight: 4,
+                    dashArray: "10, 15",
+                    fillColor: "#10b981",
+                    fillOpacity: 0.15,
+                    interactive: false,
+                }).addTo(cityBoundaryLayerGroup);
+            }
+
+            async function loadDistrictsForPreview(cityId) {
+                if (!districtLayerGroup) return;
+
+                // Determine effective Cache Key
+                // If explicit zones exist in the current snapshot, cache against the snapshot ID to allow switching
+                let cacheKey = cityId;
+                if (currentSnapshot && currentSnapshot.zones) {
+                    cacheKey = `${cityId}_${currentSnapshot.id}`;
+                }
+
+                // Don't fetch if already in cache and visible
+                if (districtCache[cacheKey]) {
+                    logConsole(`⚡ Using cached zones for ${cityId}`);
+                    if (visibility.district)
+                        renderDistrictsFromData(districtCache[cacheKey]);
+                    return;
+                }
+
+                const city = CITY_ANCHORS.find((c) => c.id === cityId);
+                if (!city) return;
+
+                // 1. Check if Snapshot itself has zones (New Feature)
+                if (
+                    currentSnapshot &&
+                    currentSnapshot.cityId === cityId &&
+                    currentSnapshot.zones
+                ) {
+                    logConsole("💾 Using zones embedded in snapshot...");
+                    try {
+                        const zonesData =
+                            typeof currentSnapshot.zones === "string"
+                                ? JSON.parse(currentSnapshot.zones)
+                                : currentSnapshot.zones;
+                        processAndRenderZones(zonesData, cityId);
+                        return;
+                    } catch (e) {
+                        console.error("Failed to parse snapshot zones:", e);
+                    }
+                }
+
+                // 2. TRY LIVE GAME ZONES
+                logConsole(`🏙️ Fetching live territories for ${cityId}...`);
+                try {
+                    const gameZones = await getTerritoryZones(cityId);
+                    if (
+                        gameZones &&
+                        gameZones.features &&
+                        gameZones.features.length > 0
+                    ) {
+                        processAndRenderZones(gameZones, cityId);
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Failed to load custom zones:", e);
+                }
+
+                logConsole(
+                    `⚠️ No territorial zones found for this template/city.`,
+                );
+            }
+
+            /**
+             * Generate Voronoi polygons from Point-based citadel features for admin visualization.
+             * Uses Turf.js voronoi() to create visual territory boundaries from citadel positions.
+             * This is an ADMIN VISUALIZATION only — the game engine uses distance-based checks.
+             */
+            function generateVoronoiFromCitadels(pointFC, cityId) {
+                const turf = window.turf;
+                if (!turf) return null;
+
+                try {
+                    // Extract citadel points
+                    const points = turf.featureCollection(
+                        pointFC.features.map((f) =>
+                            turf.point(f.geometry.coordinates, {
+                                ...f.properties,
+                            }),
+                        ),
+                    );
+
+                    // Calculate bounding box with padding
+                    const bbox = turf.bbox(points);
+                    const expandedBbox = [
+                        bbox[0] - 0.15, // west - padding
+                        bbox[1] - 0.15, // south - padding
+                        bbox[2] + 0.15, // east + padding
+                        bbox[3] + 0.15, // north + padding
+                    ];
+
+                    // Generate Voronoi diagram
+                    const voronoi = turf.voronoi(points, {
+                        bbox: expandedBbox,
+                    });
+                    if (!voronoi || !voronoi.features) return null;
+
+                    // Match each Voronoi cell back to its citadel
+                    const result = voronoi.features
+                        .map((polygon, idx) => {
+                            // Find which citadel point falls inside this polygon
+                            let matchedCitadel = points.features.find((pt) => {
+                                try {
+                                    return turf.booleanPointInPolygon(
+                                        pt,
+                                        polygon,
+                                    );
+                                } catch {
+                                    return false;
+                                }
+                            });
+
+                            // Fallback: use nearest point to polygon centroid
+                            if (!matchedCitadel) {
+                                try {
+                                    const centroid = turf.centroid(polygon);
+                                    matchedCitadel = turf.nearestPoint(
+                                        centroid,
+                                        points,
+                                    );
+                                } catch {
+                                    matchedCitadel = points.features[idx];
+                                }
+                            }
+
+                            if (matchedCitadel) {
+                                polygon.properties = {
+                                    ...matchedCitadel.properties,
+                                    citadelId:
+                                        matchedCitadel.properties.citadelId ||
+                                        `citadel_${idx}`,
+                                    cityId: cityId,
+                                };
+                            }
+
+                            return polygon;
+                        })
+                        .filter((f) => f && f.geometry);
+
+                    // Optional: Clip to a convex hull + buffer for organic look
+                    try {
+                        const hull = turf.convex(points);
+                        if (hull) {
+                            const mask = turf.buffer(hull, 3, {
+                                units: "kilometers",
+                            });
+                            const clipped = result.map((poly) => {
+                                try {
+                                    const intersected = turf.intersect(
+                                        poly,
+                                        mask,
+                                    );
+                                    if (intersected) {
+                                        intersected.properties =
+                                            poly.properties;
+                                        return intersected;
+                                    }
+                                } catch {}
+                                return poly;
+                            });
+                            return turf.featureCollection(clipped);
+                        }
+                    } catch (e) {
+                        console.warn(
+                            "Voronoi clipping failed, using raw zones:",
+                            e,
+                        );
+                    }
+
+                    return turf.featureCollection(result);
+                } catch (e) {
+                    console.error("Voronoi generation error:", e);
+                    return null;
+                }
+            }
+
+            function processAndRenderZones(gameZones, cityId) {
+                try {
+                    let fc = gameZones;
+                    if (typeof fc === "string") fc = JSON.parse(fc);
+
+                    console.log(
+                        `🔍 Processing ${fc.features.length} features...`,
+                    );
+
+                    // NEW: Detect Point-based citadel features (from new territory-service v2)
+                    // If all features are Points, generate Voronoi polygons for visualization
+                    const allPoints = fc.features.every(
+                        (f) => f.geometry?.type === "Point",
+                    );
+
+                    if (allPoints && fc.features.length >= 2 && window.turf) {
+                        console.log(
+                            "📐 Point-based citadels detected — generating Voronoi zones for visualization...",
+                        );
+                        fc = generateVoronoiFromCitadels(fc, cityId);
+                        if (!fc || !fc.features || fc.features.length === 0) {
+                            console.warn(
+                                "⚠️ Voronoi generation returned empty result",
+                            );
+                            return;
+                        }
+                    } else if (allPoints && fc.features.length === 1) {
+                        // Single citadel — create a buffer circle as zone
+                        console.log(
+                            "📐 Single citadel — generating buffer zone...",
+                        );
+                        const f = fc.features[0];
+                        const center = turf.point(f.geometry.coordinates);
+                        const buffered = turf.buffer(center, 5, {
+                            units: "kilometers",
+                        });
+                        buffered.properties = {
+                            ...f.properties,
+                            citadelId: f.properties.citadelId || "citadel_0",
+                        };
+                        fc = turf.featureCollection([buffered]);
+                    }
+
+                    const zones = [];
+                    fc.features.forEach((f, idx) => {
+                        const type = f.geometry.type;
+                        const coords = f.geometry.coordinates;
+
+                        if (idx === 0)
+                            console.log(`🔍 Feature 0 Type: ${type}`, coords);
+
+                        if (type === "Polygon") {
+                            if (coords.length > 0) {
+                                zones.push({
+                                    name:
+                                        "Zone " +
+                                        (f.properties.citadelId
+                                            ? f.properties.citadelId.substr(
+                                                  0,
+                                                  4,
+                                              )
+                                            : "Unknown"),
+                                    points: coords[0].map((coord) => ({
+                                        lat: coord[1],
+                                        lng: coord[0],
+                                    })),
+                                    center: {
+                                        lat: coords[0][0][1],
+                                        lng: coords[0][0][0],
+                                    },
+                                });
+                            }
+                        } else if (type === "MultiPolygon") {
+                            coords.forEach((polyCoords) => {
+                                if (polyCoords.length > 0) {
+                                    zones.push({
+                                        name:
+                                            "Zone " +
+                                            (f.properties.citadelId
+                                                ? f.properties.citadelId.substr(
+                                                      0,
+                                                      4,
+                                                  )
+                                                : "Unknown"),
+                                        points: polyCoords[0].map((coord) => ({
+                                            lat: coord[1],
+                                            lng: coord[0],
+                                        })),
+                                        center: {
+                                            lat: polyCoords[0][0][1],
+                                            lng: polyCoords[0][0][0],
+                                        },
+                                    });
+                                }
+                            });
+                        }
+                    });
+
+                    if (zones.length > 0) {
+                        console.log(
+                            `✅ Loaded ${zones.length} custom zones with valid geometry.`,
+                        );
+
+                        let cacheKey = cityId;
+                        if (
+                            currentSnapshot &&
+                            currentSnapshot.zones &&
+                            currentSnapshot.cityId === cityId
+                        ) {
+                            cacheKey = `${cityId}_${currentSnapshot.id}`;
+                        }
+
+                        districtCache[cacheKey] = zones;
+                        if (visibility && visibility.district) {
+                            renderDistrictsFromData(zones);
+                        } else {
+                            console.warn(
+                                "⚠️ Zones loaded but visibility.district is FALSE",
+                            );
+                        }
+                    } else {
+                        console.warn(
+                            "⚠️ Zones processed but result array is empty!",
+                            fc,
+                        );
+                    }
+                } catch (e) {
+                    console.error("Error processing zones:", e);
+                }
+            }
+
+            function renderDistrictsFromData(districts) {
+                console.log(
+                    `🎨 Rendering ${districts.length} polygons to map...`,
+                );
+                if (!districtLayerGroup) {
+                    console.error("❌ districtLayerGroup is missing!");
+                    return;
+                }
+                if (!map.hasLayer(districtLayerGroup)) {
+                    console.warn(
+                        "⚠️ districtLayerGroup was not on map. Re-adding...",
+                    );
+                    districtLayerGroup.addTo(map);
+                }
+
+                districtLayerGroup.clearLayers();
+
+                const bounds = L.latLngBounds();
+
+                districts.forEach((d) => {
+                    try {
+                        const poly = L.polygon(d.points, {
+                            color: "#FFFF00",
+                            weight: 1.5,
+                            fillOpacity: 0.1,
+                            fillColor: "#FFFF00",
+                            interactive: false,
+                            zIndex: 10, // Base layer
+                        });
+                        districtLayerGroup.addLayer(poly);
+
+                        // Expand bounds
+                        d.points.forEach((p) => bounds.extend(p));
+
+                        // Add tiny label
+                        if (d.center && d.center.lat) {
+                            const label = L.marker(d.center, {
+                                icon: L.divIcon({
+                                    html: `<div class="text-[9px] text-yellow-500/50 font-bold whitespace-nowrap">${d.name}</div>`,
+                                    className: "bg-transparent",
+                                    iconSize: [100, 20],
+                                    iconAnchor: [50, 10],
+                                }),
+                                interactive: false,
+                            });
+                            districtLayerGroup.addLayer(label);
+                        }
+                    } catch (err) {
+                        console.warn("Skipping bad polygon", err);
+                    }
+                });
+
+                // Optional: Fit bounds if valid
+                if (bounds.isValid()) {
+                    // map.fitBounds(bounds); // Disable auto-zoom to avoid annoying jumps
+                }
+            }
+
+            async function showCityBoundary(cityId) {
+                if (!cityBoundaryLayerGroup) return;
+                cityBoundaryLayerGroup.clearLayers();
+
+                if (!visibility.cityBoundary) return;
+
+                const city = CITY_ANCHORS.find((c) => c.id === cityId);
+                if (!city) return;
+
+                console.log(
+                    `🏙️ Fetching city boundary for visual reference: ${city.name}`,
+                );
+                try {
+                    const boundaryPoints =
+                        await OverpassService.fetchCityBoundary(city.name, {
+                            lat: city.lat,
+                            lng: city.lng,
+                        });
+
+                    if (boundaryPoints && boundaryPoints.length > 3) {
+                        const latLngs = boundaryPoints.map((p) => [p[1], p[0]]); // [lat, lng]
+
+                        const poly = L.polygon(latLngs, {
+                            color: "#10b981", // Emerald 500
+                            weight: 4,
+                            dashArray: "10, 15",
+                            fillOpacity: 0,
+                            interactive: false,
+                        }).addTo(cityBoundaryLayerGroup);
+
+                        console.log("✅ Visual city boundary rendered.");
+                    } else {
+                        console.warn(
+                            "⚠️ No city boundary found for visual reference.",
+                        );
+                    }
+                } catch (e) {
+                    console.error("Failed to show city boundary:", e);
+                }
+            }
+
+            function renderSnapshotOnMap(snap) {
+                // Safety check
+                if (!markerLayerGroup || !map || !markerClusterGroup) return;
+
+                // Clear old
+                markerLayerGroup.clearLayers();
+                markerClusterGroup.clearLayers();
+
+                if (!snap.objects || !snap.objects.length) return;
+
+                // Fly to city center
+                const firstObj = snap.objects[0];
+                if (firstObj.lat && firstObj.lng) {
+                    map.flyTo([firstObj.lat, firstObj.lng], 13);
+                } else {
+                    const city = CITY_ANCHORS.find((c) => c.id === snap.cityId);
+                    if (city) map.flyTo([city.lat, city.lng], 13);
+                }
+
+                // Render Objects
+                const markersToCluster = [];
+
+                snap.objects.forEach((obj) => {
+                    // Coordinate Extraction
+                    const lat = obj.lat || (obj.center && obj.center.lat);
+                    const lng =
+                        obj.lng ||
+                        (obj.center && obj.center.lng) ||
+                        (obj.center && obj.center.lon);
+
+                    if (!lat || !lng) return;
+
+                    let iconChar = obj.icon || "📍";
+                    const objectType =
+                        obj.type ||
+                        (snap.type === "monster"
+                            ? "monster"
+                            : snap.type === "shop"
+                              ? "shop"
+                              : snap.type === "castle"
+                                ? "castle"
+                                : "unknown");
+                    const isCitadel =
+                        obj.icon === "🏯" ||
+                        (obj.name && obj.name.includes("Citadel"));
+
+                    // Visiblity Check
+                    if (objectType === "monster" && !visibility.monster) return;
+                    if (objectType === "shop" && !visibility.shop) return;
+                    if (objectType === "vault" && !visibility.vault) return;
+                    if (
+                        objectType === "castle" &&
+                        !isCitadel &&
+                        !visibility.castle
+                    )
+                        return;
+                    if (isCitadel && !visibility.citadel) return;
+
+                    // Icon logic
+                    if (objectType === "castle" && !obj.icon) {
+                        if (obj.name && obj.name.includes("Citadel"))
+                            iconChar = "Detailed Icon"; // Legacy
+                        else iconChar = "🏰";
+                    } else if (objectType === "shop" && !obj.icon) {
+                        iconChar = "🏪";
+                    } else if (objectType === "vault" && !obj.icon) {
+                        iconChar = "📦";
+                    } else if (objectType === "monster" && !obj.icon) {
+                        iconChar = "👾";
+                    }
+
+                    // Premium styling
+                    let colorClass = "bg-gray-900/80 border-gray-500";
+                    let iconHtml = "";
+                    let actualIconSize = [32, 32];
+                    let actualIconAnchor = [16, 16];
+                    let zIndex = isCitadel
+                        ? 3000
+                        : objectType === "castle"
+                          ? 1800
+                          : objectType === "monster"
+                            ? 1200
+                            : 1500;
+
+                    if (isCitadel) {
+                        // PREMIUM CITADEL STYLING (Same as main map)
+                        iconHtml = `
+                                    <div class="w-12 h-12 flex items-center justify-center relative bg-transparent">
+                                        <div class="absolute inset-0 rounded-full blur-md opacity-40 bg-orange-500"></div>
+                                        <div class="text-3xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] z-10 leading-none select-none">🏯</div>
+                                    </div>
+                                `;
+                        actualIconSize = [48, 48];
+                        actualIconAnchor = [24, 24];
+                    } else if (objectType === "monster") {
+                        iconHtml = `<div class="flex items-center justify-center w-8 h-8 text-2xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none">
+                                                ${iconChar}
+                                            </div>`;
+                    } else {
+                        if (objectType === "shop")
+                            colorClass =
+                                "bg-blue-900/80 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]";
+                        else if (objectType === "vault")
+                            colorClass =
+                                "bg-emerald-900/80 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
+                        else if (objectType === "castle")
+                            colorClass =
+                                "bg-[#5d4037] border-[#3e2723] shadow-md";
+
+                        iconHtml = `<div class="relative flex items-center justify-center w-8 h-8 rounded-full border-2 ${colorClass} shadow-lg backdrop-blur-sm text-lg">
+                                        <span class="leading-none select-none">${iconChar}</span>
+                                    </div>`;
+                    }
+
+                    const markerIcon = L.divIcon({
+                        html: iconHtml,
+                        className: "custom-tpl-icon",
+                        iconSize: actualIconSize,
+                        iconAnchor: actualIconAnchor,
+                    });
+
+                    const marker = L.marker([lat, lng], {
+                        icon: markerIcon,
+                        zIndexOffset: zIndex,
+                    }).bindPopup(`
+                                    <div class="text-xs p-1 select-text">
+                                        <b class="text-sm text-blue-400">${obj.name || "Unknown"}</b><br>
+                                        <span class="text-gray-400">#${obj.id || "Template"}</span><br>
+                                        <hr class="my-1 border-gray-700">
+                                        <span class="text-gray-300">Type: ${objectType}</span><br>
+                                        <code class="text-blue-300">${lat.toFixed(6)}, ${lng.toFixed(6)}</code>
+                                    </div>
+                                `);
+
+                    // ADD TO CLUSTER (citadels too — they group when zoomed out)
+                    markersToCluster.push(marker);
+                });
+
+                if (markersToCluster.length > 0) {
+                    markerClusterGroup.addLayers(markersToCluster);
+                }
+            }
+
+            window.toggleCurrentSnapshot = async () => {
+                if (!currentSnapshot) return;
+
+                const btn = document.getElementById("btn-toggle-active");
+                const statusText =
+                    document.getElementById("toggle-status-text");
+
+                // Loading state
+                btn.classList.add("opacity-50", "cursor-wait");
+                btn.disabled = true;
+
+                try {
+                    if (currentSnapshot.isActive) {
+                        // DEACTIVATE
+                        if (
+                            !confirm(
+                                `Turn OFF template "${currentSnapshot.name || currentSnapshot.id}"?\nThis will remove its objects from the live map.`,
+                            )
+                        ) {
+                            btn.classList.remove("opacity-50", "cursor-wait");
+                            btn.disabled = false;
+                            return;
+                        }
+
+                        statusText.textContent = "DEACTIVATING...";
+                        const success = await deactivateWorldSnapshot(
+                            currentSnapshot.id,
+                        );
+                        if (success) {
+                            currentSnapshot.isActive = false;
+                            logConsole(
+                                `🔴 Deactivated template: ${currentSnapshot.name || currentSnapshot.id}`,
+                            );
+                        }
+                    } else {
+                        // ACTIVATE
+                        if (
+                            !confirm(
+                                `Turn ON template "${currentSnapshot.name || currentSnapshot.id}"?\nThis will add its objects to the live map.`,
+                            )
+                        ) {
+                            btn.classList.remove("opacity-50", "cursor-wait");
+                            btn.disabled = false;
+                            return;
+                        }
+
+                        statusText.textContent = "ACTIVATING...";
+                        const success = await applyWorldSnapshot(
+                            currentSnapshot.id,
+                        );
+                        if (success) {
+                            currentSnapshot.isActive = true;
+                            logConsole(
+                                `🟢 Activated template: ${currentSnapshot.name || currentSnapshot.id}`,
+                            );
+
+                            // Automated Territory Generation (If Citadels present)
+                            const objects = currentSnapshot.objects || [];
+                            const citadels = objects.filter(
+                                (o) =>
+                                    o.icon === "🏯" ||
+                                    (o.name && o.name.includes("Citadel")) ||
+                                    o.templateId?.includes("citadel"),
+                            );
+
+                            if (citadels.length >= 2) {
+                                logConsole(
+                                    `<i class="fas fa-draw-polygon text-orange-400 mr-1"></i> Syncing <b>${citadels.length}</b> citadels to territories...`,
+                                );
+                                await regenerateCityTerritory(
+                                    currentSnapshot.cityId,
+                                    citadels,
+                                    null,
+                                );
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Toggle error:", e);
+                    logConsole(`❌ Error toggling template: ${e.message}`);
+                }
+
+                // Restore UI state
+                btn.disabled = false;
+                btn.classList.remove("opacity-50", "cursor-wait");
+
+                // Re-render selection to refresh styles
+                selectSnapshot(currentSnapshot);
+            };
+
+            window.forceCurrentSnapshotState = async () => {
+                if (!currentSnapshot) return;
+
+                const btn = document.getElementById("btn-force-state");
+                btn.classList.add("opacity-50", "cursor-wait");
+                btn.disabled = true;
+
+                try {
+                    if (
+                        !confirm(
+                            `Mark template "${currentSnapshot.name || currentSnapshot.id}" as ACTIVE without spawning objects?\n\nUse this only if the objects are already on the map, but the UI says INACTIVE.`,
+                        )
+                    ) {
+                        btn.classList.remove("opacity-50", "cursor-wait");
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    const statusText =
+                        document.getElementById("toggle-status-text");
+                    statusText.textContent = "UPDATING...";
+
+                    const success = await forceSnapshotActiveState(
+                        currentSnapshot.id,
+                        true,
+                    );
+                    if (success) {
+                        currentSnapshot.isActive = true;
+                        logConsole(
+                            `✅ Manually marked template active: ${currentSnapshot.name || currentSnapshot.id}`,
+                        );
+                    }
+                } catch (e) {
+                    console.error("Force state error:", e);
+                    logConsole(`❌ Error forcing template state: ${e.message}`);
+                }
+
+                btn.disabled = false;
+                btn.classList.remove("opacity-50", "cursor-wait");
+
+                selectSnapshot(currentSnapshot);
+            };
+
+            window.deleteCurrentSnapshot = async () => {
+                if (!currentSnapshot) return;
+                if (
+                    !confirm(
+                        `Delete template "${currentSnapshot.name || currentSnapshot.id}"?\n\nThis action cannot be undone.`,
+                    )
+                )
+                    return;
+
+                // Handle local snapshots (IndexedDB)
+                if (
+                    currentSnapshot.id &&
+                    currentSnapshot.id.startsWith("local_")
+                ) {
+                    try {
+                        await LocalSnapshotsManager.deleteSnapshot(
+                            currentSnapshot.id,
+                        );
+                    } catch (e) {
+                        console.warn("Local delete error:", e);
+                    }
+                    currentSnapshot = null;
+                    if (markerClusterGroup) markerClusterGroup.clearLayers();
+                    if (markerLayerGroup) markerLayerGroup.clearLayers();
+                    if (districtLayerGroup) districtLayerGroup.clearLayers();
+                    if (cityBoundaryLayerGroup)
+                        cityBoundaryLayerGroup.clearLayers();
+                    document.getElementById("selected-snap-title").innerHTML =
+                        "<span>No Template Selected</span>";
+                    document.getElementById("snap-details").innerHTML =
+                        '<p class="py-10 text-center opacity-50 italic">Select a template from the left to preview.</p>';
+                    const firestoreSnaps = await getWorldSnapshots();
+                    await mergeAndRenderSnapshots(firestoreSnaps);
+                    return;
+                }
+
+                const success = await deleteSnapshot(currentSnapshot.id);
+                if (success) {
+                    currentSnapshot = null;
+
+                    // Clear markers correctly
+                    if (markerLayerGroup) {
+                        markerLayerGroup.clearLayers();
+                    }
+                    if (markerClusterGroup) {
+                        markerClusterGroup.clearLayers();
+                    }
+
+                    // Reset view if needed or leave as is
+                    map.setView([50.4501, 30.5234], 12);
+
+                    document.getElementById("selected-snap-title").textContent =
+                        "No Template Selected";
+                    document.getElementById("snap-details").innerHTML =
+                        "<p>Select a template from the left to preview.</p>";
+                    document.getElementById("btn-toggle-active").disabled =
+                        true;
+                    document
+                        .getElementById("btn-toggle-active")
+                        .classList.add("opacity-50");
+                    document.getElementById("btn-delete-snap").disabled = true;
+                    document
+                        .getElementById("btn-delete-snap")
+                        .classList.add("opacity-50");
+                    document
+                        .getElementById("btn-force-state")
+                        .classList.add("hidden");
+
+                    loadSnapshots();
+                }
+            };
+        

@@ -75,6 +75,7 @@ let auth;
 let rtdb;
 let storage;
 let currentUser = null;
+let _castlesCache = null;
 let userRole = "player"; // default: 'player', 'moderator', 'admin'
 let onlinePlayersCount = 0;
 
@@ -129,9 +130,9 @@ export async function initFirebase() {
       const timer = setTimeout(() => {
         const duration = ((Date.now() - start) / 1000).toFixed(1);
         console.warn(
-          `âš ï¸ Auth check timed out after ${duration}s. Resolution: Force Login UI.`,
+          `⚠️ Auth check timed out after ${duration}s. Resolution: Force Login UI.`,
         );
-        console.log("Mock redirect");
+        window.location.href = "../auth-ui/login.html";
         resolve(false);
       }, 15000); // Increased to 15s for slow first-launch networks
 
@@ -238,7 +239,7 @@ export async function initFirebase() {
           console.log(
             `ℹ️ Firebase: No user detected in ${duration}s. Redirecting...`,
           );
-          console.log("Mock redirect");
+          window.location.href = "../auth-ui/login.html";
           resolve(false);
         }
       });
@@ -255,7 +256,8 @@ export function getUserRole() {
   return userRole;
 }
 
-export function isAdmin() { return true;
+export function isAdmin() {
+  return true;
   return userRole && userRole.toLowerCase() === "admin";
 }
 
@@ -270,7 +272,7 @@ export function isModerator() {
 export async function logout() {
   try {
     await signOut(auth);
-    console.log("Mock redirect");
+    window.location.href = "../auth-ui/login.html";
   } catch (error) {
     console.error("Logout error:", error);
   }
@@ -1973,7 +1975,10 @@ export async function saveWorldSnapshot(snapshotData) {
     await setDoc(ref, {
       ...cleanedData,
       createdAt: serverTimestamp(),
-      createdBy: (currentUser && currentUser.email) ? currentUser.email : "admin@fightcraft.com",
+      createdBy:
+        currentUser && currentUser.email
+          ? currentUser.email
+          : "admin@fightcraft.com",
     });
 
     trackUsage(
@@ -1993,7 +1998,6 @@ export async function saveWorldSnapshot(snapshotData) {
 }
 
 export async function getWorldSnapshots() {
-
   // Cache Check
   const CACHE_KEY = "admin_snapshots_list";
   const CACHE_TTL = 1000 * 60 * 5; // 5 Minutes
@@ -2063,6 +2067,148 @@ export async function getWorldSnapshots() {
   }
 }
 
+
+/**
+ * Save a world snapshot split into country-based chunks (subcollections).
+ * Metadata doc: world_snapshots/{id} (name, seed, config, chunk list — small)
+ * Chunk docs:   world_snapshots/{id}/chunks/{countryCode} (objects array — each <1MB)
+ * 
+ * @param {Object} metadata - Snapshot metadata (name, seed, zoneConfig, cityId, etc.)
+ * @param {Object} objectsByCountry - { 'DE': [...objects], 'US': [...objects], ... }
+ * @returns {boolean} success
+ */
+export async function saveWorldSnapshotChunked(metadata, objectsByCountry) {
+  if (!isAdmin()) return false;
+  try {
+    const { doc, setDoc, collection, serverTimestamp, writeBatch } =
+      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    const id = metadata.id || 'snap_' + Date.now();
+    const countries = Object.keys(objectsByCountry);
+    const totalObjects = Object.values(objectsByCountry).reduce((s, arr) => s + arr.length, 0);
+
+    // 1. Save metadata document (no objects — lightweight)
+    const metaDoc = {
+      name: metadata.name || 'World Snapshot',
+      cityId: metadata.cityId || 'global',
+      type: metadata.type || 'mixed',
+      seed: metadata.seed || Math.floor(Math.random() * 2147483647),
+      zoneConfig: metadata.zoneConfig || null,
+      isActive: false,
+      chunked: true,
+      chunkCount: countries.length,
+      totalObjects: totalObjects,
+      countries: countries,
+      createdAt: serverTimestamp(),
+      createdBy: currentUser && currentUser.email ? currentUser.email : 'admin@fightcraft.com',
+    };
+
+    const metaRef = doc(db, 'world_snapshots', id);
+    await setDoc(metaRef, metaDoc);
+    console.log('📄 Metadata saved: ' + id + ' (' + countries.length + ' chunks, ' + totalObjects + ' objects)');
+
+    // 2. Save chunks in batches (Firestore batch limit: 500 ops)
+    let batchOps = 0;
+    let batch = writeBatch(db);
+    let batchCount = 0;
+
+    for (const countryCode of countries) {
+      const objects = objectsByCountry[countryCode];
+      const chunkRef = doc(collection(db, 'world_snapshots', id, 'chunks'), countryCode);
+
+      batch.set(chunkRef, {
+        country: countryCode,
+        count: objects.length,
+        objects: objects,
+      });
+      batchOps++;
+
+      // Flush batch every 450 ops (safety margin under 500 limit)
+      if (batchOps >= 450) {
+        await batch.commit();
+        batchCount++;
+        console.log('📦 Batch ' + batchCount + ' committed (' + batchOps + ' chunks)');
+        batch = writeBatch(db);
+        batchOps = 0;
+      }
+    }
+
+    // Commit remaining
+    if (batchOps > 0) {
+      await batch.commit();
+      batchCount++;
+      console.log('📦 Final batch committed (' + batchOps + ' chunks)');
+    }
+
+    trackUsage('write', '[admin] [chunked snapshot: ' + id + ']', 1 + countries.length, 'world_snapshots/' + id);
+    console.log('✅ Chunked snapshot saved: ' + id + ' (' + batchCount + ' batches, ' + countries.length + ' country chunks)');
+    localStorage.removeItem('admin_snapshots_list');
+    return true;
+  } catch (e) {
+    console.error('Chunked snapshot save error:', e);
+    return false;
+  }
+}
+
+/**
+ * Load all chunks for a chunked snapshot (admin use — loads everything).
+ * @param {string} snapshotId
+ * @returns {Array} all objects from all chunks
+ */
+export async function loadSnapshotChunks(snapshotId) {
+  try {
+    const { collection, getDocs } =
+      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    const chunksRef = collection(db, 'world_snapshots', snapshotId, 'chunks');
+    const snap = await getDocs(chunksRef);
+    trackUsage('read', '[admin] [load chunks: ' + snapshotId + ']', snap.size, 'world_snapshots/' + snapshotId + '/chunks');
+
+    const allObjects = [];
+    snap.docs.forEach(d => {
+      const data = d.data();
+      if (data.objects && Array.isArray(data.objects)) {
+        allObjects.push(...data.objects);
+      }
+    });
+
+    console.log('📥 Loaded ' + allObjects.length + ' objects from ' + snap.size + ' chunks');
+    return allObjects;
+  } catch (e) {
+    console.error('Error loading snapshot chunks:', e);
+    return [];
+  }
+}
+
+/**
+ * Load a single country chunk for a player (lightweight — 1 read).
+ * @param {string} snapshotId
+ * @param {string} countryCode
+ * @returns {Array} objects for that country
+ */
+export async function loadSnapshotChunkByCountry(snapshotId, countryCode) {
+  try {
+    const { doc, getDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    const chunkRef = doc(db, 'world_snapshots', snapshotId, 'chunks', countryCode);
+    const snap = await getDoc(chunkRef);
+    trackUsage('read', '[player] [chunk: ' + countryCode + ']', 1, 'world_snapshots/' + snapshotId + '/chunks/' + countryCode);
+
+    if (!snap.exists()) {
+      console.log('No chunk found for country: ' + countryCode);
+      return [];
+    }
+
+    const data = snap.data();
+    console.log('🌍 Loaded ' + (data.count || 0) + ' objects for ' + countryCode);
+    return data.objects || [];
+  } catch (e) {
+    console.error('Error loading country chunk:', e);
+    return [];
+  }
+}
+
 export async function getSnapshotById(id) {
   if (!isAdmin()) return null;
   try {
@@ -2095,17 +2241,17 @@ export async function applyWorldSnapshot(snapshotId) {
   try {
     const { doc, updateDoc, serverTimestamp } =
       await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-    
+
     await updateDoc(doc(db, "world_snapshots", snapshotId), {
       isActive: true,
     });
-    
+
     await updateDoc(doc(db, "world_metadata", "current_state"), {
       last_global_update: serverTimestamp(),
       world_data: null,
-      version_hash: snapshotId
+      version_hash: snapshotId,
     });
-    
+
     localStorage.removeItem("admin_snapshots_list");
     return true;
   } catch (e) {
@@ -2345,7 +2491,7 @@ export async function forceSnapshotActiveState(snapshotId, state = true) {
 export async function deleteSnapshot(snapshotId) {
   if (!isAdmin()) return false;
   try {
-    const { doc, getDoc, deleteDoc } =
+    const { doc, getDoc, deleteDoc, collection, getDocs, writeBatch } =
       await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
     const snapRef = doc(db, "world_snapshots", snapshotId);
 
@@ -2354,6 +2500,27 @@ export async function deleteSnapshot(snapshotId) {
     if (snapDoc.exists() && snapDoc.data().isActive === true) {
       console.log(`⚠️ Snapshot ${snapshotId} is active. Deactivating first...`);
       await deactivateWorldSnapshot(snapshotId);
+    }
+
+    // Delete chunks subcollection first (if chunked snapshot)
+    if (snapDoc.exists() && snapDoc.data().chunked) {
+      const chunksRef = collection(db, "world_snapshots", snapshotId, "chunks");
+      const chunksSnap = await getDocs(chunksRef);
+      if (chunksSnap.size > 0) {
+        let batch = writeBatch(db);
+        let ops = 0;
+        for (const chunkDoc of chunksSnap.docs) {
+          batch.delete(chunkDoc.ref);
+          ops++;
+          if (ops >= 450) {
+            await batch.commit();
+            batch = writeBatch(db);
+            ops = 0;
+          }
+        }
+        if (ops > 0) await batch.commit();
+        console.log("Deleted " + chunksSnap.size + " chunks for " + snapshotId);
+      }
     }
 
     await deleteDoc(snapRef);

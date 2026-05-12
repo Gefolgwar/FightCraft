@@ -10,4 +10,4 @@ For ANY development task, bug fix, feature implementation, or codebase modificat
    - Verify the baseline or reproduce the bug.
    - Implement the fix/feature.
    - Run the tests again to prove success.
-4. **Evidence of Testing:** Provide evidence of successful testing (e.g., test scripts, terminal output, or Playwright screenshots) in your final synthesis.
+4. **Evidence of Testing:** Provide evidence of successful testing (e.g., test scripts or terminal output) in your final synthesis.

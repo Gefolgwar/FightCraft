@@ -34,6 +34,7 @@
     "@capacitor/splash-screen": "^5.0.7",
     "@capacitor/status-bar": "^5.0.7",
     "@playwright/test": "^1.59.1",
+    "firebase-admin": "^13.9.0",
     "playwright": "^1.59.1"
   },
   "devDependencies": {

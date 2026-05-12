@@ -12,9 +12,6 @@ import {
   getCurrentUser,
   initFirebase,
 } from "../firebase/firebase-service.js";
-import { generateMonstersFromOSM } from "../gameplay/generation-service.js";
-import { generateCityTerritory } from "../map/territory-service.js";
-import { CITY_ANCHORS } from "../gameplay/data.js";
 
 let templates = [];
 let currentEditId = null;
@@ -328,7 +325,6 @@ function restoreState() {
     }
 
     // Restore form values
-    if (state.city) document.getElementById("gen-city").value = state.city;
     if (state.capacity)
       document.getElementById("gen-capacity").value = state.capacity;
   } catch (e) {
@@ -491,9 +487,7 @@ window.calculateDistribution = () => {
 };
 
 window.startGeneration = async (overwrite = true) => {
-  const cityKey = document.getElementById("gen-city").value;
   const capacity = parseInt(document.getElementById("gen-capacity").value);
-  const useOSM = document.getElementById("use-osm").checked;
   const targetTemplateId = document.getElementById("gen-template").value;
 
   // Mode Logging
@@ -518,12 +512,6 @@ window.startGeneration = async (overwrite = true) => {
     return;
   }
 
-  const cityAnchor = CITY_ANCHORS.find((c) => c.id === cityKey);
-  if (!cityAnchor) {
-    logConsole("❌ Error: City anchor not found!");
-    return;
-  }
-
   let snapName = "";
   let finalId = null;
   let existingObjects = [];
@@ -533,7 +521,7 @@ window.startGeneration = async (overwrite = true) => {
   if (targetTemplateId === "new") {
     snapName = prompt(
       "Enter a name for this new Map Template:",
-      `${cityKey}_${new Date().toLocaleDateString()}`,
+      `snapshot_${new Date().toLocaleDateString()}`,
     );
     if (!snapName) return;
   } else {
@@ -546,8 +534,16 @@ window.startGeneration = async (overwrite = true) => {
 
     // Fetch existing
     const existingSnap = await getSnapshotById(finalId);
-    if (existingSnap && existingSnap.objects) {
-      const allSavedObjects = existingSnap.objects;
+    let allSavedObjects = [];
+    if (existingSnap) {
+      if (existingSnap.chunked && !existingSnap.objects) {
+        const { loadSnapshotChunks } =
+          await import("../firebase/firebase-service.js");
+        const chunks = await loadSnapshotChunks(finalId);
+        allSavedObjects = chunks.flatMap((c) => c.objects || []);
+      } else {
+        allSavedObjects = existingSnap.objects || [];
+      }
 
       if (!overwrite) {
         // MERGE: Add new to existing
@@ -572,15 +568,34 @@ window.startGeneration = async (overwrite = true) => {
         );
       }
 
-      // If the old snap had zones, preserve them (IN BOTH MODES)
-      if (existingSnap.zones) {
+      // Load zones from chunks
+      if (existingSnap.zoneConfig && existingSnap.zoneConfig.generated) {
+        try {
+          const { loadZoneChunks } =
+            await import("../firebase/snapshot-service.js");
+          zonesGeoJson = await loadZoneChunks(
+            finalId,
+            existingSnap.zoneConfig.chunkCount,
+          );
+          if (zonesGeoJson) {
+            logConsole(
+              `✅ <b>Зони завантажені з бази даних!</b> ${zonesGeoJson.features.length} зон.`,
+            );
+          }
+        } catch (e) {
+          console.error("Zone loading error:", e);
+        }
+      }
+
+      // Fallback: try inline zones field (old format)
+      if (!zonesGeoJson && existingSnap.zones) {
         try {
           zonesGeoJson =
             typeof existingSnap.zones === "string"
               ? JSON.parse(existingSnap.zones)
               : existingSnap.zones;
           logConsole(
-            `📋 Preserved ${zonesGeoJson.features.length} zones from existing template.`,
+            `✅ <b>Зони завантажені з бази даних!</b> ${zonesGeoJson.features.length} зон (inline).`,
           );
         } catch (e) {
           console.error("Zone parse error:", e);
@@ -603,230 +618,127 @@ window.startGeneration = async (overwrite = true) => {
       id: c.id || c.name || `citadel_${c.lat.toFixed(4)}_${c.lng.toFixed(4)}`,
     }));
 
-  // 2. Zone Calculation
-  if (citadels.length >= 2 && !zonesGeoJson) {
-    logConsole(`📍 Citadels detected. Calculating distribution zones...`);
-    try {
-      zonesGeoJson = await generateCityTerritory(cityKey, citadels, null);
-      logConsole(
-        `✅ ${zonesGeoJson.features.length} zones found for distribution.`,
-      );
-    } catch (err) {
-      logConsole(`⚠️ Zone Calculation Failed: ${err.message}`);
-    }
-  } else if (citadels.length < 2 && !zonesGeoJson) {
-    // Warning for missing zones
-    const proceed = confirm(
-      "ATTENTION! For the algorithm to work correctly, you must first generate Citadels in the Castles tab!\n\nWould you like to proceed with standard (random) generation without zone-balancing?",
+  // Zones MUST come from the snapshot — no recalculation
+  if (
+    !zonesGeoJson ||
+    !zonesGeoJson.features ||
+    zonesGeoJson.features.length === 0
+  ) {
+    alert(
+      "No zones found in this snapshot. Generate zones first in the Map Templates tab.",
     );
-    if (!proceed) return;
+    return;
   }
 
-  // 2. Generate Points
+  // Generate Points
   let generatedMonsters = [];
 
-  if (zonesGeoJson && zonesGeoJson.features.length > 0) {
-    // BALANCED DISTRIBUTION MODE
-    // Group features by citadelId (in case one citadel has multiple polygons/islands)
-    const zonesById = {};
-    zonesGeoJson.features.forEach((f, idx) => {
-      let id = f.properties?.citadelId || f.properties?.id || f.id;
+  // BALANCED DISTRIBUTION MODE
+  // Group features by citadelId (in case one citadel has multiple polygons/islands)
+  const zonesById = {};
+  zonesGeoJson.features.forEach((f, idx) => {
+    let id = f.properties?.citadelId || f.properties?.id || f.id;
 
-      if (!id || id === "Citadel" || id === "Castle") {
-        id = `zone_${idx}`;
-      }
-      if (!zonesById[id]) zonesById[id] = [];
-      zonesById[id].push(f);
+    if (!id || id === "Citadel" || id === "Castle") {
+      id = `zone_${idx}`;
+    }
+    if (!zonesById[id]) zonesById[id] = [];
+    zonesById[id].push(f);
+  });
+
+  const uniqueZoneIds = Object.keys(zonesById);
+  const totalLogicalZones = uniqueZoneIds.length;
+
+  logConsole(
+    `⚖️ Distributing ${capacity} monsters per zone across ${totalLogicalZones} logical zones (Total: ${totalLogicalZones * capacity})...`,
+  );
+
+  // Fetch OSM data removed — pure random placement only
+
+  if (!window.turf) {
+    logConsole(`⏳ Loading Turf.js for spatial calculations...`);
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Failed to load Turf.js"));
+      document.head.appendChild(script);
     });
-
-    const uniqueZoneIds = Object.keys(zonesById);
-    const totalLogicalZones = uniqueZoneIds.length;
-    const targetPerZone = 250;
-    const remainder = 0;
-
-    logConsole(
-      `⚖️ Distributing 250 monsters per zone across ${totalLogicalZones} logical zones (Total: ${totalLogicalZones * 250})...`,
-    );
-
-    // Fetch OSM data ONCE if needed
-    let allOsmData = [];
-    if (useOSM) {
-      logConsole(`🌍 Fetching OSM data for the entire city (10km radius)...`);
-      const selTemps = Array.from(selectedTemplates)
-        .map((id) => templates.find((t) => t.id === id))
-        .filter(Boolean);
-      try {
-        allOsmData = await generateMonstersFromOSM(
-          { lat: cityAnchor.lat, lng: cityAnchor.lng },
-          10000,
-          selTemps,
-          { timeOfDay: "day" },
-        );
-      } catch (err) {
-        logConsole(
-          `⚠️ OSM Fetch Failed (${err.message}). Switching to Random placement.`,
-        );
-        allOsmData = [];
-      }
-    }
-
-    if (!window.turf) {
-      logConsole(`⏳ Loading Turf.js for spatial calculations...`);
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js";
-        script.onload = resolve;
-        script.onerror = () => reject(new Error("Failed to load Turf.js"));
-        document.head.appendChild(script);
-      });
-    }
-
-    const turf = window.turf;
-    const selectionList = Array.from(selectedTemplates)
-      .map((id) => templates.find((t) => t.id === id))
-      .filter(Boolean);
-    const totalWeight = selectionList.reduce(
-      (sum, t) => sum + (t.weight || 0),
-      0,
-    );
-
-    uniqueZoneIds.forEach((citadelId, idx) => {
-      const zoneFeatures = zonesById[citadelId];
-      const zoneTarget = targetPerZone + (idx < remainder ? 1 : 0);
-      const zoneMonsters = [];
-
-      if (useOSM && allOsmData.length > 0) {
-        // Filter OSM points inside any of the zone's features
-        const internalOsm = allOsmData.filter((pt) =>
-          zoneFeatures.some((f) =>
-            turf.booleanPointInPolygon([pt.lng, pt.lat], f),
-          ),
-        );
-
-        if (internalOsm.length >= zoneTarget) {
-          const selected = internalOsm
-            .sort(() => Math.random() - 0.5)
-            .slice(0, zoneTarget);
-          zoneMonsters.push(...selected);
-        } else {
-          zoneMonsters.push(...internalOsm);
-          const needed = zoneTarget - internalOsm.length;
-          const pointsPerFeature = Math.ceil(needed / zoneFeatures.length);
-          for (const f of zoneFeatures) {
-            let featureNeeded = Math.min(
-              pointsPerFeature,
-              zoneTarget - zoneMonsters.length,
-            );
-            for (let n = 0; n < featureNeeded; n++) {
-              const rndPt = generateRandomPointInPolygon(f);
-              if (rndPt) {
-                const template = pickTemplateByWeight(
-                  selectionList,
-                  totalWeight,
-                );
-                zoneMonsters.push({
-                  ...template,
-                  lat: rndPt.lat,
-                  lng: rndPt.lng,
-                  cityId: cityKey,
-                });
-              }
-            }
-          }
-        }
-      } else {
-        // PURE RANDOM IN ZONE
-        const pointsPerFeature = Math.ceil(zoneTarget / zoneFeatures.length);
-        for (const f of zoneFeatures) {
-          let featureNeeded = Math.min(
-            pointsPerFeature,
-            zoneTarget - zoneMonsters.length,
-          );
-          for (let n = 0; n < featureNeeded; n++) {
-            const rndPt = generateRandomPointInPolygon(f);
-            if (rndPt) {
-              const template = pickTemplateByWeight(selectionList, totalWeight);
-              zoneMonsters.push({
-                ...template,
-                lat: rndPt.lat,
-                lng: rndPt.lng,
-                cityId: cityKey,
-              });
-            }
-          }
-        }
-      }
-
-      // Tag monsters
-      zoneMonsters.forEach((m) => {
-        m.cityId = cityKey;
-        m.type = "monster";
-        m.zoneId = citadelId;
-      });
-
-      logConsole(
-        `📍 Zone <b>${citadelId.split("_").pop()}</b>: ${zoneMonsters.length} monsters`,
-      );
-      generatedMonsters.push(...zoneMonsters);
-    });
-    logConsole(
-      `✅ DISTRIBUTION COMPLETE: Total ${generatedMonsters.length} monsters balanced.`,
-    );
-  } else {
-    // LEGACY / NO ZONES MODE - Improved with Grid-Based Balancing
-    logConsole(
-      `🎲 No Citadels found. Using Grid-Based balancing for city coverage...`,
-    );
-
-    // Divide city area into a 5x5 grid (25 mini-zones) for uniform sampling even without Citadels
-    const gridZones = 5;
-    const latStep = 0.1 / gridZones; // Approx 10km span
-    const lngStep = 0.1 / gridZones;
-    const targetPerCell = 250;
-    const remainder = 0;
-    let cellIdx = 0;
-
-    for (let y = 0; y < gridZones; y++) {
-      for (let x = 0; x < gridZones; x++) {
-        const cellTarget = targetPerCell + (cellIdx < remainder ? 1 : 0);
-        const cellLat = cityAnchor.lat - 0.05 + y * latStep;
-        const cellLng = cityAnchor.lng - 0.05 + x * lngStep;
-
-        // Create a virtual bbox for this cell
-        const cellBbox = [
-          cellLng,
-          cellLat,
-          cellLng + lngStep,
-          cellLat + latStep,
-        ];
-        const cellPoly = turf.bboxPolygon(cellBbox);
-
-        for (let n = 0; n < cellTarget; n++) {
-          const rndPt = generateRandomPointInPolygon(cellPoly);
-          if (rndPt) {
-            const template = pickTemplateByWeight(
-              Array.from(selectedTemplates)
-                .map((id) => templates.find((t) => t.id === id))
-                .filter(Boolean),
-              totalWeight,
-            );
-            generatedMonsters.push({
-              ...template,
-              lat: rndPt.lat,
-              lng: rndPt.lng,
-              cityId: cityKey,
-              zoneId: `grid_${y}_${x}`,
-            });
-          }
-        }
-        cellIdx++;
-      }
-    }
-    logConsole(
-      `✅ GRID DISTRIBUTION COMPLETE: ${generatedMonsters.length} monsters.`,
-    );
   }
+
+  const turf = window.turf;
+  const selectionList = Array.from(selectedTemplates)
+    .map((id) => templates.find((t) => t.id === id))
+    .filter(Boolean);
+  const totalWeight = selectionList.reduce(
+    (sum, t) => sum + (t.weight || 0),
+    0,
+  );
+
+  // Calculate exact template pool based on capacity
+  const exactTemplatePool = [];
+  selectionList.forEach((t) => {
+    const count =
+      totalWeight > 0 ? Math.round(capacity * (t.weight / totalWeight)) : 0;
+    for (let i = 0; i < count; i++) {
+      exactTemplatePool.push({
+        type: "monster",
+        templateId: t.id,
+        name: t.name,
+        icon: t.icon,
+        hp: t.maxHp || t.hp || 100,
+        maxHp: t.maxHp || t.hp || 100,
+        damage: t.damage || 10,
+        defense: t.defense || 0,
+        xpReward: t.xpReward || 50,
+        loot: t.loot || [],
+        level: t.level || 1,
+        respawnAt: null,
+      });
+    }
+  });
+
+  uniqueZoneIds.forEach((citadelId, idx) => {
+    const zoneFeatures = zonesById[citadelId];
+    const zoneCityId = zoneFeatures[0]?.properties?.cityId || "unknown";
+    const zoneTemplatePool = [...exactTemplatePool].sort(
+      () => Math.random() - 0.5,
+    );
+    const zoneMonsters = [];
+
+    const pointsPerFeature = Math.ceil(
+      zoneTemplatePool.length / zoneFeatures.length,
+    );
+    for (const f of zoneFeatures) {
+      let featureNeeded = Math.min(
+        pointsPerFeature,
+        zoneTemplatePool.length - zoneMonsters.length,
+      );
+      for (let n = 0; n < featureNeeded; n++) {
+        const rndPt = generateRandomPointInPolygon(f);
+        if (rndPt) {
+          const template = zoneTemplatePool.pop();
+          if (!template) break;
+          zoneMonsters.push({
+            ...template,
+            lat: rndPt.lat,
+            lng: rndPt.lng,
+            cityId: zoneCityId,
+            type: "monster",
+            zoneId: citadelId,
+          });
+        }
+      }
+    }
+
+    logConsole(
+      `📍 Zone <b>${citadelId.split("_").pop()}</b>: ${zoneMonsters.length} monsters`,
+    );
+    generatedMonsters.push(...zoneMonsters);
+  });
+  logConsole(
+    `✅ DISTRIBUTION COMPLETE: Total ${generatedMonsters.length} monsters balanced.`,
+  );
 
   if (generatedMonsters.length === 0) {
     logConsole("⚠️ No monsters generated.");
@@ -853,7 +765,6 @@ window.startGeneration = async (overwrite = true) => {
   const snapshotData = {
     id: finalId,
     name: snapName,
-    cityId: cityKey,
     type: finalType,
     objects: mergedObjects,
   };
@@ -876,20 +787,7 @@ window.startGeneration = async (overwrite = true) => {
 
   if (success) {
     logConsole("✅ Template Saved!");
-
-    // 4. Update Live Game Zones (Sync)
-    if (zonesGeoJson) {
-      try {
-        const { saveCityZones } =
-          await import("../firebase/firebase-service.js");
-        await saveCityZones(cityKey, zonesGeoJson);
-        logConsole(`✅ Live Zones synchronized for ${cityKey.toUpperCase()}.`);
-      } catch (saveErr) {
-        logConsole(`⚠️ Failed to sync live zones: ${saveErr.message}`);
-      }
-    }
-
-    alert("Template saved successfully and territories synchronized!");
+    alert("Template saved successfully!");
     await loadWorldSnapshots(); // Refresh list
   }
 };
@@ -992,31 +890,6 @@ function generateRandomPointInPolygon(feature) {
     }
   }
   return null; // Fallback
-}
-
-function pickTemplateByWeight(list, totalWeight) {
-  const rnd = Math.random() * totalWeight;
-  let cur = 0;
-  for (const t of list) {
-    cur += t.weight || 0;
-    if (rnd <= cur) {
-      return {
-        type: "monster",
-        templateId: t.id,
-        name: t.name,
-        icon: t.icon,
-        hp: t.maxHp || t.hp || 100,
-        maxHp: t.maxHp || t.hp || 100,
-        damage: t.damage || 10,
-        defense: t.defense || 0,
-        xpReward: t.xpReward || 50,
-        loot: t.loot || [],
-        level: t.level || 1,
-        respawnAt: null,
-      };
-    }
-  }
-  return null;
 }
 
 // Utility

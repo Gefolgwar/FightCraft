@@ -1,0 +1,52 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e6]:
+      - generic [ref=e8]: "1"
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]: HP
+          - generic [ref=e14]: +
+          - generic [ref=e15]: 100/100
+        - generic [ref=e16]:
+          - generic [ref=e17]: XP
+          - generic [ref=e19]: 0/500
+        - generic [ref=e21]:
+          - text: 💰 0
+          - generic "Storage" [ref=e22]: 📦 0
+    - generic [ref=e25]:
+      - button "👤 Hero" [ref=e26] [cursor=pointer]:
+        - generic [ref=e27]: 👤
+        - generic [ref=e28]: Hero
+      - button "🎒 Inventory" [ref=e29] [cursor=pointer]:
+        - generic [ref=e30]: 🎒
+        - generic [ref=e31]: Inventory
+      - button "📍" [ref=e32] [cursor=pointer]:
+        - generic [ref=e33]: 📍
+      - button "📜 Quests" [ref=e34] [cursor=pointer]:
+        - generic [ref=e35]: 📜
+        - generic [ref=e36]: Quests
+      - button "🏆 Stats" [ref=e37] [cursor=pointer]:
+        - generic [ref=e38]: 🏆
+        - generic [ref=e39]: Stats
+      - button "⚙️ Menu" [ref=e40] [cursor=pointer]:
+        - generic [ref=e41]: ⚙️
+        - generic [ref=e42]: Menu
+    - button "📋" [ref=e43] [cursor=pointer]
+    - button "🗺️" [ref=e44] [cursor=pointer]:
+      - generic [ref=e45]: 🗺️
+    - button "👥 0" [ref=e46] [cursor=pointer]:
+      - generic [ref=e47]: 👥
+      - generic [ref=e48]: "0"
+  - generic [ref=e50]:
+    - generic [ref=e51]:
+      - generic [ref=e52]: 🏃 Move Speed
+      - generic [ref=e53]:
+        - button "0.5x" [ref=e54] [cursor=pointer]
+        - button "1x" [ref=e55] [cursor=pointer]
+        - button "2x" [ref=e56] [cursor=pointer]
+        - button "5x" [ref=e57] [cursor=pointer]
+    - button "🕹️ Toggle Joystick" [ref=e59] [cursor=pointer]
+  - generic [ref=e60]:
+    - generic [ref=e61]: ⚔️
+    - heading "FightCraft" [level=1] [ref=e62]
+    - paragraph [ref=e63]: Connecting to servers...
