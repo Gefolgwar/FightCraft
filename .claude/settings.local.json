@@ -29,7 +29,10 @@
       "mcp__plugin_playwright_playwright__browser_snapshot",
       "mcp__plugin_playwright_playwright__browser_console_messages",
       "mcp__plugin_playwright_playwright__browser_evaluate",
-      "mcp__plugin_playwright_playwright__browser_run_code_unsafe"
+      "mcp__plugin_playwright_playwright__browser_run_code_unsafe",
+      "mcp__github__search_issues",
+      "Skill(grill-me)",
+      "Skill(playwright-skill)"
     ],
     "defaultMode": "acceptEdits",
     "allowAll": true

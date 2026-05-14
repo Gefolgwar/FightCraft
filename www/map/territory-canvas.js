@@ -244,9 +244,28 @@ export class TerritoryCanvasLayer extends L.Layer {
   _redrawPolygon(ctx, map) {
     if (this._territories.length === 0) return;
 
+    // Viewport culling bounds
+    const mapBounds = map.getBounds();
+    const pad = 0.01;
+    const north = mapBounds.getNorth() + pad;
+    const south = mapBounds.getSouth() - pad;
+    const east = mapBounds.getEast() + pad;
+    const west = mapBounds.getWest() - pad;
+
     // Draw each territory polygon
     for (const territory of this._territories) {
       if (!territory.boundary || territory.boundary.length < 3) continue;
+
+      // Viewport culling: check polygon centroid
+      let cLat = 0,
+        cLng = 0;
+      for (const p of territory.boundary) {
+        cLat += p.lat;
+        cLng += p.lng;
+      }
+      cLat /= territory.boundary.length;
+      cLng /= territory.boundary.length;
+      if (cLat < south || cLat > north || cLng < west || cLng > east) continue;
 
       const color = territory.color || citadelColor(territory.citadelId);
 
@@ -280,40 +299,98 @@ export class TerritoryCanvasLayer extends L.Layer {
   _redrawH3(ctx, map) {
     if (this._h3Territories.length === 0) return;
 
+    const zoom = map.getZoom();
+    const mapBounds = map.getBounds();
+    // Pad bounds slightly to avoid pop-in
+    const pad = 0.01; // ~1km
+    const north = mapBounds.getNorth() + pad;
+    const south = mapBounds.getSouth() - pad;
+    const east = mapBounds.getEast() + pad;
+    const west = mapBounds.getWest() - pad;
+
     ctx.lineJoin = "round";
 
+    // DOTTED MODE: zoom <= 8 -> just draw small dots at hex centers
+    if (zoom <= 8) {
+      for (const territory of this._h3Territories) {
+        if (!territory.hexBoundaries || territory.hexBoundaries.length === 0)
+          continue;
+        const color = territory.color || citadelColor(territory.citadelId);
+        ctx.fillStyle = hslToRgba(color, 0.7);
+
+        for (const hexRing of territory.hexBoundaries) {
+          if (!hexRing || hexRing.length < 3) continue;
+          // Calculate hex center
+          let cLat = 0,
+            cLng = 0;
+          for (const p of hexRing) {
+            cLat += p.lat;
+            cLng += p.lng;
+          }
+          cLat /= hexRing.length;
+          cLng /= hexRing.length;
+
+          // Viewport culling
+          if (cLat < south || cLat > north || cLng < west || cLng > east)
+            continue;
+
+          const px = map.latLngToContainerPoint(L.latLng(cLat, cLng));
+          ctx.beginPath();
+          ctx.arc(px.x, px.y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      return;
+    }
+
+    // OUTLINE-ONLY MODE: zoom 9-10 -> draw hex outlines only (no fill)
+    const drawFill = zoom > 10;
+
+    // Batch by territory (color)
     for (const territory of this._h3Territories) {
       if (!territory.hexBoundaries || territory.hexBoundaries.length === 0)
         continue;
 
       const color = territory.color || citadelColor(territory.citadelId);
-      const fillStyle = hslToRgba(color, this._fillOpacity);
-      const strokeStyle = hslToRgba(color, this._borderOpacity * 0.5);
 
-      ctx.fillStyle = fillStyle;
-      ctx.strokeStyle = strokeStyle;
-      ctx.lineWidth = 1;
+      if (drawFill) {
+        ctx.fillStyle = hslToRgba(color, this._fillOpacity);
+      }
+      ctx.strokeStyle = hslToRgba(color, this._borderOpacity * 0.5);
+      ctx.lineWidth = drawFill ? 1 : 1.5;
+
+      // Batch all hexes of this territory into one path
+      ctx.beginPath();
 
       for (const hexRing of territory.hexBoundaries) {
         if (!hexRing || hexRing.length < 3) continue;
 
-        // Project geographic coords → container pixel coords
+        // Viewport culling: check hex center
+        let cLat = 0,
+          cLng = 0;
+        for (const p of hexRing) {
+          cLat += p.lat;
+          cLng += p.lng;
+        }
+        cLat /= hexRing.length;
+        cLng /= hexRing.length;
+        if (cLat < south || cLat > north || cLng < west || cLng > east)
+          continue;
+
         const points = hexRing.map((p) => {
           const px = map.latLngToContainerPoint(L.latLng(p.lat, p.lng));
           return { x: px.x, y: px.y };
         });
 
-        // Build hex polygon path
-        ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) {
           ctx.lineTo(points[i].x, points[i].y);
         }
         ctx.closePath();
-
-        ctx.fill();
-        ctx.stroke();
       }
+
+      if (drawFill) ctx.fill();
+      ctx.stroke();
     }
   }
 }

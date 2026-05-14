@@ -1,2 +1,0 @@
-/mnt/d/Project/FightCraft/www/firebase/snapshot-service.js
-/mnt/d/Project/FightCraft/www/map/templates_map.html

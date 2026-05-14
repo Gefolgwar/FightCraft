@@ -10,20 +10,6 @@
     "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH": "/home/user/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome",
     "CHROME_PATH": "/home/user/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome"
   },
-  "enabledPlugins": {
-    "superpowers@claude-plugins-official": true,
-    "firebase@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "code-review@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "context7@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true,
-    "claude-md-management@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
-    "hookify@claude-plugins-official": true,
-    "playwright-skill@playwright-skill": true
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -36,5 +22,20 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "firebase@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "playwright-skill@playwright-skill": true,
+    "github@claude-plugins-official": true
   }
 }

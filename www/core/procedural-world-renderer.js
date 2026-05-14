@@ -8,7 +8,7 @@
 
 import {
   generateCitadelsForCity,
-  generateCitadelsInBoundary,
+
   generateObjectsForCell,
   getObjectsForViewport,
   calculateCityObjectCount,
@@ -17,6 +17,7 @@ import {
   combineSeed,
   getWorldSeed,
 } from "./procedural-engine-v2.js";
+import { generateCitadelsInBoundary } from "./zone-engine.js";
 import { getViewportCells, H3_RES_CITADEL } from "./h3-spatial.js";
 
 // ── Caches ───────────────────────────────────────────────────────

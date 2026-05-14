@@ -9,8 +9,8 @@ const H3_CDN = "https://unpkg.com/h3-js@4.1.0/dist/h3-js.umd.js";
 /** Resolution 8: ~460m edge length — individual monster spawn cells */
 export const H3_RES_ENTITY = 8;
 
-/** Resolution 4: ~22km edge length — territory / citadel chunks */
-export const H3_RES_CITADEL = 4;
+/** Resolution 7: ~1.2km edge length — neighborhood / district zones (1 citadel = 1 zone ~ 5 km2) */
+export const H3_RES_CITADEL = 7;
 
 /** Resolution 6: ~3.2km edge length — visual marker clustering */
 export const H3_RES_CLUSTER = 6;

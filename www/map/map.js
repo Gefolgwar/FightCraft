@@ -15,6 +15,7 @@ import {
   checkDiscovery,
   getDiscoveredCastles,
 } from "../core/discovery-service.js";
+import { citadelColor } from "../core/h3-territory.js";
 import {
   getGlobalOwner,
   setCitadels,
@@ -92,6 +93,8 @@ let _proceduralEngine = null;
 let _h3Territory = null;
 let _lastTerritoryUpdate = 0;
 const TERRITORY_UPDATE_THROTTLE = 3000; // 3 seconds
+let _cityBoundaries = null; // Loaded from world_cities_boundaries.json
+let _zoneCache = new Map(); // cityId -> zone-engine result (cached)
 
 // ==================== MULTIPLAYER ====================
 
@@ -1762,6 +1765,22 @@ export async function initH3Territory() {
       return;
     }
 
+    // Load city boundaries for Voronoi zone generation
+    if (!_cityBoundaries) {
+      try {
+        const bResp = await fetch("../gameplay/world_cities_boundaries.json");
+        if (bResp.ok) {
+          _cityBoundaries = await bResp.json();
+          const count = Object.keys(_cityBoundaries).filter(
+            (k) => _cityBoundaries[k].boundary,
+          ).length;
+          console.log(`🗺️ Loaded city boundaries for ${count} cities`);
+        }
+      } catch (e) {
+        console.warn("⚠️ City boundaries not available:", e.message);
+      }
+    }
+
     // Load citadels from Firestore castles collection
     const { subscribeToCastles } =
       await import("../firebase/firebase-service.js");
@@ -1897,7 +1916,18 @@ function _updateTerritoryCanvas() {
   // If H3 module is loaded and we have citadels, use H3 rendering
   if (_h3Territory && citadels.length > 0) {
     try {
-      const h3Territories = _h3Territory.computeH3Boundaries(citadels, 7, 5);
+      let h3Territories;
+
+      // Try zone-engine for cities with boundaries (continuous Voronoi zones)
+      if (_cityBoundaries && window.h3) {
+        h3Territories = _computeZoneEngineTerritories(citadels);
+      }
+
+      // Fallback to legacy H3 territory (no boundaries)
+      if (!h3Territories || h3Territories.length === 0) {
+        h3Territories = _h3Territory.computeH3Boundaries(citadels, 7, 5);
+      }
+
       territoryCanvasLayer.setH3Territories(h3Territories);
 
       // Save strictly visible cells so monsters only spawn inside them
@@ -1916,7 +1946,6 @@ function _updateTerritoryCanvas() {
         renderStaticMonsters();
       }, 50);
 
-      // --- Console logging: visible citadels and zones ---
       const visibleCitadels = citadels.length;
       const visibleZones = h3Territories.length;
       const totalCells = h3Territories.reduce(
@@ -1924,7 +1953,7 @@ function _updateTerritoryCanvas() {
         0,
       );
       console.log(
-        `🏰 H3 Territory Update: ${visibleCitadels} citadels, ${visibleZones} zones, ${totalCells} hex cells on map`,
+        `🏰 Territory Update: ${visibleCitadels} citadels, ${visibleZones} zones, ${totalCells} hex cells`,
       );
       return;
     } catch (e) {
@@ -1947,6 +1976,127 @@ function _updateTerritoryCanvas() {
   } catch (e) {
     console.warn("⚠️ Territory canvas update failed:", e.message);
   }
+}
+
+/**
+ * Compute H3 territories using zone-engine for cities with OSM boundaries.
+ * Falls back to legacy h3-territory for citadels without boundaries.
+ * Returns h3Territories array compatible with TerritoryCanvasLayer.
+ */
+function _computeZoneEngineTerritories(citadels) {
+  const h3 = window.h3;
+  if (!h3 || !_cityBoundaries) return null;
+
+  // Group citadels by cityId
+  const cityGroups = new Map();
+  const noCityCitadels = [];
+
+  for (const c of citadels) {
+    if (c.cityId && _cityBoundaries[c.cityId]?.boundary) {
+      if (!cityGroups.has(c.cityId)) {
+        cityGroups.set(c.cityId, []);
+      }
+      cityGroups.get(c.cityId).push(c);
+    } else {
+      noCityCitadels.push(c);
+    }
+  }
+
+  // If no citadels have boundaries, return null to trigger fallback
+  if (cityGroups.size === 0) return null;
+
+  const allTerritories = [];
+
+  // Process cities with boundaries using zone-engine logic (inline)
+  for (const [cityId, cityCitadels] of cityGroups) {
+    const entry = _cityBoundaries[cityId];
+    const coords = entry.boundary;
+
+    // Extract outer ring
+    let outerRing = null;
+    if (
+      Array.isArray(coords[0]) &&
+      Array.isArray(coords[0][0]) &&
+      typeof coords[0][0][0] === "number"
+    ) {
+      outerRing = coords[0];
+    } else if (Array.isArray(coords[0]) && typeof coords[0][0] === "number") {
+      outerRing = coords;
+    }
+    if (!outerRing || outerRing.length < 3) continue;
+
+    // Check cache
+    const cacheKey = cityId + "_" + cityCitadels.length;
+    if (!_zoneCache.has(cacheKey)) {
+      // Get all H3 cells inside boundary
+      const h3Ring = outerRing.map(([lng, lat]) => [lat, lng]);
+      let cells;
+      try {
+        cells = h3.polygonToCells(h3Ring, 7);
+      } catch (e) {
+        continue;
+      }
+      if (cells.length === 0) continue;
+
+      // Voronoi assignment: each cell -> nearest citadel
+      const zones = new Map();
+      for (const c of cityCitadels) {
+        zones.set(c.id, { citadel: c, cells: [] });
+      }
+      for (const cell of cells) {
+        const [clat, clng] = h3.cellToLatLng(cell);
+        let nearest = null;
+        let minDist = Infinity;
+        for (const c of cityCitadels) {
+          const dlat = clat - c.lat;
+          const dlng = clng - c.lng;
+          const d = dlat * dlat + dlng * dlng;
+          if (d < minDist) {
+            minDist = d;
+            nearest = c;
+          }
+        }
+        if (nearest) zones.get(nearest.id).cells.push(cell);
+      }
+
+      _zoneCache.set(cacheKey, zones);
+    }
+
+    const zones = _zoneCache.get(cacheKey);
+
+    // Convert to h3Territories format expected by TerritoryCanvasLayer
+    for (const [citadelId, zone] of zones) {
+      if (zone.cells.length === 0) continue;
+      allTerritories.push({
+        citadelId,
+        citadel: zone.citadel,
+        cells: zone.cells,
+        hexBoundaries: zone.cells.map((cell) => {
+          const verts = h3.cellToBoundary(cell);
+          return verts.map(([lat, lng]) => ({ lat, lng }));
+        }),
+        ownerId: zone.citadel.ownerId,
+        ownerName: zone.citadel.ownerName,
+        color: citadelColor(zone.citadel.id || citadelId),
+      });
+    }
+  }
+
+  // For citadels without boundaries, use legacy h3-territory
+  if (noCityCitadels.length > 0 && _h3Territory) {
+    try {
+      const legacyTerritories = _h3Territory.computeH3Boundaries(
+        noCityCitadels,
+        7,
+        5,
+      );
+      allTerritories.push(...legacyTerritories);
+    } catch (e) {
+      console.warn("⚠️ Legacy territory fallback failed:", e.message);
+    }
+  }
+
+  return allTerritories.length > 0 ? allTerritories : null;
 }
 
 /**
