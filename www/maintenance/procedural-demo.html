@@ -380,7 +380,7 @@
             import {
                 getTypesForZoom,
                 getResolutionForZoom,
-                
+                generateAllCitadels,
                 invalidateCitadelCache,
                 estimateCityTotalCells,
                 generateViewportObjects,
@@ -576,41 +576,11 @@
                     (c) =>
                         cityBoundaries[c.id] && cityBoundaries[c.id].boundary,
                 );
-                // Generate citadels by actually computing zones (guarantees 1 citadel = 1 zone)
-                worldCitadels = [];
-                let cityCounter = 0;
-                for (const city of citiesWithBoundaries) {
-                    cityCounter++;
-                    if (cityCounter % 50 === 0) {
-                        showProgress(10 + Math.floor((cityCounter / citiesWithBoundaries.length) * 50));
-                        await new Promise((r) => setTimeout(r, 0)); // yield
-                    }
-                    const coords = cityBoundaries[city.id].boundary;
-                    let outerRing = null;
-                    if (
-                        Array.isArray(coords[0]) &&
-                        Array.isArray(coords[0][0]) &&
-                        typeof coords[0][0][0] === "number"
-                    ) {
-                        outerRing = coords[0];
-                    } else if (
-                        Array.isArray(coords[0]) &&
-                        typeof coords[0][0] === "number"
-                    ) {
-                        outerRing = coords;
-                    }
-                    if (!outerRing || outerRing.length < 3) continue;
-
-                    const result = generateZonesForCity(city, outerRing, recipe);
-                    for (const z of result.zones) {
-                        worldCitadels.push(z.citadel);
-                    }
-                    // Cache the result so renderZones doesn't have to recompute
-                    zoneCache.set(city.id, {
-                        zones: result.zones,
-                        geojson: zonesToGeoJSON(result.zones),
-                    });
-                }
+                worldCitadels = generateAllCitadels(
+                    citiesWithBoundaries,
+                    recipe,
+                    cityBoundaries
+                );
                 window._worldCitadels = worldCitadels;
                 showProgress(60);
 
