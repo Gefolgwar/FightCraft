@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>FightCraft — Procedural World Preview</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <!-- Marker Cluster -->
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"
+        />
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
+        />
+        <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+        <!-- H3 -->
+        <script src="https://unpkg.com/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Segoe UI", system-ui, sans-serif;
+                background: #0f172a;
+                color: #e2e8f0;
+            }
+            #map {
+                width: 100%;
+                height: 55vh;
+            }
+            .controls {
+                padding: 12px 16px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                align-items: center;
+            }
+            .control-group {
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+            }
+            .control-group label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #94a3b8;
+            }
+            .control-group input,
+            .control-group select {
+                background: #1e293b;
+                border: 1px solid #334155;
+                color: #e2e8f0;
+                padding: 5px 8px;
+                border-radius: 6px;
+                font-size: 13px;
+                width: 120px;
+            }
+            button {
+                background: #3b82f6;
+                color: white;
+                border: none;
+                padding: 7px 14px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            button:hover {
+                background: #2563eb;
+            }
+            button:disabled {
+                background: #334155;
+                cursor: wait;
+            }
+            button.secondary {
+                background: #475569;
+            }
+            button.secondary:hover {
+                background: #64748b;
+            }
+            .stats {
+                padding: 10px 16px;
+                background: #1e293b;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 14px;
+                font-size: 12px;
+                border-top: 1px solid #334155;
+            }
+            .stat {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .stat-value {
+                font-weight: 700;
+                color: #3b82f6;
+                font-size: 15px;
+            }
+            .stat-label {
+                color: #94a3b8;
+            }
+            .legend {
+                padding: 6px 16px;
+                display: flex;
+                gap: 14px;
+                font-size: 11px;
+                color: #94a3b8;
+            }
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .legend-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .log {
+                padding: 10px 16px;
+                background: #0f172a;
+                max-height: 13vh;
+                overflow-y: auto;
+                font-family: "Cascadia Code", "Fira Code", monospace;
+                font-size: 11px;
+                border-top: 1px solid #334155;
+            }
+            .log-entry {
+                padding: 1px 0;
+                color: #64748b;
+            }
+            .log-entry.info {
+                color: #3b82f6;
+            }
+            .log-entry.success {
+                color: #22c55e;
+            }
+            .log-entry.warn {
+                color: #f59e0b;
+            }
+            .progress {
+                padding: 8px 16px;
+                background: #1e293b;
+                display: none;
+            }
+            .progress-bar {
+                height: 4px;
+                background: #334155;
+                border-radius: 2px;
+                overflow: hidden;
+            }
+            .progress-fill {
+                height: 100%;
+                background: #3b82f6;
+                transition: width 0.2s;
+                width: 0%;
+            }
+            /* Override cluster default colors for dark theme */
+            .marker-cluster-small {
+                background-color: rgba(59, 130, 246, 0.4);
+            }
+            .marker-cluster-small div {
+                background-color: rgba(59, 130, 246, 0.7);
+                color: #fff;
+            }
+            .marker-cluster-medium {
+                background-color: rgba(245, 158, 11, 0.4);
+            }
+            .marker-cluster-medium div {
+                background-color: rgba(245, 158, 11, 0.7);
+                color: #fff;
+            }
+            .marker-cluster-large {
+                background-color: rgba(239, 68, 68, 0.4);
+            }
+            .marker-cluster-large div {
+                background-color: rgba(239, 68, 68, 0.7);
+                color: #fff;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Seed</label>
+                <input type="number" id="seed" value="42" min="1" />
+            </div>
+            <div class="control-group">
+                <label>Monster ratio</label>
+                <input
+                    type="number"
+                    id="ratio-monster"
+                    value="1000"
+                    min="100"
+                    step="100"
+                />
+            </div>
+            <div class="control-group">
+                <label>Shop ratio</label>
+                <input
+                    type="number"
+                    id="ratio-shop"
+                    value="16000"
+                    min="1000"
+                    step="1000"
+                />
+            </div>
+            <div class="control-group">
+                <label>Castle ratio</label>
+                <input
+                    type="number"
+                    id="ratio-castle"
+                    value="5000"
+                    min="500"
+                    step="500"
+                />
+            </div>
+            <div class="control-group">
+                <label>Citadel ratio</label>
+                <input
+                    type="number"
+                    id="ratio-citadel"
+                    value="100000"
+                    min="10000"
+                    step="10000"
+                />
+            </div>
+            <button id="btn-generate" onclick="generateWorld()">
+                &#x1F30D; Generate World Citadels
+            </button>
+            <button class="secondary" onclick="randomSeed()">
+                &#x1F3B2; Random Seed
+            </button>
+        </div>
+
+        <div class="legend">
+            <label class="legend-item" style="cursor: pointer">
+                <input
+                    type="checkbox"
+                    id="tog-monster"
+                    checked
+                    onchange="toggleVis('monster')"
+                    style="accent-color: #ef4444"
+                />
+                <span class="legend-dot" style="background: #ef4444"></span>
+                Monsters (z14+)
+            </label>
+            <label class="legend-item" style="cursor: pointer">
+                <input
+                    type="checkbox"
+                    id="tog-shop"
+                    checked
+                    onchange="toggleVis('shop')"
+                    style="accent-color: #22c55e"
+                />
+                <span class="legend-dot" style="background: #22c55e"></span>
+                Shops (z11+)
+            </label>
+            <label class="legend-item" style="cursor: pointer">
+                <input
+                    type="checkbox"
+                    id="tog-vault"
+                    checked
+                    onchange="toggleVis('vault')"
+                    style="accent-color: #a855f7"
+                />
+                <span class="legend-dot" style="background: #a855f7"></span>
+                Vaults (z11+)
+            </label>
+            <label class="legend-item" style="cursor: pointer">
+                <input
+                    type="checkbox"
+                    id="tog-castle"
+                    checked
+                    onchange="toggleVis('castle')"
+                    style="accent-color: #f59e0b"
+                />
+                <span class="legend-dot" style="background: #f59e0b"></span>
+                Castles (z8+)
+            </label>
+            <label class="legend-item" style="cursor: pointer">
+                <input
+                    type="checkbox"
+                    id="tog-boundary"
+                    checked
+                    onchange="toggleVis('boundary')"
+                    style="accent-color: #f97316"
+                />
+                <span class="legend-dot" style="background: #f97316"></span>
+                City Boundaries (z8+)
+            </label>
+            <label class="legend-item" style="cursor: pointer">
+                <input
+                    type="checkbox"
+                    id="tog-zone"
+                    checked
+                    onchange="toggleVis('zone')"
+                    style="accent-color: #eab308"
+                />
+                <span class="legend-dot" style="background: #eab308"></span>
+                Voronoi Zones (z10+)
+            </label>
+            <label class="legend-item" style="cursor: pointer">
+                <input
+                    type="checkbox"
+                    id="tog-citadel"
+                    checked
+                    onchange="toggleVis('citadel')"
+                    style="accent-color: #06b6d4"
+                />
+                <span class="legend-dot" style="background: #06b6d4"></span>
+                Citadels (z10+)
+            </label>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-value" id="stat-total">0</span
+                ><span class="stat-label">objects</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-citadels">0</span
+                ><span class="stat-label">citadels</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-viewport">0</span
+                ><span class="stat-label">viewport obj</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-cities">0</span
+                ><span class="stat-label">cities</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-zoom">—</span
+                ><span class="stat-label">zoom</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-lod">—</span
+                ><span class="stat-label">LOD</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-boundaries">0</span
+                ><span class="stat-label">boundaries</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-time">0</span
+                ><span class="stat-label">ms</span>
+            </div>
+        </div>
+
+        <div class="log" id="log"></div>
+
+        <script type="module">
+            import {
+                generateCitadelsForCity,
+                getObjectsForViewport,
+                getObjectById,
+                findCityForCell,
+                clearCellCityCache,
+            } from "../core/procedural-engine-v2.js";
+            import {
+                getTypesForZoom,
+                getResolutionForZoom,
+                generateAllCitadels,
+                invalidateCitadelCache,
+                estimateCityTotalCells,
+                generateViewportObjects,
+                getViewportKey,
+                generateZoneGeoJSON,
+                filterCitadelsInBounds,
+            } from "../core/procedural-world-renderer.js";
+            import {
+                generateZonesForCity,
+                zonesToGeoJSON,
+                loadBoundaries,
+                getCityBoundary,
+            } from "../core/zone-engine.js";
+
+            let map,
+                citadelClusterGroup,
+                viewportClusterGroup,
+                zoneLayerGroup,
+                boundaryLayerGroup;
+            let cities = [];
+            let worldCitadels = [];
+            let lastViewportKey = "";
+            let cityBoundaries = {};
+            let zoneCache = new Map();
+            let boundaryCache = new Map();
+            let totalBoundaryCount = 0;
+
+            // ── Visibility state ──
+            const visibility = {
+                monster: true,
+                shop: true,
+                vault: true,
+                castle: true,
+                citadel: true,
+                zone: true,
+                boundary: true,
+            };
+
+            window.toggleVis = function (type) {
+                const cb = document.getElementById("tog-" + type);
+                if (cb) visibility[type] = cb.checked;
+                const zoom = map ? map.getZoom() : 0;
+
+                if (type === "citadel") {
+                    if (visibility.citadel && zoom >= 10)
+                        map.addLayer(citadelClusterGroup);
+                    else map.removeLayer(citadelClusterGroup);
+                }
+                if (type === "zone") {
+                    if (visibility.zone && zoom >= 10) {
+                        map.addLayer(zoneLayerGroup);
+                        lastViewportKey = "";
+                        renderViewport();
+                    } else map.removeLayer(zoneLayerGroup);
+                }
+                if (type === "boundary") {
+                    if (visibility.boundary && zoom >= 8) {
+                        map.addLayer(boundaryLayerGroup);
+                        renderBoundaries();
+                    } else map.removeLayer(boundaryLayerGroup);
+                }
+                if (["monster", "shop", "vault", "castle"].includes(type)) {
+                    lastViewportKey = "";
+                    renderViewport();
+                }
+            };
+
+            const TYPE_COLORS = {
+                monster: "#ef4444",
+                shop: "#22c55e",
+                vault: "#a855f7",
+                castle: "#f59e0b",
+                citadel: "#06b6d4",
+            };
+
+            // ── Deterministic city color ──
+            function cityColor(cityId) {
+                if (!cityId) return "#888888";
+                let hash = 0;
+                for (let i = 0; i < cityId.length; i++) {
+                    hash = cityId.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const h = ((hash % 360) + 360) % 360;
+                return "hsl(" + h + ", 70%, 55%)";
+            }
+
+            function log(msg, cls) {
+                console.log(msg);
+                const el = document.getElementById("log");
+                const time = new Date().toLocaleTimeString("en-GB", {
+                    hour12: false,
+                });
+                el.innerHTML =
+                    '<div class="log-entry ' +
+                    (cls || "") +
+                    '">[' +
+                    time +
+                    "] " +
+                    msg +
+                    "</div>" +
+                    el.innerHTML;
+            }
+
+            function showProgress(pct) {
+                const el = document.getElementById("progress");
+                const fill = document.getElementById("progress-fill");
+                el.style.display = pct >= 100 ? "none" : "block";
+                fill.style.width = pct + "%";
+            }
+
+            function buildRecipe() {
+                return {
+                    seed: parseInt(document.getElementById("seed").value) || 42,
+                    h3Resolution: 9,
+                    densityRatios: {
+                        monster:
+                            parseInt(
+                                document.getElementById("ratio-monster").value,
+                            ) || 1000,
+                        shop:
+                            parseInt(
+                                document.getElementById("ratio-shop").value,
+                            ) || 16000,
+                        vault: 34783,
+                        castle:
+                            parseInt(
+                                document.getElementById("ratio-castle").value,
+                            ) || 5000,
+                        citadel:
+                            parseInt(
+                                document.getElementById("ratio-citadel").value,
+                            ) || 100000,
+                    },
+                    layers: {
+                        monsters: {
+                            templates: [
+                                { templateId: "goblin", weight: 30 },
+                                { templateId: "skeleton", weight: 20 },
+                                { templateId: "wolf", weight: 25 },
+                                { templateId: "orc", weight: 15 },
+                                { templateId: "wraith", weight: 10 },
+                            ],
+                        },
+                        shops: {
+                            templates: [
+                                { templateId: "weapons_shop", weight: 40 },
+                                { templateId: "armor_shop", weight: 30 },
+                                { templateId: "potion_shop", weight: 30 },
+                            ],
+                        },
+                        vaults: {
+                            templates: [
+                                { templateId: "ancient_vault", weight: 50 },
+                                { templateId: "dragon_vault", weight: 20 },
+                                { templateId: "cursed_vault", weight: 30 },
+                            ],
+                        },
+                        castles: {
+                            templates: [
+                                { templateId: "stone_fortress", weight: 40 },
+                                { templateId: "dark_citadel", weight: 25 },
+                                { templateId: "royal_castle", weight: 35 },
+                            ],
+                        },
+                    },
+                };
+            }
+
+            // ── Generate citadels for ALL world cities ──
+            window.generateWorld = async function () {
+                const btn = document.getElementById("btn-generate");
+                btn.disabled = true;
+                btn.textContent = "Generating...";
+
+                const recipe = buildRecipe();
+                invalidateCitadelCache();
+                clearCellCityCache();
+                citadelClusterGroup.clearLayers();
+                zoneCache.clear(); // Clear Voronoi zone cache
+
+                const t0 = performance.now();
+                showProgress(10);
+                log(
+                    "Generating citadels for " + cities.length + " cities...",
+                    "info",
+                );
+
+                // Use setTimeout to allow UI to update
+                await new Promise((r) => setTimeout(r, 50));
+
+                // Only generate citadels for cities that have boundary data
+                const citiesWithBoundaries = cities.filter(
+                    (c) =>
+                        cityBoundaries[c.id] && cityBoundaries[c.id].boundary,
+                );
+                worldCitadels = generateAllCitadels(
+                    citiesWithBoundaries,
+                    recipe,
+                );
+                window._worldCitadels = worldCitadels;
+                showProgress(60);
+
+                log(
+                    "Rendering " +
+                        worldCitadels.length +
+                        " citadels with clustering...",
+                    "info",
+                );
+                await new Promise((r) => setTimeout(r, 50));
+
+                // Create markers for all citadels
+                const markers = [];
+                for (const obj of worldCitadels) {
+                    const cc = cityColor(obj.cityId);
+                    const marker = L.circleMarker([obj.lat, obj.lng], {
+                        radius: 6,
+                        fillColor: cc,
+                        color: cc,
+                        weight: 1,
+                        opacity: 0.9,
+                        fillOpacity: 0.7,
+                    });
+                    marker.bindPopup(
+                        '<div style="font-family:system-ui;font-size:12px;">' +
+                            "<b>\u2694\uFE0F " +
+                            (obj.templateId || "citadel") +
+                            "</b><br>" +
+                            "City: " +
+                            (obj.cityId || "?") +
+                            "<br>" +
+                            'ID: <code style="font-size:10px">' +
+                            obj.id +
+                            "</code><br>" +
+                            obj.lat.toFixed(4) +
+                            ", " +
+                            obj.lng.toFixed(4) +
+                            "</div>",
+                    );
+                    markers.push(marker);
+                }
+                citadelClusterGroup.addLayers(markers);
+
+                showProgress(100);
+                const genTime = (performance.now() - t0).toFixed(0);
+
+                document.getElementById("stat-citadels").textContent =
+                    worldCitadels.length;
+                document.getElementById("stat-total").textContent =
+                    worldCitadels.length;
+                document.getElementById("stat-cities").textContent =
+                    cities.length;
+
+                log(
+                    "\u2705 " +
+                        worldCitadels.length +
+                        " citadels generated in " +
+                        genTime +
+                        "ms for " +
+                        cities.length +
+                        " cities",
+                    "success",
+                );
+                btn.disabled = false;
+                btn.textContent = "\uD83C\uDF0D Generate World Citadels";
+
+                // Trigger viewport render for current zoom
+                renderViewport();
+            };
+
+            // ── Render viewport objects (LOD-based) ──
+            function renderViewport() {
+                if (worldCitadels.length === 0) return;
+
+                const zoom = map.getZoom();
+                const bounds = map.getBounds();
+                const recipe = buildRecipe();
+
+                const boundsObj = {
+                    north: bounds.getNorth(),
+                    south: bounds.getSouth(),
+                    east: bounds.getEast(),
+                    west: bounds.getWest(),
+                };
+
+                // Check cache key
+                const key = getViewportKey(boundsObj, zoom, recipe.seed);
+                if (key === lastViewportKey) return;
+                lastViewportKey = key;
+
+                let types = getTypesForZoom(zoom);
+                // Apply visibility filter
+                types = types.filter((t) => visibility[t]);
+                const lodName =
+                    zoom <= 7
+                        ? "Citadels only"
+                        : zoom <= 10
+                          ? "+Castles"
+                          : zoom <= 13
+                            ? "+Shops/Vaults"
+                            : "Full (all types)";
+
+                document.getElementById("stat-zoom").textContent = zoom;
+                document.getElementById("stat-lod").textContent = lodName;
+
+                // Clear previous viewport objects
+                viewportClusterGroup.clearLayers();
+
+                if (types.length === 0) {
+                    document.getElementById("stat-viewport").textContent = "0";
+                    document.getElementById("stat-total").textContent =
+                        worldCitadels.length;
+                    renderZones();
+                    return;
+                }
+
+                const t0 = performance.now();
+                const objects = generateViewportObjects(
+                    boundsObj,
+                    recipe,
+                    cities,
+                    zoom,
+                );
+                const genTime = (performance.now() - t0).toFixed(1);
+
+                // Create markers
+                const markers = [];
+                for (const obj of objects) {
+                    const color = TYPE_COLORS[obj.type] || "#ffffff";
+                    const r = obj.type === "castle" ? 5 : 4;
+                    const marker = L.circleMarker([obj.lat, obj.lng], {
+                        radius: r,
+                        fillColor: color,
+                        color: color,
+                        weight: 1,
+                        opacity: 0.8,
+                        fillOpacity: 0.6,
+                    });
+                    marker.bindPopup(
+                        '<div style="font-family:system-ui;font-size:12px;">' +
+                            "<b>" +
+                            (obj.templateId || obj.type) +
+                            "</b><br>" +
+                            "Type: " +
+                            obj.type +
+                            "<br>" +
+                            "City: " +
+                            (obj.cityId || "?") +
+                            "<br>" +
+                            'ID: <code style="font-size:10px">' +
+                            obj.id +
+                            "</code><br>" +
+                            obj.lat.toFixed(5) +
+                            ", " +
+                            obj.lng.toFixed(5) +
+                            "</div>",
+                    );
+                    markers.push(marker);
+                }
+                viewportClusterGroup.addLayers(markers);
+
+                document.getElementById("stat-viewport").textContent =
+                    objects.length;
+                document.getElementById("stat-total").textContent =
+                    worldCitadels.length + objects.length;
+                document.getElementById("stat-time").textContent = genTime;
+
+                if (objects.length > 0) {
+                    log(
+                        "Viewport: " +
+                            objects.length +
+                            " " +
+                            types.join("+") +
+                            " in " +
+                            genTime +
+                            "ms (zoom " +
+                            zoom +
+                            ")",
+                        "success",
+                    );
+                }
+
+                // Render H3 zones for visible citadels
+                renderZones();
+            }
+
+            // ── Render Voronoi zones for visible cities ──
+            function renderZones() {
+                zoneLayerGroup.clearLayers();
+                if (!visibility.zone || worldCitadels.length === 0) return;
+
+                const zoom = map.getZoom();
+                if (zoom < 10) return;
+
+                const bounds = map.getBounds();
+                const boundsObj = {
+                    north: bounds.getNorth(),
+                    south: bounds.getSouth(),
+                    east: bounds.getEast(),
+                    west: bounds.getWest(),
+                };
+
+                // Find cities visible in viewport
+                const pad = 0.5;
+                const visibleCities = cities.filter(
+                    (c) =>
+                        c.lat >= boundsObj.south - pad &&
+                        c.lat <= boundsObj.north + pad &&
+                        c.lng >= boundsObj.west - pad &&
+                        c.lng <= boundsObj.east + pad,
+                );
+                if (visibleCities.length === 0 || visibleCities.length > 50)
+                    return;
+
+                const t0 = performance.now();
+                const recipe = buildRecipe();
+                let totalZones = 0;
+                let totalCells = 0;
+
+                for (const city of visibleCities) {
+                    const boundaryEntry = cityBoundaries[city.id];
+                    if (!boundaryEntry || !boundaryEntry.boundary) continue;
+
+                    // Get outer ring from boundary data
+                    const coords = boundaryEntry.boundary;
+                    let outerRing = null;
+                    if (
+                        Array.isArray(coords[0]) &&
+                        Array.isArray(coords[0][0]) &&
+                        typeof coords[0][0][0] === "number"
+                    ) {
+                        outerRing = coords[0];
+                    } else if (
+                        Array.isArray(coords[0]) &&
+                        typeof coords[0][0] === "number"
+                    ) {
+                        outerRing = coords;
+                    }
+                    if (!outerRing || outerRing.length < 3) continue;
+
+                    // Check cache
+                    if (!zoneCache.has(city.id)) {
+                        const result = generateZonesForCity(
+                            city,
+                            outerRing,
+                            recipe,
+                        );
+                        const geojson = zonesToGeoJSON(result.zones);
+                        zoneCache.set(city.id, {
+                            zones: result.zones,
+                            geojson,
+                        });
+                    }
+
+                    const cached = zoneCache.get(city.id);
+                    if (cached.geojson.features.length > 0) {
+                        const geoLayer = L.geoJSON(cached.geojson, {
+                            // Removing renderer: L.canvas() so it uses the map's default canvas
+                            style: function (feature) {
+                                return {
+                                    color: feature.properties.color,
+                                    weight: 1,
+                                    fillOpacity: 0.2,
+                                    fillColor: feature.properties.color,
+                                    interactive: false,
+                                };
+                            },
+                        });
+                        zoneLayerGroup.addLayer(geoLayer);
+                        totalZones += cached.zones.length;
+                        totalCells += cached.geojson.features.length;
+                    }
+                }
+
+                const genTime = (performance.now() - t0).toFixed(1);
+                if (totalZones > 0) {
+                    log(
+                        "Voronoi: " +
+                            totalZones +
+                            " zones (" +
+                            totalCells +
+                            " cells) in " +
+                            genTime +
+                            "ms",
+                        "success",
+                    );
+                }
+            }
+
+            // ── Render city boundary outlines (zoom 8+) ──
+            function renderBoundaries() {
+                boundaryLayerGroup.clearLayers();
+                if (!visibility.boundary) return;
+
+                const zoom = map.getZoom();
+                if (zoom < 8) return;
+
+                const bounds = map.getBounds();
+                const pad = 1.0;
+                const boundsObj = {
+                    north: bounds.getNorth(),
+                    south: bounds.getSouth(),
+                    east: bounds.getEast(),
+                    west: bounds.getWest(),
+                };
+
+                const visibleCities = cities.filter(
+                    (c) =>
+                        c.lat >= boundsObj.south - pad &&
+                        c.lat <= boundsObj.north + pad &&
+                        c.lng >= boundsObj.west - pad &&
+                        c.lng <= boundsObj.east + pad &&
+                        cityBoundaries[c.id] &&
+                        cityBoundaries[c.id].boundary,
+                );
+
+                if (visibleCities.length > 200) return;
+
+                for (const city of visibleCities) {
+                    const coords = cityBoundaries[city.id].boundary;
+
+                    let geojsonCoords;
+                    if (
+                        Array.isArray(coords[0]) &&
+                        Array.isArray(coords[0][0]) &&
+                        typeof coords[0][0][0] === "number"
+                    ) {
+                        geojsonCoords = [coords[0]];
+                    } else if (
+                        Array.isArray(coords[0]) &&
+                        typeof coords[0][0] === "number"
+                    ) {
+                        geojsonCoords = [coords];
+                    } else continue;
+
+                    const color = cityColor(city.name || city.id);
+                    const geojson = {
+                        type: "Feature",
+                        geometry: {
+                            type: "Polygon",
+                            coordinates: geojsonCoords,
+                        },
+                        properties: { cityId: city.id, name: city.name },
+                    };
+
+                    const layer = L.geoJSON(geojson, {
+                        // Removing renderer: L.canvas() so it uses the map's default canvas
+                        style: {
+                            color: color,
+                            weight: 2,
+                            fillOpacity: 0,
+                            dashArray: "8, 4",
+                            interactive: false,
+                        },
+                    });
+                    boundaryLayerGroup.addLayer(layer);
+                }
+            }
+
+            window.randomSeed = function () {
+                document.getElementById("seed").value = Math.floor(
+                    Math.random() * 2147483647,
+                );
+                generateWorld();
+            };
+
+            // ── Zoom-gated layer management ──
+            function updateZoomLayers() {
+                const zoom = map.getZoom();
+
+                // Boundaries: zoom 8+
+                if (zoom >= 8 && visibility.boundary) {
+                    if (!map.hasLayer(boundaryLayerGroup))
+                        map.addLayer(boundaryLayerGroup);
+                    renderBoundaries();
+                } else {
+                    if (map.hasLayer(boundaryLayerGroup))
+                        map.removeLayer(boundaryLayerGroup);
+                }
+
+                // Voronoi zones: zoom 10+
+                if (zoom >= 10 && visibility.zone) {
+                    if (!map.hasLayer(zoneLayerGroup))
+                        map.addLayer(zoneLayerGroup);
+                } else {
+                    if (map.hasLayer(zoneLayerGroup))
+                        map.removeLayer(zoneLayerGroup);
+                }
+
+                // Citadels: zoom 10+
+                if (zoom >= 10 && visibility.citadel) {
+                    if (!map.hasLayer(citadelClusterGroup))
+                        map.addLayer(citadelClusterGroup);
+                } else {
+                    if (map.hasLayer(citadelClusterGroup))
+                        map.removeLayer(citadelClusterGroup);
+                }
+            }
+
+            // ── Debounced viewport update ──
+            let _moveTimeout = null;
+            function onMapMove() {
+                clearTimeout(_moveTimeout);
+                _moveTimeout = setTimeout(function () {
+                    updateZoomLayers();
+                    renderViewport();
+                }, 150);
+            }
+
+            // ── Init ──
+            async function init() {
+                log("Initializing Procedural World Preview...", "info");
+
+                map = L.map("map", {
+                    renderer: L.canvas({ padding: 0.5 }),
+                    preferCanvas: true,
+                    worldCopyJump: false,
+                    minZoom: 2,
+                    maxZoom: 18,
+                });
+                window._map = map;
+
+                map.fitBounds(
+                    [
+                        [-60, -170],
+                        [70, 180],
+                    ],
+                    { padding: [10, 10] },
+                );
+
+                L.tileLayer(
+                    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+                    {
+                        attribution: "\u00A9 OpenStreetMap",
+                    },
+                ).addTo(map);
+
+                // Citadels cluster (zoom 10+, managed by updateZoomLayers)
+                citadelClusterGroup = L.markerClusterGroup({
+                    spiderfyOnMaxZoom: true,
+                    disableClusteringAtZoom: 10,
+                    maxClusterRadius: 40,
+                    chunkedLoading: true,
+                    animate: false,
+                });
+
+                // Viewport objects cluster (LOD-dependent)
+                viewportClusterGroup = L.markerClusterGroup({
+                    spiderfyOnMaxZoom: true,
+                    disableClusteringAtZoom: 16,
+                    maxClusterRadius: 60,
+                    chunkedLoading: true,
+                    animate: false,
+                });
+                map.addLayer(viewportClusterGroup);
+
+                // Voronoi zone layer (zoom 10+, managed by updateZoomLayers)
+                zoneLayerGroup = L.layerGroup();
+
+                // City boundary outlines layer (zoom 8+, managed by updateZoomLayers)
+                boundaryLayerGroup = L.layerGroup();
+
+                map.on("moveend", onMapMove);
+                map.on("zoomend", onMapMove);
+
+                // Load cities
+                log("Loading world cities...", "info");
+                try {
+                    const resp = await fetch("../gameplay/world_cities.json");
+                    cities = await resp.json();
+                    log("Loaded " + cities.length + " cities", "success");
+                } catch (e) {
+                    log("Failed to load cities: " + e.message, "warn");
+                    cities = [
+                        {
+                            id: "berlin",
+                            name: "Berlin",
+                            lat: 52.52,
+                            lng: 13.405,
+                            population: 3748148,
+                            country: "DE",
+                        },
+                        {
+                            id: "kyiv",
+                            name: "Kyiv",
+                            lat: 50.4501,
+                            lng: 30.5234,
+                            population: 2952301,
+                            country: "UA",
+                        },
+                    ];
+                }
+
+                document.getElementById("stat-cities").textContent =
+                    cities.length;
+
+                // Load city boundaries for Voronoi zones
+                try {
+                    const bResp = await fetch(
+                        "../gameplay/world_cities_boundaries.json",
+                    );
+                    if (bResp.ok) {
+                        cityBoundaries = await bResp.json();
+                        window._cityBoundaries = cityBoundaries;
+                        const allKeys = Object.keys(cityBoundaries);
+                        const validCount = allKeys.filter(
+                            (k) => cityBoundaries[k].boundary,
+                        ).length;
+                        const errorCount = allKeys.filter(
+                            (k) => cityBoundaries[k].error,
+                        ).length;
+                        totalBoundaryCount = validCount;
+                        document.getElementById("stat-boundaries").textContent =
+                            validCount + " / " + allKeys.length;
+                        log(
+                            "Boundaries: " +
+                                validCount +
+                                " valid, " +
+                                errorCount +
+                                " errors, " +
+                                (allKeys.length - validCount - errorCount) +
+                                " other (" +
+                                allKeys.length +
+                                " total entries)",
+                            "success",
+                        );
+                    }
+                } catch (e) {
+                    log("No city boundaries file yet", "info");
+                }
+
+                // Auto-generate world
+                await generateWorld();
+
+                // Initialize zoom-gated layers
+                updateZoomLayers();
+
+                log(
+                    "\uD83C\uDFAE World preview ready! Zoom in to see LOD in action.",
+                    "success",
+                );
+                log(
+                    "Zoom 8+: boundaries | 10+: Voronoi zones + citadels | 11+: shops/vaults | 14+: monsters",
+                    "info",
+                );
+            }
+
+            init();
+        </script>
+    </body>
+</html>
