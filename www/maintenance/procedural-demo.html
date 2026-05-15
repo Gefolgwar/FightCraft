@@ -606,8 +606,8 @@
                         opacity: 0.9,
                         fillOpacity: 0.7,
                     });
-                    marker.bindPopup(
-                        '<div style="font-family:system-ui;font-size:12px;">' +
+                    marker.bindPopup(() => {
+                        return '<div style="font-family:system-ui;font-size:12px;">' +
                             "<b>\u2694\uFE0F " +
                             (obj.templateId || "citadel") +
                             "</b><br>" +
@@ -617,11 +617,12 @@
                             'ID: <code style="font-size:10px">' +
                             obj.id +
                             "</code><br>" +
+                            (obj.poiName ? ("POI: <b>" + obj.poiName + "</b> (" + obj.poiType + ")<br>") : "") +
                             obj.lat.toFixed(4) +
                             ", " +
                             obj.lng.toFixed(4) +
-                            "</div>",
-                    );
+                            "</div>";
+                    });
                     markers.push(marker);
                 }
                 citadelClusterGroup.addLayers(markers);
@@ -721,8 +722,8 @@
                         opacity: 0.8,
                         fillOpacity: 0.6,
                     });
-                    marker.bindPopup(
-                        '<div style="font-family:system-ui;font-size:12px;">' +
+                    marker.bindPopup(() => {
+                        return '<div style="font-family:system-ui;font-size:12px;">' +
                             "<b>" +
                             (obj.templateId || obj.type) +
                             "</b><br>" +
@@ -735,11 +736,12 @@
                             'ID: <code style="font-size:10px">' +
                             obj.id +
                             "</code><br>" +
+                            (obj.poiName ? ("POI: <b>" + obj.poiName + "</b> (" + obj.poiType + ")<br>") : "") +
                             obj.lat.toFixed(5) +
                             ", " +
                             obj.lng.toFixed(5) +
-                            "</div>",
-                    );
+                            "</div>";
+                    });
                     markers.push(marker);
                 }
                 viewportClusterGroup.addLayers(markers);
@@ -837,6 +839,19 @@
                             zones: result.zones,
                             geojson,
                         });
+
+                        // Sync the global worldCitadels array with snapped POI coordinates and info
+                        for (const zone of result.zones) {
+                            const match = worldCitadels.find(c => c.id === zone.citadel.id);
+                            if (match) {
+                                match.lat = zone.citadel.lat;
+                                match.lng = zone.citadel.lng;
+                                match.name = zone.citadel.name;
+                                match.poiName = zone.citadel.poiName;
+                                match.poiType = zone.citadel.poiType;
+                                match.h3Index = zone.citadel.h3Index;
+                            }
+                        }
                     }
 
                     const cached = zoneCache.get(city.id);

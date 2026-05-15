@@ -283,6 +283,10 @@ export function generateZonesForCity(city, boundaryCoords, recipe, cityPOIs = nu
             // Keep procedural name prefix but append POI name
             zone.citadel.name = bestPoi.name;
           }
+
+          zone.citadel.poiName = bestPoi.name || "Unknown";
+          zone.citadel.poiType = bestPoi.type || "Unknown";
+
           snapped = true;
         }
       }
@@ -299,11 +303,14 @@ export function generateZonesForCity(city, boundaryCoords, recipe, cityPOIs = nu
         targetLng = sumLng / zone.cells.length;
       }
 
-      // Snap target back to the exact center of its H3 cell
       const targetCell = h3.latLngToCell(targetLat, targetLng, 7);
-      const [finalLat, finalLng] = h3.cellToLatLng(targetCell);
 
-      if (zone.citadel.h3Index !== targetCell) {
+      // If snapped to POI, use exact POI coordinates.
+      // If fallback, use cell center of the target cell.
+      const finalLat = snapped ? targetLat : h3.cellToLatLng(targetCell)[0];
+      const finalLng = snapped ? targetLng : h3.cellToLatLng(targetCell)[1];
+
+      if (zone.citadel.lat !== finalLat || zone.citadel.lng !== finalLng) {
           zone.citadel.h3Index = targetCell;
           zone.citadel.lat = finalLat;
           zone.citadel.lng = finalLng;
