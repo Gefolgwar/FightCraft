@@ -1,0 +1,133 @@
+- generic [ref=e1]:
+  - generic [active] [ref=e2]:
+    - generic:
+      - generic:
+        - img
+    - generic:
+      - generic [ref=e91]:
+        - button "Zoom in" [ref=e92] [cursor=pointer]: +
+        - button "Zoom out" [ref=e93] [cursor=pointer]: −
+      - generic [ref=e94]:
+        - link "Leaflet" [ref=e95] [cursor=pointer]:
+          - /url: https://leafletjs.com
+          - img [ref=e96]
+          - text: Leaflet
+        - text: "| © OpenStreetMap"
+  - generic [ref=e100]:
+    - generic [ref=e101]:
+      - generic [ref=e102]: Seed
+      - spinbutton [ref=e103]: "42"
+    - generic [ref=e104]:
+      - generic [ref=e105]: H3 Resolution
+      - combobox [ref=e106]:
+        - option "7 (~1.2 km)"
+        - option "8 (~460 m)" [selected]
+        - option "9 (~174 m)"
+    - generic [ref=e107]:
+      - generic [ref=e108]: Monster ratio
+      - spinbutton [ref=e109]: "1000"
+    - generic [ref=e110]:
+      - generic [ref=e111]: Shop ratio
+      - spinbutton [ref=e112]: "16000"
+    - generic [ref=e113]:
+      - generic [ref=e114]: Castle ratio
+      - spinbutton [ref=e115]: "5000"
+    - generic [ref=e116]:
+      - generic [ref=e117]: Citadel ratio
+      - spinbutton [ref=e118]: "190476"
+    - button "🔄 Regenerate" [ref=e119] [cursor=pointer]
+    - button "⬡ Toggle H3 Cells" [ref=e120] [cursor=pointer]
+    - button "🎲 Random Seed" [ref=e121] [cursor=pointer]
+  - generic [ref=e122]:
+    - generic [ref=e123]: Monsters
+    - generic [ref=e125]: Shops
+    - generic [ref=e127]: Vaults
+    - generic [ref=e129]: Castles
+    - generic [ref=e131]: Citadels
+  - generic [ref=e133]:
+    - generic [ref=e134]:
+      - generic [ref=e135]: "12441"
+      - generic [ref=e136]: objects
+    - generic [ref=e137]:
+      - generic [ref=e138]: "9636"
+      - generic [ref=e139]: monsters
+    - generic [ref=e140]:
+      - generic [ref=e141]: "593"
+      - generic [ref=e142]: shops
+    - generic [ref=e143]:
+      - generic [ref=e144]: "252"
+      - generic [ref=e145]: vaults
+    - generic [ref=e146]:
+      - generic [ref=e147]: "1942"
+      - generic [ref=e148]: castles
+    - generic [ref=e149]:
+      - generic [ref=e150]: "18"
+      - generic [ref=e151]: citadels
+    - generic [ref=e152]:
+      - generic [ref=e153]: "3425"
+      - generic [ref=e154]: H3 cells
+    - generic [ref=e155]:
+      - generic [ref=e156]: Berlin (pop 3426K)
+      - generic [ref=e157]: nearest city
+    - generic [ref=e158]:
+      - generic [ref=e159]: "30.3"
+      - generic [ref=e160]: ms gen time
+  - generic [ref=e161]:
+    - generic [ref=e21426]: "[20:59:58] ✅ Determinism verified: getObjectById(\"proc_monster_881f18b60dfffff_1...\") matches"
+    - generic [ref=e21427]: "[20:59:58] Generated 12441 objects in 3425 cells (30.3ms) — Berlin"
+    - generic [ref=e21428]: "[20:59:58] ✅ Determinism verified: getObjectById(\"proc_monster_881f18b60dfffff_1...\") matches"
+    - generic [ref=e21429]: "[20:59:58] Generated 12441 objects in 3425 cells (29.3ms) — Berlin"
+    - generic [ref=e21430]: "[20:59:27] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4c03fffff_1...\") matches"
+    - generic [ref=e21431]: "[20:59:27] Generated 3132 objects in 857 cells (9.8ms) — Berlin"
+    - generic [ref=e21432]: "[20:59:27] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4c03fffff_1...\") matches"
+    - generic [ref=e21433]: "[20:59:27] Generated 3132 objects in 857 cells (9.7ms) — Berlin"
+    - generic [ref=e21434]: "[20:59:09] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4d47fffff_1...\") matches"
+    - generic [ref=e21435]: "[20:59:09] Generated 794 objects in 215 cells (2.7ms) — Berlin"
+    - generic [ref=e21436]: "[20:59:09] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4d47fffff_1...\") matches"
+    - generic [ref=e21437]: "[20:59:09] Generated 794 objects in 215 cells (2.3ms) — Berlin"
+    - generic [ref=e21438]: "[20:59:08] ✅ Determinism verified: getObjectById(\"proc_monster_881f1896a5fffff_1...\") matches"
+    - generic [ref=e21439]: "[20:59:08] Generated 3115 objects in 854 cells (7.2ms) — Berlin"
+    - generic [ref=e21440]: "[20:59:08] ✅ Determinism verified: getObjectById(\"proc_monster_881f1896a5fffff_1...\") matches"
+    - generic [ref=e21441]: "[20:59:08] Generated 3115 objects in 854 cells (7.0ms) — Berlin"
+    - generic [ref=e21442]: "[20:59:06] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4ae7fffff_2...\") matches"
+    - generic [ref=e21443]: "[20:59:06] Generated 12436 objects in 3422 cells (31.9ms) — Berlin"
+    - generic [ref=e21444]: "[20:59:05] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4ae7fffff_2...\") matches"
+    - generic [ref=e21445]: "[20:59:05] Generated 12436 objects in 3422 cells (26.5ms) — Berlin"
+    - generic [ref=e21446]: "[20:59:04] ✅ Determinism verified: getObjectById(\"proc_monster_881f1896a5fffff_0...\") matches"
+    - generic [ref=e21447]: "[20:59:04] Generated 3112 objects in 854 cells (9.0ms) — Berlin"
+    - generic [ref=e21448]: "[20:59:04] ✅ Determinism verified: getObjectById(\"proc_monster_881f1896a5fffff_0...\") matches"
+    - generic [ref=e21449]: "[20:59:04] Generated 3112 objects in 854 cells (8.1ms) — Berlin"
+    - generic [ref=e21450]: "[20:59:02] H3 cell overlay: ON"
+    - generic [ref=e21451]: "[20:59:02] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4d47fffff_1...\") matches"
+    - generic [ref=e21452]: "[20:59:02] Generated 795 objects in 215 cells (2.9ms) — Berlin"
+    - generic [ref=e21453]: "[20:59:01] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4d47fffff_1...\") matches"
+    - generic [ref=e21454]: "[20:59:01] Generated 795 objects in 215 cells (3.0ms) — Berlin"
+    - generic [ref=e21455]: "[20:59:01] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4d47fffff_1...\") matches"
+    - generic [ref=e21456]: "[20:59:01] Generated 795 objects in 215 cells (4.2ms) — Berlin"
+    - generic [ref=e21457]: "[20:59:01] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4861fffff_0...\") matches"
+    - generic [ref=e21458]: "[20:59:01] Generated 3119 objects in 855 cells (12.9ms) — Berlin"
+    - generic [ref=e21459]: "[20:59:01] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4861fffff_0...\") matches"
+    - generic [ref=e21460]: "[20:59:01] Generated 3119 objects in 855 cells (12.9ms) — Berlin"
+    - generic [ref=e21461]: "[20:58:51] ✅ Determinism verified: getObjectById(\"proc_monster_881f18b469fffff_2...\") matches"
+    - generic [ref=e21462]: "[20:58:51] Generated 12379 objects in 3422 cells (46.1ms) — Prenzlauer Berg"
+    - generic [ref=e21463]: "[20:58:51] ✅ Determinism verified: getObjectById(\"proc_monster_881f18b469fffff_2...\") matches"
+    - generic [ref=e21464]: "[20:58:51] Generated 12379 objects in 3422 cells (45.2ms) — Prenzlauer Berg"
+    - generic [ref=e21465]: "[20:58:47] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4e25fffff_2...\") matches"
+    - generic [ref=e21466]: "[20:58:47] Generated 3111 objects in 856 cells (15.8ms) — Berlin"
+    - generic [ref=e21467]: "[20:58:47] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4e25fffff_2...\") matches"
+    - generic [ref=e21468]: "[20:58:47] Generated 3111 objects in 856 cells (14.2ms) — Berlin"
+    - generic [ref=e21469]: "[20:58:45] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d48c5fffff_2...\") matches"
+    - generic [ref=e21470]: "[20:58:45] Generated 799 objects in 214 cells (4.9ms) — Berlin"
+    - generic [ref=e21471]: "[20:58:45] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d48c5fffff_2...\") matches"
+    - generic [ref=e21472]: "[20:58:45] Generated 799 objects in 214 cells (7.7ms) — Berlin"
+    - generic [ref=e21473]: "[20:58:41] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4d6dfffff_2...\") matches"
+    - generic [ref=e21474]: "[20:58:41] Generated 207 objects in 52 cells (3.9ms) — Berlin"
+    - generic [ref=e21475]: "[20:58:24] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4895fffff_1...\") matches"
+    - generic [ref=e21476]: "[20:58:24] Generated 201 objects in 50 cells (5.9ms) — Berlin"
+    - generic [ref=e21477]: "[20:58:18] Click any marker to see its deterministic ID and properties."
+    - generic [ref=e21478]: "[20:58:18] 🎮 Demo ready! Pan/zoom the map to see procedural generation in real-time."
+    - generic [ref=e21479]: "[20:58:18] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d4897fffff_2...\") matches"
+    - generic [ref=e21480]: "[20:58:18] Generated 106 objects in 24 cells (8.4ms) — Berlin"
+    - generic [ref=e21481]: "[20:58:18] Loaded 4442 cities"
+    - generic [ref=e21482]: "[20:58:18] Loading world cities..."
+    - generic [ref=e21483]: "[20:58:18] Initializing Procedural Engine V2 Demo..."

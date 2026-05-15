@@ -32,7 +32,9 @@
       "mcp__plugin_playwright_playwright__browser_run_code_unsafe",
       "mcp__github__search_issues",
       "Skill(grill-me)",
-      "Skill(playwright-skill)"
+      "Skill(playwright-skill)",
+      "Skill(superpowers:using-superpowers)",
+      "Skill(superpowers:systematic-debugging)"
     ],
     "defaultMode": "acceptEdits",
     "allowAll": true

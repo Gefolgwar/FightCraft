@@ -306,7 +306,7 @@
                     style="accent-color: #f97316"
                 />
                 <span class="legend-dot" style="background: #f97316"></span>
-                City Boundaries (z8+)
+                City Boundaries / Points
             </label>
             <label class="legend-item" style="cursor: pointer">
                 <input
@@ -404,6 +404,7 @@
             let worldCitadels = [];
             let lastViewportKey = "";
             let cityBoundaries = {};
+            let cityPOIs = {};
             let zoneCache = new Map();
             let boundaryCache = new Map();
             let totalBoundaryCount = 0;
@@ -579,7 +580,8 @@
                 worldCitadels = generateAllCitadels(
                     citiesWithBoundaries,
                     recipe,
-                    cityBoundaries
+                    cityBoundaries,
+                    cityPOIs
                 );
                 window._worldCitadels = worldCitadels;
                 showProgress(60);
@@ -823,10 +825,12 @@
 
                     // Check cache
                     if (!zoneCache.has(city.id)) {
+                        const pois = cityPOIs[city.id] ? cityPOIs[city.id].pois : null;
                         const result = generateZonesForCity(
                             city,
                             outerRing,
                             recipe,
+                            pois
                         );
                         const geojson = zonesToGeoJSON(result.zones);
                         zoneCache.set(city.id, {
@@ -870,34 +874,45 @@
                 }
             }
 
-            // ── Render city boundary outlines (zoom 8+) ──
+            // ── Render city boundary outlines (zoom 8+) or points (zoom <= 7) ──
             function renderBoundaries() {
                 boundaryLayerGroup.clearLayers();
                 if (!visibility.boundary) return;
 
                 const zoom = map.getZoom();
-                if (zoom < 8) return;
+                let visibleCities;
 
-                const bounds = map.getBounds();
-                const pad = 1.0;
-                const boundsObj = {
-                    north: bounds.getNorth(),
-                    south: bounds.getSouth(),
-                    east: bounds.getEast(),
-                    west: bounds.getWest(),
-                };
+                if (zoom < 5) {
+                    // At low zoom, viewport bounds checking can be problematic
+                    // and we want all points visible anyway
+                    visibleCities = cities.filter(
+                        (c) => cityBoundaries[c.id] && cityBoundaries[c.id].boundary
+                    );
+                } else {
+                    const bounds = map.getBounds();
+                    const pad = zoom < 8 ? 10.0 : 1.0;
+                    const boundsObj = {
+                        north: bounds.getNorth(),
+                        south: bounds.getSouth(),
+                        east: bounds.getEast(),
+                        west: bounds.getWest(),
+                    };
 
-                const visibleCities = cities.filter(
-                    (c) =>
-                        c.lat >= boundsObj.south - pad &&
-                        c.lat <= boundsObj.north + pad &&
-                        c.lng >= boundsObj.west - pad &&
-                        c.lng <= boundsObj.east + pad &&
-                        cityBoundaries[c.id] &&
-                        cityBoundaries[c.id].boundary,
-                );
+                    visibleCities = cities.filter(
+                        (c) =>
+                            c.lat >= boundsObj.south - pad &&
+                            c.lat <= boundsObj.north + pad &&
+                            // Account for map wrapping
+                            (c.lng >= boundsObj.west - pad || c.lng >= boundsObj.west + 360 - pad) &&
+                            (c.lng <= boundsObj.east + pad || c.lng <= boundsObj.east - 360 + pad) &&
+                            cityBoundaries[c.id] &&
+                            cityBoundaries[c.id].boundary,
+                    );
+                }
 
-                if (visibleCities.length > 200) return;
+                // Prevent Leaflet from crashing with too many complex polygons.
+                // Circle markers are cheap, so we only apply this limit for polygons (z8+).
+                if (zoom >= 8 && visibleCities.length > 500) return;
 
                 for (const city of visibleCities) {
                     const coords = cityBoundaries[city.id].boundary;
@@ -917,26 +932,40 @@
                     } else continue;
 
                     const color = cityColor(city.name || city.id);
-                    const geojson = {
-                        type: "Feature",
-                        geometry: {
-                            type: "Polygon",
-                            coordinates: geojsonCoords,
-                        },
-                        properties: { cityId: city.id, name: city.name },
-                    };
 
-                    const layer = L.geoJSON(geojson, {
-                        // Removing renderer: L.canvas() so it uses the map's default canvas
-                        style: {
+                    if (zoom >= 8) {
+                        const geojson = {
+                            type: "Feature",
+                            geometry: {
+                                type: "Polygon",
+                                coordinates: geojsonCoords,
+                            },
+                            properties: { cityId: city.id, name: city.name },
+                        };
+
+                        const layer = L.geoJSON(geojson, {
+                            // Removing renderer: L.canvas() so it uses the map's default canvas
+                            style: {
+                                color: color,
+                                weight: 2,
+                                fillOpacity: 0,
+                                dashArray: "8, 4",
+                                interactive: false,
+                            },
+                        });
+                        boundaryLayerGroup.addLayer(layer);
+                    } else {
+                        const marker = L.circleMarker([city.lat, city.lng], {
+                            radius: 4,
+                            fillColor: color,
                             color: color,
-                            weight: 2,
-                            fillOpacity: 0,
-                            dashArray: "8, 4",
+                            weight: 1,
+                            opacity: 0.9,
+                            fillOpacity: 0.7,
                             interactive: false,
-                        },
-                    });
-                    boundaryLayerGroup.addLayer(layer);
+                        });
+                        boundaryLayerGroup.addLayer(marker);
+                    }
                 }
             }
 
@@ -951,8 +980,8 @@
             function updateZoomLayers() {
                 const zoom = map.getZoom();
 
-                // Boundaries: zoom 8+
-                if (zoom >= 8 && visibility.boundary) {
+                // Boundaries: zoom 8+ for outlines, zoom <= 7 for points
+                if (visibility.boundary) {
                     if (!map.hasLayer(boundaryLayerGroup))
                         map.addLayer(boundaryLayerGroup);
                     renderBoundaries();
@@ -1110,6 +1139,20 @@
                     }
                 } catch (e) {
                     log("No city boundaries file yet", "info");
+                }
+
+                // Load city POIs for Citadel snapping
+                try {
+                    const pResp = await fetch(
+                        "../gameplay/world_cities_pois.json",
+                    );
+                    if (pResp.ok) {
+                        cityPOIs = await pResp.json();
+                        window._cityPOIs = cityPOIs;
+                        log("Loaded POIs for Citadel snapping", "success");
+                    }
+                } catch (e) {
+                    log("No city POIs file yet", "info");
                 }
 
                 // Auto-generate world

@@ -1,13 +1,13 @@
 # Graph Report - .  (2026-05-14)
 
 ## Corpus Check
-- 309 files · ~733,386 words
+- 5 files · ~733,439 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2414 nodes · 3960 edges · 224 communities (164 shown, 60 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 29 edges (avg confidence: 0.86)
-- Token cost: 76,000 input · 1,826 output
+- 2467 nodes · 4024 edges · 231 communities (167 shown, 64 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 40 edges (avg confidence: 0.87)
+- Token cost: 76,490 input · 1,000 output
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_UI Controller|UI Controller]]
@@ -15,191 +15,198 @@
 - [[_COMMUNITY_Android Firebase Services|Android Firebase Services]]
 - [[_COMMUNITY_Procedural Engine Tests|Procedural Engine Tests]]
 - [[_COMMUNITY_Firebase Services|Firebase Services]]
-- [[_COMMUNITY_Community 5|Community 5]]
-- [[_COMMUNITY_Community 6|Community 6]]
-- [[_COMMUNITY_Community 7|Community 7]]
-- [[_COMMUNITY_Community 8|Community 8]]
-- [[_COMMUNITY_Community 9|Community 9]]
-- [[_COMMUNITY_Community 10|Community 10]]
-- [[_COMMUNITY_Community 11|Community 11]]
-- [[_COMMUNITY_Community 12|Community 12]]
-- [[_COMMUNITY_Community 13|Community 13]]
-- [[_COMMUNITY_Community 14|Community 14]]
-- [[_COMMUNITY_Community 15|Community 15]]
-- [[_COMMUNITY_Community 16|Community 16]]
-- [[_COMMUNITY_Community 17|Community 17]]
-- [[_COMMUNITY_Community 18|Community 18]]
-- [[_COMMUNITY_Community 19|Community 19]]
-- [[_COMMUNITY_Community 20|Community 20]]
-- [[_COMMUNITY_Community 21|Community 21]]
-- [[_COMMUNITY_Community 22|Community 22]]
-- [[_COMMUNITY_Community 23|Community 23]]
-- [[_COMMUNITY_Community 24|Community 24]]
-- [[_COMMUNITY_Community 25|Community 25]]
-- [[_COMMUNITY_Community 26|Community 26]]
-- [[_COMMUNITY_Community 27|Community 27]]
-- [[_COMMUNITY_Community 28|Community 28]]
-- [[_COMMUNITY_Community 29|Community 29]]
-- [[_COMMUNITY_Community 30|Community 30]]
-- [[_COMMUNITY_Community 31|Community 31]]
-- [[_COMMUNITY_Community 32|Community 32]]
-- [[_COMMUNITY_Community 33|Community 33]]
-- [[_COMMUNITY_Community 34|Community 34]]
-- [[_COMMUNITY_Community 35|Community 35]]
-- [[_COMMUNITY_Community 36|Community 36]]
-- [[_COMMUNITY_Community 37|Community 37]]
-- [[_COMMUNITY_Community 38|Community 38]]
-- [[_COMMUNITY_Community 39|Community 39]]
-- [[_COMMUNITY_Community 40|Community 40]]
-- [[_COMMUNITY_Community 41|Community 41]]
-- [[_COMMUNITY_Community 42|Community 42]]
-- [[_COMMUNITY_Community 43|Community 43]]
-- [[_COMMUNITY_Community 44|Community 44]]
-- [[_COMMUNITY_Community 45|Community 45]]
-- [[_COMMUNITY_Community 46|Community 46]]
-- [[_COMMUNITY_Community 47|Community 47]]
-- [[_COMMUNITY_Community 48|Community 48]]
-- [[_COMMUNITY_Community 49|Community 49]]
-- [[_COMMUNITY_Community 50|Community 50]]
-- [[_COMMUNITY_Community 51|Community 51]]
-- [[_COMMUNITY_Community 52|Community 52]]
-- [[_COMMUNITY_Community 53|Community 53]]
-- [[_COMMUNITY_Community 54|Community 54]]
-- [[_COMMUNITY_Community 55|Community 55]]
-- [[_COMMUNITY_Community 56|Community 56]]
-- [[_COMMUNITY_Community 57|Community 57]]
-- [[_COMMUNITY_Community 58|Community 58]]
-- [[_COMMUNITY_Community 59|Community 59]]
-- [[_COMMUNITY_Community 60|Community 60]]
-- [[_COMMUNITY_Community 61|Community 61]]
-- [[_COMMUNITY_Community 62|Community 62]]
-- [[_COMMUNITY_Community 63|Community 63]]
-- [[_COMMUNITY_Community 64|Community 64]]
-- [[_COMMUNITY_Community 65|Community 65]]
-- [[_COMMUNITY_Community 66|Community 66]]
-- [[_COMMUNITY_Community 67|Community 67]]
-- [[_COMMUNITY_Community 68|Community 68]]
-- [[_COMMUNITY_Community 69|Community 69]]
-- [[_COMMUNITY_Community 70|Community 70]]
-- [[_COMMUNITY_Community 71|Community 71]]
-- [[_COMMUNITY_Community 72|Community 72]]
-- [[_COMMUNITY_Community 73|Community 73]]
-- [[_COMMUNITY_Community 74|Community 74]]
-- [[_COMMUNITY_Community 75|Community 75]]
-- [[_COMMUNITY_Community 76|Community 76]]
-- [[_COMMUNITY_Community 77|Community 77]]
-- [[_COMMUNITY_Community 78|Community 78]]
-- [[_COMMUNITY_Community 79|Community 79]]
-- [[_COMMUNITY_Community 80|Community 80]]
-- [[_COMMUNITY_Community 81|Community 81]]
-- [[_COMMUNITY_Community 83|Community 83]]
-- [[_COMMUNITY_Community 84|Community 84]]
-- [[_COMMUNITY_Community 85|Community 85]]
-- [[_COMMUNITY_Community 86|Community 86]]
-- [[_COMMUNITY_Community 87|Community 87]]
-- [[_COMMUNITY_Community 88|Community 88]]
-- [[_COMMUNITY_Community 89|Community 89]]
-- [[_COMMUNITY_Community 90|Community 90]]
-- [[_COMMUNITY_Community 91|Community 91]]
-- [[_COMMUNITY_Community 92|Community 92]]
-- [[_COMMUNITY_Community 93|Community 93]]
-- [[_COMMUNITY_Community 94|Community 94]]
-- [[_COMMUNITY_Community 95|Community 95]]
-- [[_COMMUNITY_Community 96|Community 96]]
-- [[_COMMUNITY_Community 97|Community 97]]
-- [[_COMMUNITY_Community 98|Community 98]]
-- [[_COMMUNITY_Community 99|Community 99]]
-- [[_COMMUNITY_Community 100|Community 100]]
-- [[_COMMUNITY_Community 101|Community 101]]
-- [[_COMMUNITY_Community 102|Community 102]]
-- [[_COMMUNITY_Community 103|Community 103]]
-- [[_COMMUNITY_Community 104|Community 104]]
-- [[_COMMUNITY_Community 105|Community 105]]
-- [[_COMMUNITY_Community 106|Community 106]]
-- [[_COMMUNITY_Community 107|Community 107]]
-- [[_COMMUNITY_Community 108|Community 108]]
-- [[_COMMUNITY_Community 109|Community 109]]
-- [[_COMMUNITY_Community 110|Community 110]]
-- [[_COMMUNITY_Community 111|Community 111]]
-- [[_COMMUNITY_Community 112|Community 112]]
-- [[_COMMUNITY_Community 113|Community 113]]
-- [[_COMMUNITY_Community 114|Community 114]]
-- [[_COMMUNITY_Community 115|Community 115]]
-- [[_COMMUNITY_Community 116|Community 116]]
-- [[_COMMUNITY_Community 117|Community 117]]
-- [[_COMMUNITY_Community 118|Community 118]]
-- [[_COMMUNITY_Community 119|Community 119]]
-- [[_COMMUNITY_Community 120|Community 120]]
-- [[_COMMUNITY_Community 121|Community 121]]
-- [[_COMMUNITY_Community 122|Community 122]]
-- [[_COMMUNITY_Community 123|Community 123]]
-- [[_COMMUNITY_Community 124|Community 124]]
-- [[_COMMUNITY_Community 125|Community 125]]
-- [[_COMMUNITY_Community 126|Community 126]]
-- [[_COMMUNITY_Community 127|Community 127]]
-- [[_COMMUNITY_Community 128|Community 128]]
-- [[_COMMUNITY_Community 129|Community 129]]
-- [[_COMMUNITY_Community 130|Community 130]]
-- [[_COMMUNITY_Community 131|Community 131]]
-- [[_COMMUNITY_Community 132|Community 132]]
-- [[_COMMUNITY_Community 133|Community 133]]
-- [[_COMMUNITY_Community 134|Community 134]]
-- [[_COMMUNITY_Community 135|Community 135]]
-- [[_COMMUNITY_Community 136|Community 136]]
-- [[_COMMUNITY_Community 137|Community 137]]
-- [[_COMMUNITY_Community 138|Community 138]]
-- [[_COMMUNITY_Community 139|Community 139]]
-- [[_COMMUNITY_Community 140|Community 140]]
-- [[_COMMUNITY_Community 141|Community 141]]
-- [[_COMMUNITY_Community 142|Community 142]]
-- [[_COMMUNITY_Community 143|Community 143]]
-- [[_COMMUNITY_Community 144|Community 144]]
-- [[_COMMUNITY_Community 145|Community 145]]
-- [[_COMMUNITY_Community 146|Community 146]]
-- [[_COMMUNITY_Community 147|Community 147]]
-- [[_COMMUNITY_Community 148|Community 148]]
-- [[_COMMUNITY_Community 149|Community 149]]
-- [[_COMMUNITY_Community 150|Community 150]]
-- [[_COMMUNITY_Community 151|Community 151]]
-- [[_COMMUNITY_Community 152|Community 152]]
-- [[_COMMUNITY_Community 153|Community 153]]
-- [[_COMMUNITY_Community 154|Community 154]]
-- [[_COMMUNITY_Community 155|Community 155]]
-- [[_COMMUNITY_Community 156|Community 156]]
-- [[_COMMUNITY_Community 157|Community 157]]
-- [[_COMMUNITY_Community 158|Community 158]]
-- [[_COMMUNITY_Community 159|Community 159]]
-- [[_COMMUNITY_Community 160|Community 160]]
-- [[_COMMUNITY_Community 162|Community 162]]
-- [[_COMMUNITY_Community 165|Community 165]]
-- [[_COMMUNITY_Community 166|Community 166]]
-- [[_COMMUNITY_Community 167|Community 167]]
-- [[_COMMUNITY_Community 168|Community 168]]
-- [[_COMMUNITY_Community 169|Community 169]]
-- [[_COMMUNITY_Community 170|Community 170]]
-- [[_COMMUNITY_Community 171|Community 171]]
-- [[_COMMUNITY_Community 188|Community 188]]
-- [[_COMMUNITY_Community 189|Community 189]]
-- [[_COMMUNITY_Community 190|Community 190]]
-- [[_COMMUNITY_Community 205|Community 205]]
-- [[_COMMUNITY_Community 206|Community 206]]
-- [[_COMMUNITY_Community 207|Community 207]]
-- [[_COMMUNITY_Community 208|Community 208]]
-- [[_COMMUNITY_Community 209|Community 209]]
-- [[_COMMUNITY_Community 210|Community 210]]
-- [[_COMMUNITY_Community 211|Community 211]]
-- [[_COMMUNITY_Community 212|Community 212]]
-- [[_COMMUNITY_Community 213|Community 213]]
-- [[_COMMUNITY_Community 214|Community 214]]
-- [[_COMMUNITY_Community 215|Community 215]]
-- [[_COMMUNITY_Community 216|Community 216]]
-- [[_COMMUNITY_Community 217|Community 217]]
-- [[_COMMUNITY_Community 218|Community 218]]
-- [[_COMMUNITY_Community 219|Community 219]]
-- [[_COMMUNITY_Community 220|Community 220]]
-- [[_COMMUNITY_Community 221|Community 221]]
-- [[_COMMUNITY_Community 222|Community 222]]
-- [[_COMMUNITY_Community 223|Community 223]]
+- [[_COMMUNITY_Group 5 android_app_src|Group 5: android_app_src]]
+- [[_COMMUNITY_Group 6 android_app_src|Group 6: android_app_src]]
+- [[_COMMUNITY_Group 7 auth_ui_ui_cont|Group 7: auth_ui_ui_cont]]
+- [[_COMMUNITY_Group 8 auth_ui_ui_cont|Group 8: auth_ui_ui_cont]]
+- [[_COMMUNITY_Group 9 firebase_fireba|Group 9: firebase_fireba]]
+- [[_COMMUNITY_Group 10 maintenance_adm|Group 10: maintenance_adm]]
+- [[_COMMUNITY_Group 11 android_app_src|Group 11: android_app_src]]
+- [[_COMMUNITY_Group 12 android_app_src|Group 12: android_app_src]]
+- [[_COMMUNITY_Group 13 android_app_src|Group 13: android_app_src]]
+- [[_COMMUNITY_Group 14 android_app_src|Group 14: android_app_src]]
+- [[_COMMUNITY_Group 15 maintenance_adm|Group 15: maintenance_adm]]
+- [[_COMMUNITY_Group 16 scripts_tests_v|Group 16: scripts_tests_v]]
+- [[_COMMUNITY_Group 17 fightcraft_temp|Group 17: fightcraft_temp]]
+- [[_COMMUNITY_Group 18 maintenance_adm|Group 18: maintenance_adm]]
+- [[_COMMUNITY_Group 19 maintenance_adm|Group 19: maintenance_adm]]
+- [[_COMMUNITY_Group 20 core_territory_|Group 20: core_territory_]]
+- [[_COMMUNITY_Group 21 scripts_tests_v|Group 21: scripts_tests_v]]
+- [[_COMMUNITY_Group 22 android_app_src|Group 22: android_app_src]]
+- [[_COMMUNITY_Group 23 core_diagnostic|Group 23: core_diagnostic]]
+- [[_COMMUNITY_Group 24 android_app_src|Group 24: android_app_src]]
+- [[_COMMUNITY_Group 25 firebase_fireba|Group 25: firebase_fireba]]
+- [[_COMMUNITY_Group 26 android_app_src|Group 26: android_app_src]]
+- [[_COMMUNITY_Group 27 core_discovery_|Group 27: core_discovery_]]
+- [[_COMMUNITY_Group 28 maintenance_adm|Group 28: maintenance_adm]]
+- [[_COMMUNITY_Group 29 android_app_src|Group 29: android_app_src]]
+- [[_COMMUNITY_Group 30 auth_ui_ui_cont|Group 30: auth_ui_ui_cont]]
+- [[_COMMUNITY_Group 31 firebase_fireba|Group 31: firebase_fireba]]
+- [[_COMMUNITY_Group 32 firebase_fireba|Group 32: firebase_fireba]]
+- [[_COMMUNITY_Group 33 firebase_fireba|Group 33: firebase_fireba]]
+- [[_COMMUNITY_Group 34 firebase_fireba|Group 34: firebase_fireba]]
+- [[_COMMUNITY_Group 35 concept_citadel|Group 35: concept_citadel]]
+- [[_COMMUNITY_Group 36 gameplay_data_a|Group 36: gameplay_data_a]]
+- [[_COMMUNITY_Group 37 map_canvas_rend|Group 37: map_canvas_rend]]
+- [[_COMMUNITY_Group 38 scripts_tests_v|Group 38: scripts_tests_v]]
+- [[_COMMUNITY_Group 39 android_app_src|Group 39: android_app_src]]
+- [[_COMMUNITY_Group 40 firebase_snapsh|Group 40: firebase_snapsh]]
+- [[_COMMUNITY_Group 41 map_territory_c|Group 41: map_territory_c]]
+- [[_COMMUNITY_Group 42 snapshot_servic|Group 42: snapshot_servic]]
+- [[_COMMUNITY_Group 43 generators_fetc|Group 43: generators_fetc]]
+- [[_COMMUNITY_Group 44 android_app_src|Group 44: android_app_src]]
+- [[_COMMUNITY_Group 45 android_app_src|Group 45: android_app_src]]
+- [[_COMMUNITY_Group 46 android_app_src|Group 46: android_app_src]]
+- [[_COMMUNITY_Group 47 map__computezon|Group 47: map__computezon]]
+- [[_COMMUNITY_Group 48 android_app_src|Group 48: android_app_src]]
+- [[_COMMUNITY_Group 49 firebase_fireba|Group 49: firebase_fireba]]
+- [[_COMMUNITY_Group 50 android_app_src|Group 50: android_app_src]]
+- [[_COMMUNITY_Group 51 auth_ui_charact|Group 51: auth_ui_charact]]
+- [[_COMMUNITY_Group 52 firebase_emerge|Group 52: firebase_emerge]]
+- [[_COMMUNITY_Group 53 android_app_src|Group 53: android_app_src]]
+- [[_COMMUNITY_Group 54 firebase_db_usa|Group 54: firebase_db_usa]]
+- [[_COMMUNITY_Group 55 maintenance_tem|Group 55: maintenance_tem]]
+- [[_COMMUNITY_Group 56 generators_fetc|Group 56: generators_fetc]]
+- [[_COMMUNITY_Group 57 map_overpass_se|Group 57: map_overpass_se]]
+- [[_COMMUNITY_Group 58 core_h3_spatial|Group 58: core_h3_spatial]]
+- [[_COMMUNITY_Group 59 claude_bundler_|Group 59: claude_bundler_]]
+- [[_COMMUNITY_Group 60 cdp_performance|Group 60: cdp_performance]]
+- [[_COMMUNITY_Group 61 fightcraft_temp|Group 61: fightcraft_temp]]
+- [[_COMMUNITY_Group 62 auth_ui_ui_clos|Group 62: auth_ui_ui_clos]]
+- [[_COMMUNITY_Group 63 android_app_src|Group 63: android_app_src]]
+- [[_COMMUNITY_Group 64 core_geometry_u|Group 64: core_geometry_u]]
+- [[_COMMUNITY_Group 65 core_random_see|Group 65: core_random_see]]
+- [[_COMMUNITY_Group 66 firebase_fireba|Group 66: firebase_fireba]]
+- [[_COMMUNITY_Group 67 android_app_src|Group 67: android_app_src]]
+- [[_COMMUNITY_Group 68 android_app_src|Group 68: android_app_src]]
+- [[_COMMUNITY_Group 69 android_app_src|Group 69: android_app_src]]
+- [[_COMMUNITY_Group 70 diagnostics_dia|Group 70: diagnostics_dia]]
+- [[_COMMUNITY_Group 71 gameplay_battle|Group 71: gameplay_battle]]
+- [[_COMMUNITY_Group 72 scripts_tests_v|Group 72: scripts_tests_v]]
+- [[_COMMUNITY_Group 73 procedural_demo|Group 73: procedural_demo]]
+- [[_COMMUNITY_Group 74 fightcraft_temp|Group 74: fightcraft_temp]]
+- [[_COMMUNITY_Group 75 fightcraft_temp|Group 75: fightcraft_temp]]
+- [[_COMMUNITY_Group 76 android_app_src|Group 76: android_app_src]]
+- [[_COMMUNITY_Group 77 scripts_tests_p|Group 77: scripts_tests_p]]
+- [[_COMMUNITY_Group 78 gameplay_genera|Group 78: gameplay_genera]]
+- [[_COMMUNITY_Group 79 firebase_fireba|Group 79: firebase_fireba]]
+- [[_COMMUNITY_Group 80 firebase_fireba|Group 80: firebase_fireba]]
+- [[_COMMUNITY_Group 81 templates_map_f|Group 81: templates_map_f]]
+- [[_COMMUNITY_Group 83 procedural_demo|Group 83: procedural_demo]]
+- [[_COMMUNITY_Group 84 zone_engine_ass|Group 84: zone_engine_ass]]
+- [[_COMMUNITY_Group 85 fightcraft_temp|Group 85: fightcraft_temp]]
+- [[_COMMUNITY_Group 86 js_admin_vaults|Group 86: js_admin_vaults]]
+- [[_COMMUNITY_Group 87 android_app_src|Group 87: android_app_src]]
+- [[_COMMUNITY_Group 88 generators_gene|Group 88: generators_gene]]
+- [[_COMMUNITY_Group 89 patches_fix_gen|Group 89: patches_fix_gen]]
+- [[_COMMUNITY_Group 90 auth_ui_ui_load|Group 90: auth_ui_ui_load]]
+- [[_COMMUNITY_Group 91 components_admi|Group 91: components_admi]]
+- [[_COMMUNITY_Group 92 android_app_src|Group 92: android_app_src]]
+- [[_COMMUNITY_Group 93 android_app_src|Group 93: android_app_src]]
+- [[_COMMUNITY_Group 94 android_app_src|Group 94: android_app_src]]
+- [[_COMMUNITY_Group 95 js_admin_monste|Group 95: js_admin_monste]]
+- [[_COMMUNITY_Group 96 android_app_src|Group 96: android_app_src]]
+- [[_COMMUNITY_Group 97 android_app_src|Group 97: android_app_src]]
+- [[_COMMUNITY_Group 98 diagnostics_ana|Group 98: diagnostics_ana]]
+- [[_COMMUNITY_Group 99 generators_repa|Group 99: generators_repa]]
+- [[_COMMUNITY_Group 100 patches_delete_|Group 100: patches_delete_]]
+- [[_COMMUNITY_Group 101 patches_fix_adm|Group 101: patches_fix_adm]]
+- [[_COMMUNITY_Group 102 patches_fix_adm|Group 102: patches_fix_adm]]
+- [[_COMMUNITY_Group 103 patches_fix_adm|Group 103: patches_fix_adm]]
+- [[_COMMUNITY_Group 104 patches_fix_tem|Group 104: patches_fix_tem]]
+- [[_COMMUNITY_Group 105 patches_patch_a|Group 105: patches_patch_a]]
+- [[_COMMUNITY_Group 106 patches_patch_t|Group 106: patches_patch_t]]
+- [[_COMMUNITY_Group 107 scripts_tests_t|Group 107: scripts_tests_t]]
+- [[_COMMUNITY_Group 108 core_logger_con|Group 108: core_logger_con]]
+- [[_COMMUNITY_Group 109 firebase_fireba|Group 109: firebase_fireba]]
+- [[_COMMUNITY_Group 110 maintenance_cle|Group 110: maintenance_cle]]
+- [[_COMMUNITY_Group 111 maintenance_dia|Group 111: maintenance_dia]]
+- [[_COMMUNITY_Group 112 maintenance_res|Group 112: maintenance_res]]
+- [[_COMMUNITY_Group 113 maintenance_res|Group 113: maintenance_res]]
+- [[_COMMUNITY_Group 114 procedural_demo|Group 114: procedural_demo]]
+- [[_COMMUNITY_Group 115 zoom10_no_bound|Group 115: zoom10_no_bound]]
+- [[_COMMUNITY_Group 116 tests_monitor_p|Group 116: tests_monitor_p]]
+- [[_COMMUNITY_Group 117 fightcraft_patc|Group 117: fightcraft_patc]]
+- [[_COMMUNITY_Group 118 android_app_src|Group 118: android_app_src]]
+- [[_COMMUNITY_Group 119 android_app_src|Group 119: android_app_src]]
+- [[_COMMUNITY_Group 120 android_app_src|Group 120: android_app_src]]
+- [[_COMMUNITY_Group 121 android_app_src|Group 121: android_app_src]]
+- [[_COMMUNITY_Group 122 android_app_src|Group 122: android_app_src]]
+- [[_COMMUNITY_Group 123 android_app_src|Group 123: android_app_src]]
+- [[_COMMUNITY_Group 124 scripts_tests_r|Group 124: scripts_tests_r]]
+- [[_COMMUNITY_Group 125 scripts_tests_t|Group 125: scripts_tests_t]]
+- [[_COMMUNITY_Group 126 maintenance_cle|Group 126: maintenance_cle]]
+- [[_COMMUNITY_Group 127 maintenance_dee|Group 127: maintenance_dee]]
+- [[_COMMUNITY_Group 128 maintenance_glo|Group 128: maintenance_glo]]
+- [[_COMMUNITY_Group 129 maintenance_nuk|Group 129: maintenance_nuk]]
+- [[_COMMUNITY_Group 130 maintenance_tes|Group 130: maintenance_tes]]
+- [[_COMMUNITY_Group 131 readme_document|Group 131: readme_document]]
+- [[_COMMUNITY_Group 132 proceduraldemoz|Group 132: proceduraldemoz]]
+- [[_COMMUNITY_Group 133 map__syncpositi|Group 133: map__syncpositi]]
+- [[_COMMUNITY_Group 134 zoom7_no_layers|Group 134: zoom7_no_layers]]
+- [[_COMMUNITY_Group 135 zoom8_boundarie|Group 135: zoom8_boundarie]]
+- [[_COMMUNITY_Group 136 android_app_src|Group 136: android_app_src]]
+- [[_COMMUNITY_Group 137 android_app_src|Group 137: android_app_src]]
+- [[_COMMUNITY_Group 138 android_app_src|Group 138: android_app_src]]
+- [[_COMMUNITY_Group 139 diagnostics_pla|Group 139: diagnostics_pla]]
+- [[_COMMUNITY_Group 140 patches_patch_z|Group 140: patches_patch_z]]
+- [[_COMMUNITY_Group 141 patches_patch_f|Group 141: patches_patch_f]]
+- [[_COMMUNITY_Group 142 patches_patch_a|Group 142: patches_patch_a]]
+- [[_COMMUNITY_Group 143 patches_patch_a|Group 143: patches_patch_a]]
+- [[_COMMUNITY_Group 144 patches_patch_d|Group 144: patches_patch_d]]
+- [[_COMMUNITY_Group 145 patches_patch_e|Group 145: patches_patch_e]]
+- [[_COMMUNITY_Group 146 patches_patch_f|Group 146: patches_patch_f]]
+- [[_COMMUNITY_Group 147 patches_patch_f|Group 147: patches_patch_f]]
+- [[_COMMUNITY_Group 148 patches_patch_f|Group 148: patches_patch_f]]
+- [[_COMMUNITY_Group 149 patches_patch_r|Group 149: patches_patch_r]]
+- [[_COMMUNITY_Group 150 patches_patch_r|Group 150: patches_patch_r]]
+- [[_COMMUNITY_Group 151 patches_patch_r|Group 151: patches_patch_r]]
+- [[_COMMUNITY_Group 152 patches_patch_s|Group 152: patches_patch_s]]
+- [[_COMMUNITY_Group 153 patches_patch_t|Group 153: patches_patch_t]]
+- [[_COMMUNITY_Group 154 scripts_tests_s|Group 154: scripts_tests_s]]
+- [[_COMMUNITY_Group 155 scripts_tests_t|Group 155: scripts_tests_t]]
+- [[_COMMUNITY_Group 156 maintenance_eme|Group 156: maintenance_eme]]
+- [[_COMMUNITY_Group 157 prd_system_arch|Group 157: prd_system_arch]]
+- [[_COMMUNITY_Group 158 2026_04_24_glob|Group 158: 2026_04_24_glob]]
+- [[_COMMUNITY_Group 159 procedural_engi|Group 159: procedural_engi]]
+- [[_COMMUNITY_Group 160 procedural_worl|Group 160: procedural_worl]]
+- [[_COMMUNITY_Group 161 procedural_worl|Group 161: procedural_worl]]
+- [[_COMMUNITY_Group 162 zoom10_voronoi_|Group 162: zoom10_voronoi_]]
+- [[_COMMUNITY_Group 163 fetch_city_pois|Group 163: fetch_city_pois]]
+- [[_COMMUNITY_Group 164 fightcraft_test|Group 164: fightcraft_test]]
+- [[_COMMUNITY_Group 166 scripts_tests_h|Group 166: scripts_tests_h]]
+- [[_COMMUNITY_Group 169 2026_04_24_temp|Group 169: 2026_04_24_temp]]
+- [[_COMMUNITY_Group 170 index_html_core|Group 170: index_html_core]]
+- [[_COMMUNITY_Group 171 snapshot_servic|Group 171: snapshot_servic]]
+- [[_COMMUNITY_Group 172 templates_map_g|Group 172: templates_map_g]]
+- [[_COMMUNITY_Group 173 snapshot_servic|Group 173: snapshot_servic]]
+- [[_COMMUNITY_Group 174 maintenance_loc|Group 174: maintenance_loc]]
+- [[_COMMUNITY_Group 175 2026_05_12_seed|Group 175: 2026_05_12_seed]]
+- [[_COMMUNITY_Group 176 claude_fightcra|Group 176: claude_fightcra]]
+- [[_COMMUNITY_Group 177 claude_syncengi|Group 177: claude_syncengi]]
+- [[_COMMUNITY_Group 194 proposal_securi|Group 194: proposal_securi]]
+- [[_COMMUNITY_Group 195 2026_04_24_over|Group 195: 2026_04_24_over]]
+- [[_COMMUNITY_Group 196 2026_05_03_scri|Group 196: 2026_05_03_scri]]
+- [[_COMMUNITY_Group 211 snapshot_servic|Group 211: snapshot_servic]]
+- [[_COMMUNITY_Group 212 snapshot_servic|Group 212: snapshot_servic]]
+- [[_COMMUNITY_Group 213 fetch_city_boun|Group 213: fetch_city_boun]]
+- [[_COMMUNITY_Group 214 h3_spatial_latl|Group 214: h3_spatial_latl]]
+- [[_COMMUNITY_Group 215 h3_spatial_h3to|Group 215: h3_spatial_h3to]]
+- [[_COMMUNITY_Group 216 h3_spatial_getv|Group 216: h3_spatial_getv]]
+- [[_COMMUNITY_Group 217 procedural_worl|Group 217: procedural_worl]]
+- [[_COMMUNITY_Group 218 defeated_state_|Group 218: defeated_state_]]
+- [[_COMMUNITY_Group 219 defeated_state_|Group 219: defeated_state_]]
+- [[_COMMUNITY_Group 220 world_cities_lo|Group 220: world_cities_lo]]
+- [[_COMMUNITY_Group 221 snapshot_recipe|Group 221: snapshot_recipe]]
+- [[_COMMUNITY_Group 222 admin_recipe_ad|Group 222: admin_recipe_ad]]
+- [[_COMMUNITY_Group 223 local_snapshots|Group 223: local_snapshots]]
+- [[_COMMUNITY_Group 224 procedural_demo|Group 224: procedural_demo]]
+- [[_COMMUNITY_Group 225 map_updateother|Group 225: map_updateother]]
+- [[_COMMUNITY_Group 226 map_prunedistan|Group 226: map_prunedistan]]
+- [[_COMMUNITY_Group 227 map_renderstati|Group 227: map_renderstati]]
+- [[_COMMUNITY_Group 228 map_renderarena|Group 228: map_renderarena]]
+- [[_COMMUNITY_Group 229 pwr_filtercitad|Group 229: pwr_filtercitad]]
+- [[_COMMUNITY_Group 230 demo_renderboun|Group 230: demo_renderboun]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `isAdmin()` - 30 edges
@@ -216,559 +223,571 @@
 ## Surprising Connections (you probably didn't know these)
 - `TerritoryCanvasLayer` --semantically_similar_to--> `renderZones`  [INFERRED] [semantically similar]
   www/map/territory-canvas.js → www/maintenance/procedural-demo.html
+- `adaptiveResolution()` --calls--> `loadProceduralMonsters()`  [INFERRED]
+  www/core/h3-spatial.js → map.js
 - `CONTRIBUTING.md Guide` --semantically_similar_to--> `Bundler-Free Architecture`  [INFERRED] [semantically similar]
   CONTRIBUTING.md → CLAUDE.md
 - `loadProceduralMonsters` --semantically_similar_to--> `renderViewport`  [INFERRED] [semantically similar]
   www/map/map.js → www/maintenance/procedural-demo.html
 - `Fetch City Boundaries Script` --shares_data_with--> `Procedural World Preview`  [INFERRED]
   scripts/generators/fetch-city-boundaries.js → www/maintenance/procedural-demo.html
-- `Monitor Performance Script` --references--> `Procedural World Preview`  [EXTRACTED]
-  scripts/tests/monitor_performance.js → www/maintenance/procedural-demo.html
 
 ## Hyperedges (group relationships)
-- **City Boundary Processing Flow** — fetch_city_boundaries, world_cities, world_cities_boundaries, procedural_demo [INFERRED 0.85]
+- **Voronoi Zone Generation Pipeline** — zone_engine_getcellsinboundary, zone_engine_generatecitadelsinboundary, zone_engine_assigncellstozones, zone_engine_generatezonesforcity [INFERRED 0.85]
 
-## Communities (224 total, 60 thin omitted)
+## Communities (231 total, 64 thin omitted)
 
 ### Community 0 - "UI Controller"
 Cohesion: 0.05
-Nodes (73): a, addEventLog(), admin, backup, badge, blob, bounds, charNameSpan (+65 more)
+Nodes (91): getCellsInRadius(), getViewportCells(), calculateCityObjectCount(), _cellCityCache, clearCellCityCache(), combineSeed(), DEFAULT_VIEWPORT_TYPES, distributeObjectsAcrossCells() (+83 more)
 
 ### Community 1 - "Android UI Controller"
-Cohesion: 0.04
-Nodes (30): incrementReadCount(), monitoredGetDoc(), monitoredGetDocs(), monitoredOnSnapshot(), checkFleePenalty(), _cityZonesCache, createArenaRTDB(), createBattleRequest() (+22 more)
+Cohesion: 0.05
+Nodes (65): a, addEventLog(), admin, backup, badge, blob, bounds, charNameSpan (+57 more)
 
 ### Community 2 - "Android Firebase Services"
-Cohesion: 0.08
-Nodes (57): checkDiscovery(), adaptiveResolution(), latLngToH3(), arenaLayers, calculateFogRadius(), centerOnPlayer(), _computeZoneEngineTerritories(), convertPlayerToOtherMarker() (+49 more)
-
-### Community 3 - "Procedural Engine Tests"
 Cohesion: 0.04
 Nodes (23): incrementReadCount(), monitoredGetDoc(), monitoredGetDocs(), monitoredOnSnapshot(), acceptCombatInvite(), checkFleePenalty(), _cityZonesCache, clearUsageStatsFC() (+15 more)
 
-### Community 4 - "Firebase Services"
+### Community 3 - "Procedural Engine Tests"
 Cohesion: 0.03
 Nodes (55): a, allObjects, b, berlin, berlinContext, cells, cellsRepresented, center (+47 more)
 
-### Community 5 - "Community 5"
-Cohesion: 0.04
-Nodes (51): renderOnlinePlayersList(), active, bar, battleId, buttons, byTemplate, d, fogEl (+43 more)
+### Community 4 - "Firebase Services"
+Cohesion: 0.09
+Nodes (54): arenaLayers, calculateFogRadius(), centerOnPlayer(), _computeZoneEngineTerritories(), convertPlayerToOtherMarker(), createPlayerMarker(), createPlayerMarkerAt(), defeatedMonsterIds (+46 more)
 
-### Community 6 - "Community 6"
-Cohesion: 0.04
-Nodes (49): activeRules, capacityInput, cellPoly, citadels, city, copyName, defaults, existingObjects (+41 more)
-
-### Community 7 - "Community 7"
+### Community 5 - "Group 5: android_app_src"
 Cohesion: 0.04
 Nodes (50): activeRules, capacityInput, capInput, cellPoly, citadels, city, copyName, defaults (+42 more)
 
-### Community 8 - "Community 8"
-Cohesion: 0.05
-Nodes (35): activeRules, allSavedObjects, bulk, capacityInput, copyName, defaults, exactTemplatePool, existingObjects (+27 more)
+### Community 6 - "Group 6: android_app_src"
+Cohesion: 0.04
+Nodes (49): activeRules, capacityInput, cellPoly, citadels, city, copyName, defaults, existingObjects (+41 more)
 
-### Community 9 - "Community 9"
+### Community 7 - "Group 7: auth_ui_ui_cont"
+Cohesion: 0.04
+Nodes (48): renderOnlinePlayersList(), active, bar, battleId, buttons, byTemplate, d, fogEl (+40 more)
+
+### Community 8 - "Group 8: auth_ui_ui_cont"
+Cohesion: 0.04
+Nodes (45): a, admin, backup, badge, blob, bounds, charNameSpan, chars (+37 more)
+
+### Community 9 - "Group 9: firebase_fireba"
+Cohesion: 0.04
+Nodes (17): checkFleePenalty(), _cityZonesCache, createBattleRequest(), fastHash(), firebaseConfig, getAllPlayersForDebug(), loadStats(), loadTestPlayersToMap() (+9 more)
+
+### Community 10 - "Group 10: maintenance_adm"
 Cohesion: 0.04
 Nodes (43): allSavedObjects, allSnaps, baseSeed, bulk, capacity, capacityInput, citadels, copyName (+35 more)
 
-### Community 10 - "Community 10"
-Cohesion: 0.05
-Nodes (44): a, admin, backup, badge, blob, bounds, charNameSpan, chars (+36 more)
-
-### Community 11 - "Community 11"
+### Community 11 - "Group 11: android_app_src"
 Cohesion: 0.04
 Nodes (43): activeRules, capacityInput, cellPoly, citadels, city, copyName, defaults, existingObjects (+35 more)
 
-### Community 12 - "Community 12"
+### Community 12 - "Group 12: android_app_src"
 Cohesion: 0.04
 Nodes (40): allOsmData, capacity, capacityInput, cellBbox, cellPoly, citadels, cityAnchor, copyName (+32 more)
 
-### Community 13 - "Community 13"
-Cohesion: 0.08
-Nodes (37): addToInventory(), gameState, getStaticMonsters(), recalculateStats(), removeFromInventory(), staticMonsters, updatePlayer(), removeArenaRTDB() (+29 more)
-
-### Community 14 - "Community 14"
+### Community 13 - "Group 13: android_app_src"
 Cohesion: 0.05
 Nodes (40): activeRules, allCitadelsForZones, candidates, capacityInput, city, copyName, d, defaults (+32 more)
 
-### Community 15 - "Community 15"
+### Community 14 - "Group 14: android_app_src"
 Cohesion: 0.05
 Nodes (37): bar, buttons, fogEl, init(), initializeDebugMode(), items, lat, latInput (+29 more)
 
-### Community 16 - "Community 16"
-Cohesion: 0.09
-Nodes (31): applyDamageToTarget(), calculateDamage(), checkCanAttack(), defeat(), ensureVictoryIfDead(), executeAttack(), fleeCombat(), handlePvPRoundResult() (+23 more)
-
-### Community 17 - "Community 17"
-Cohesion: 0.05
-Nodes (37): berlin, bounds, bounds2, cells, citadelEdge, citadelFarOut, citadelInside, citadelOutside (+29 more)
-
-### Community 18 - "Community 18"
-Cohesion: 0.05
-Nodes (34): adminDistrictCache, allCitadels, allPoints, body, btn, btnCas, btnCit, btnMon (+26 more)
-
-### Community 19 - "Community 19"
+### Community 15 - "Group 15: maintenance_adm"
 Cohesion: 0.06
 Nodes (34): activeRules, allSavedObjects, bulk, capacityInput, copyName, defaults, exactTemplatePool, existingObjects (+26 more)
 
-### Community 20 - "Community 20"
-Cohesion: 0.07
-Nodes (33): getTemplates(), initFirebase(), activeRules, allCitadelsForZones, bulk, capacityInput, city, copyName (+25 more)
+### Community 16 - "Group 16: scripts_tests_v"
+Cohesion: 0.05
+Nodes (37): berlin, bounds, bounds2, cells, citadelEdge, citadelFarOut, citadelInside, citadelOutside (+29 more)
 
-### Community 21 - "Community 21"
+### Community 17 - "Group 17: fightcraft_temp"
+Cohesion: 0.05
+Nodes (34): adminDistrictCache, allCitadels, allPoints, body, btn, btnCas, btnCit, btnMon (+26 more)
+
+### Community 18 - "Group 18: maintenance_adm"
+Cohesion: 0.06
+Nodes (34): activeRules, allSavedObjects, bulk, capacityInput, copyName, defaults, exactTemplatePool, existingObjects (+26 more)
+
+### Community 19 - "Group 19: maintenance_adm"
 Cohesion: 0.06
 Nodes (34): activeRules, allSavedObjects, bulk, capacityInput, capInput, copyName, defaults, exactTemplatePool (+26 more)
 
-### Community 22 - "Community 22"
+### Community 20 - "Group 20: core_territory_"
+Cohesion: 0.12
+Nodes (27): effectiveDistance(), estimateTerritoryBoundary(), findBoundaryPoint(), getNearestCitadels(), getOwner(), haversineMeters(), isContested(), moveAlongBearing() (+19 more)
+
+### Community 21 - "Group 21: scripts_tests_v"
 Cohesion: 0.08
 Nodes (25): createGeolocationMock(), createNotificationSpy(), createRTDBMock(), stubLeaflet(), battleData, combatScreen, container, dialog (+17 more)
 
-### Community 23 - "Community 23"
+### Community 22 - "Group 22: android_app_src"
 Cohesion: 0.12
-Nodes (30): updateQuestProgress(), closeDefeat(), closeVictory(), centerOnPlayer(), updateOtherPlayers(), addEventLog(), clearEventLog(), closeItemModal() (+22 more)
+Nodes (28): updateQuestProgress(), applyDamageToTarget(), calculateDamage(), checkCanAttack(), closeDefeat(), closeVictory(), defeat(), ensureVictoryIfDead() (+20 more)
 
-### Community 24 - "Community 24"
+### Community 23 - "Group 23: core_diagnostic"
+Cohesion: 0.07
+Nodes (15): addToInventory(), gameState, getStaticMonsters(), recalculateStats(), removeFromInventory(), setStaticMonsters(), staticMonsters, updatePlayer() (+7 more)
+
+### Community 24 - "Group 24: android_app_src"
+Cohesion: 0.08
+Nodes (18): AFFIXES, CITY_ANCHORS, GRID_SETTINGS, ITEMS_DB, MONSTER_TYPES, addToInventory(), getStaticMonsters(), recalculateStats() (+10 more)
+
+### Community 25 - "Group 25: firebase_fireba"
+Cohesion: 0.13
+Nodes (28): removeArenaRTDB(), submitUnifiedCombatMove(), updateSpawnedObject(), applyDamageToTarget(), arenaDefeat(), calculateDamage(), checkArenaBoundary(), checkCanAttack() (+20 more)
+
+### Community 26 - "Group 26: android_app_src"
 Cohesion: 0.12
 Nodes (14): districtData, DISTRICTS, fetchAndDrawDistricts(), getDistrictByCoords(), initDistricts(), refreshDistricts(), renderDistricts(), getCentroid() (+6 more)
 
-### Community 25 - "Community 25"
-Cohesion: 0.14
-Nodes (27): getCellsInRadius(), getViewportCells(), findCityForCell(), getObjectsForViewport(), getViewportObjects(), activateRecipe(), addTemplateToLayer(), deactivateRecipe() (+19 more)
-
-### Community 26 - "Community 26"
+### Community 27 - "Group 27: core_discovery_"
 Cohesion: 0.11
-Nodes (23): ensureH3Loaded(), clearCellCityCache(), getObjectById(), buildCityContext(), _cities, enrichWithTemplate(), estimateCityTotalCells(), extractH3FromObjectId() (+15 more)
+Nodes (19): cellCooldowns, checkDiscovery(), _classifyLandmark(), discoverCell(), discoveredCastles, discoveredCells, getDiscoveredCastles(), LANDMARK_TAGS (+11 more)
 
-### Community 27 - "Community 27"
+### Community 28 - "Group 28: maintenance_adm"
+Cohesion: 0.08
+Nodes (26): activeRules, allCitadelsForZones, bulk, capacityInput, city, copyName, defaults, el (+18 more)
+
+### Community 29 - "Group 29: android_app_src"
 Cohesion: 0.12
 Nodes (18): calculateFogRadius(), createPlayerMarkerAt(), _flushPositionSync(), getDistance(), getPlayerCity(), initJoystick(), initMap(), lastKnownOtherPlayers (+10 more)
 
-### Community 28 - "Community 28"
-Cohesion: 0.1
-Nodes (24): abandonCastle(), applyWorldSnapshot(), claimCastle(), cleanupDatabase(), clearLocationObjects(), deactivateWorldSnapshot(), deleteSnapshot(), deleteTemplate() (+16 more)
+### Community 30 - "Group 30: auth_ui_ui_cont"
+Cohesion: 0.16
+Nodes (25): addEventLog(), clearEventLog(), closeItemModal(), closeMenu(), depositGold(), equipItem(), filterInventory(), formatBigInt() (+17 more)
 
-### Community 29 - "Community 29"
+### Community 31 - "Group 31: firebase_fireba"
+Cohesion: 0.11
+Nodes (24): abandonCastle(), applyWorldSnapshot(), cleanupDatabase(), clearLocationObjects(), deactivateWorldSnapshot(), deleteSnapshot(), deleteTemplate(), fetchNearbyObjects() (+16 more)
+
+### Community 32 - "Group 32: firebase_fireba"
 Cohesion: 0.16
 Nodes (23): acceptGroupInviteRTDB(), createGroupRTDB(), declineGroupInviteRTDB(), disbandGroupRTDB(), inviteToGroup(), leaveGroupRTDB(), subscribeToGroupDeclines(), subscribeToGroupInvites() (+15 more)
 
-### Community 30 - "Community 30"
-Cohesion: 0.18
-Nodes (18): calculateCityObjectCount(), _cellCityCache, combineSeed(), DEFAULT_VIEWPORT_TYPES, distributeObjectsAcrossCells(), generateCitadelsForCity(), generateObjectsForCell(), getWorldSeed() (+10 more)
+### Community 33 - "Group 33: firebase_fireba"
+Cohesion: 0.11
+Nodes (19): saveCityZones(), saveWorldSnapshot(), CITY_ANCHORS, WORLD_CITIES, hashSeed(), getDistSq(), ensureTurf(), generateCitadelsAndZones() (+11 more)
 
-### Community 32 - "Community 32"
+### Community 34 - "Group 34: firebase_fireba"
+Cohesion: 0.13
+Nodes (20): claimCastle(), districtData, DISTRICTS, fetchAndDrawDistricts(), getDistrictByCoords(), initDistricts(), isInsideAnyZone(), refreshDistricts() (+12 more)
+
+### Community 35 - "Group 35: concept_citadel"
+Cohesion: 0.1
+Nodes (23): Citadel Generation Caching, Level of Detail (LOD) Rendering, buildRecipe, generateWorld, init, renderViewport, renderZones, h3-js (+15 more)
+
+### Community 36 - "Group 36: gameplay_data_a"
+Cohesion: 0.1
+Nodes (18): AFFIXES, GRID_SETTINGS, ITEMS_DB, MONSTER_TYPES, renderMonsterTable(), addExternalPOIs(), CASTLE_TYPES, checkAndFetchPOIs() (+10 more)
+
+### Community 38 - "Group 38: scripts_tests_v"
 Cohesion: 0.1
 Nodes (18): { blocked }, { damage }, { damage, blocked }, goldLoss, ids, inventory, levels, p (+10 more)
 
-### Community 33 - "Community 33"
-Cohesion: 0.12
-Nodes (16): saveCityZones(), saveWorldSnapshot(), CITY_ANCHORS, WORLD_CITIES, getDistSq(), ensureTurf(), generateCitadelsAndZones(), allGeneratedCitadels (+8 more)
-
-### Community 34 - "Community 34"
-Cohesion: 0.14
-Nodes (17): getCentroid(), getNearestCitadel(), getSqSegDist(), isPointInPolygon(), simplify(), weightedDistance(), districtData, DISTRICTS (+9 more)
-
-### Community 35 - "Community 35"
+### Community 39 - "Group 39: android_app_src"
 Cohesion: 0.15
 Nodes (18): MONSTER_LIBRARY, abandonCastle(), applyWorldSnapshot(), claimCastle(), cleanupDatabase(), clearLocationObjects(), deleteSnapshot(), deleteTemplate() (+10 more)
 
-### Community 36 - "Community 36"
-Cohesion: 0.11
-Nodes (8): setStaticMonsters(), BERLIN_DISTRICTS, buildStaticMonsters(), CITY_REGIONS, GRID_SETTINGS, initProceduralEngine(), LANDMARKS, loadStaticMonsters()
-
-### Community 37 - "Community 37"
+### Community 40 - "Group 40: firebase_snapsh"
 Cohesion: 0.25
 Nodes (17): activateSnapshot(), calculateCityCounts(), cleanupOldSnapshotObjects(), commitBatchesWithLimit(), deactivatePreviousSnapshot(), estimateSize(), GENERATION_RATIOS, loadChunkedSnapshot() (+9 more)
 
-### Community 38 - "Community 38"
+### Community 41 - "Group 41: map_territory_c"
 Cohesion: 0.22
 Nodes (3): citadelColor(), hslToRgba(), TerritoryCanvasLayer
 
-### Community 39 - "Community 39"
+### Community 42 - "Group 42: snapshot_servic"
 Cohesion: 0.12
 Nodes (18): activateSnapshot, ACTIVATION_CONCURRENCY, BATCH_OP_LIMIT, CHUNK_SIZE_LIMIT, Chunked Snapshot Architecture, cleanupOldSnapshotObjects, commitBatchesWithLimit, deactivatePreviousSnapshot (+10 more)
 
-### Community 40 - "Community 40"
+### Community 43 - "Group 43: generators_fetc"
 Cohesion: 0.25
 Nodes (16): args, CITIES_PATH, COUNTRY_NAMES, extractBoundary(), fetchJSON(), fs, getArg(), https (+8 more)
 
-### Community 41 - "Community 41"
+### Community 44 - "Group 44: android_app_src"
+Cohesion: 0.14
+Nodes (13): addExternalPOIs(), CASTLE_TYPES, checkAndFetchPOIs(), invItem, nearbyPOIs, poiMarkers, processIncome(), processOverpassData() (+5 more)
+
+### Community 45 - "Group 45: android_app_src"
+Cohesion: 0.17
+Nodes (9): gameState, closeMenu(), openMenu(), showNotification(), updateCharacterPanel(), updateDebugUI(), updateHUD(), updateMenuHeader() (+1 more)
+
+### Community 46 - "Group 46: android_app_src"
 Cohesion: 0.15
 Nodes (13): AdminBundler, currentSort, initDashboard(), SCHEMA_MAP, updateChart(), updateDashboard(), updateTable(), updateTopConsuming() (+5 more)
 
-### Community 42 - "Community 42"
-Cohesion: 0.14
-Nodes (13): addExternalPOIs(), CASTLE_TYPES, checkAndFetchPOIs(), invItem, nearbyPOIs, poiMarkers, processIncome(), processOverpassData() (+5 more)
-
-### Community 43 - "Community 43"
-Cohesion: 0.15
-Nodes (9): cellCooldowns, _classifyLandmark(), discoverCell(), discoveredCastles, discoveredCells, getDiscoveredCastles(), LANDMARK_TAGS, h3ToBoundary() (+1 more)
-
-### Community 44 - "Community 44"
-Cohesion: 0.14
-Nodes (13): addExternalPOIs(), CASTLE_TYPES, checkAndFetchPOIs(), invItem, nearbyPOIs, poiMarkers, processIncome(), processOverpassData() (+5 more)
-
-### Community 45 - "Community 45"
-Cohesion: 0.26
-Nodes (15): estimateTerritoryBoundary(), haversineMeters(), moveAlongBearing(), toDeg(), toRad(), assignTemplates(), citadelCountFromPopulation(), computeBBox() (+7 more)
-
-### Community 46 - "Community 46"
+### Community 47 - "Group 47: map__computezon"
 Cohesion: 0.12
 Nodes (17): _computeZoneEngineTerritories, _updateTerritoryCanvas, Canvas Rendering Pattern, initH3Territory, initMap, loadProceduralMonsters, map_setupdynamicloading, generateWorld (+9 more)
 
-### Community 47 - "Community 47"
-Cohesion: 0.16
-Nodes (13): currentSort, initDashboard(), SCHEMA_MAP, updateChart(), updateDashboard(), updateTable(), updateTopConsuming(), clearUsageStatsFC() (+5 more)
-
-### Community 48 - "Community 48"
-Cohesion: 0.17
-Nodes (13): acceptCombatInvite(), loadPlayerDataById(), subscribeToPlayers(), showPreCombatDialog(), closeBattleDialog(), handleBattleRequest(), handleBattleStatusChange(), initPvP() (+5 more)
-
-### Community 49 - "Community 49"
+### Community 48 - "Group 48: android_app_src"
 Cohesion: 0.19
 Nodes (12): btn, initCharacterSelection(), input, loadCharacterData(), loadCharacterSelectionUI(), loadCharactersList(), name, nameInput (+4 more)
 
-### Community 50 - "Community 50"
-Cohesion: 0.13
-Nodes (7): getStaticMonsters(), BERLIN_DISTRICTS, buildStaticMonsters(), CITY_REGIONS, GRID_SETTINGS, LANDMARKS, loadStaticMonsters()
+### Community 49 - "Group 49: firebase_fireba"
+Cohesion: 0.18
+Nodes (12): acceptCombatInvite(), loadPlayerDataById(), showPreCombatDialog(), closeBattleDialog(), handleBattleRequest(), handleBattleStatusChange(), initPvP(), loadLeaderboard() (+4 more)
 
-### Community 51 - "Community 51"
-Cohesion: 0.21
-Nodes (14): cacheRecipeLocally(), createRecipe(), DEFAULT_DENSITY_RATIOS, duplicateRecipe(), listRecipes(), loadActiveRecipe(), loadCachedRecipe(), openCacheDB() (+6 more)
-
-### Community 52 - "Community 52"
-Cohesion: 0.16
-Nodes (10): getCityZones(), _citadelCache, generateCityTerritory(), getNearestCitadel(), getPlayerZoneOwner(), getZoneOwner(), isPlayerInContestedZone(), _localZoneCache (+2 more)
-
-### Community 53 - "Community 53"
+### Community 50 - "Group 50: android_app_src"
 Cohesion: 0.18
 Nodes (12): detectLoop(), getShortPath(), incrementReads(), loopBuffer, overlay, readsHistory, recentUrls, showFlashAlert() (+4 more)
 
-### Community 54 - "Community 54"
-Cohesion: 0.21
-Nodes (8): closeMenu(), openMenu(), showNotification(), updateCharacterPanel(), updateDebugUI(), updateHUD(), updateMenuHeader(), updateToggleButton()
-
-### Community 55 - "Community 55"
+### Community 51 - "Group 51: auth_ui_charact"
 Cohesion: 0.22
 Nodes (12): btn, _doInitCharacterSelection(), initCharacterSelection(), input, loadCharacterData(), loadCharacterSelectionUI(), loadCharactersList(), name (+4 more)
 
-### Community 56 - "Community 56"
+### Community 52 - "Group 52: firebase_emerge"
 Cohesion: 0.18
 Nodes (12): detectLoop(), getShortPath(), incrementReads(), loopBuffer, overlay, readsHistory, recentUrls, showFlashAlert() (+4 more)
 
-### Community 57 - "Community 57"
-Cohesion: 0.24
-Nodes (12): citadelColor(), computeH3Boundaries(), computeH3Territory(), computeH3TerritoryFromCitadels(), getOwnerH3(), getZoneCount(), logTerritoryStats(), effectiveDistance() (+4 more)
-
-### Community 58 - "Community 58"
+### Community 53 - "Group 53: android_app_src"
 Cohesion: 0.22
 Nodes (11): showPreCombatDialog(), subscribeToPlayers(), closeBattleDialog(), handleBattleRequest(), handleBattleStatusChange(), initPvP(), loadLeaderboard(), onBattleAction() (+3 more)
 
-### Community 59 - "Community 59"
-Cohesion: 0.24
-Nodes (6): estimateCityTotalCells(), generateAllCitadels(), generateViewportObjects(), getResolutionForZoom(), getTypesForZoom(), _viewportObjects
+### Community 54 - "Group 54: firebase_db_usa"
+Cohesion: 0.23
+Nodes (10): currentSort, initDashboard(), SCHEMA_MAP, updateChart(), updateDashboard(), updateTable(), updateTopConsuming(), clearUsageStatsFC() (+2 more)
 
-### Community 60 - "Community 60"
-Cohesion: 0.31
-Nodes (9): checkCitadelProximity(), claimThrone(), closeCitadelMenu(), initiateChallengeLevel(), initKingdom(), showChallengeDialog(), startKingBossFight(), getCitadels() (+1 more)
+### Community 56 - "Group 56: generators_fetc"
+Cohesion: 0.2
+Nodes (10): args, CITIES_PATH, fetchOverpass(), fs, https, main(), OUTPUT_PATH, path (+2 more)
 
-### Community 62 - "Community 62"
+### Community 58 - "Group 58: core_h3_spatial"
+Cohesion: 0.38
+Nodes (10): h3ToLatLng(), BIOME_TYPES, generateMonstersForCell(), getBiomeForCell(), getMonsterById(), getMonstersForViewport(), getWorldSeed(), mulberry32() (+2 more)
+
+### Community 59 - "Group 59: claude_bundler_"
 Cohesion: 0.18
 Nodes (10): Bundler-Free Architecture, CLAUDE.md Documentation, DOE Architecture, app.js Initialization Sequence, Multi-Agent Orchestrator Protocol, BigInt XP Rule, Button-First Testing, CONTRIBUTING.md Guide (+2 more)
 
-### Community 63 - "Community 63"
+### Community 60 - "Group 60: cdp_performance"
 Cohesion: 0.22
 Nodes (6): Chrome DevTools Protocol Performance Metrics, Douglas-Peucker Algorithm, Fetch City Boundaries Script, Monitor Performance Script, Nominatim API, Procedural World Preview
 
-### Community 64 - "Community 64"
+### Community 61 - "Group 61: fightcraft_temp"
+Cohesion: 0.22
+Nodes (10): getOceanForDisplay(), loadCityMetadata(), loadLandMask(), logConsole(), renderBoundaryStats(), renderCityBoundary(), renderSnapshotList(), renderSnapshotOnMap() (+2 more)
+
+### Community 62 - "Group 62: auth_ui_ui_clos"
 Cohesion: 0.29
 Nodes (6): closeMenu(), openMenu(), updateCharacterPanel(), updateDebugUI(), updateMenuHeader(), updateToggleButton()
 
-### Community 65 - "Community 65"
-Cohesion: 0.42
-Nodes (9): BIOME_TYPES, generateMonstersForCell(), getBiomeForCell(), getMonsterById(), getMonstersForViewport(), getWorldSeed(), mulberry32(), pickTemplate() (+1 more)
-
-### Community 66 - "Community 66"
-Cohesion: 0.25
-Nodes (9): getOceanForDisplay(), loadCityMetadata(), loadLandMask(), logConsole(), renderBoundaryStats(), renderCityBoundary(), renderSnapshotOnMap(), renderZoneStats() (+1 more)
-
-### Community 67 - "Community 67"
+### Community 63 - "Group 63: android_app_src"
 Cohesion: 0.31
 Nodes (6): claimThrone(), closeCitadelMenu(), initiateChallengeLevel(), initKingdom(), showChallengeDialog(), startKingBossFight()
 
-### Community 69 - "Community 69"
-Cohesion: 0.25
-Nodes (8): deleteSnapshot(), getAll(), getById(), init(), loadSnapshots(), mergeAndRenderSnapshots(), renderSnapshotList(), saveSnapshot()
+### Community 64 - "Group 64: core_geometry_u"
+Cohesion: 0.33
+Nodes (7): getCentroid(), getNearestCitadel(), getSqSegDist(), isPointInPolygon(), simplify(), weightedDistance(), OVERPASS_ENDPOINTS
 
-### Community 70 - "Community 70"
-Cohesion: 0.39
-Nodes (7): getCityZones(), saveCityZones(), generateCityTerritory(), generateSmartMapMask(), getCleanCityMask(), _localZoneCache, regenerateCityTerritory()
+### Community 66 - "Group 66: firebase_fireba"
+Cohesion: 0.33
+Nodes (6): getTemplates(), initFirebase(), requireAdmin(), formatNumber(), init(), renderLevelTable()
 
-### Community 71 - "Community 71"
+### Community 68 - "Group 68: android_app_src"
 Cohesion: 0.39
 Nodes (7): formatNumber(), init(), renderCastleTable(), renderLevelTable(), renderMonsterTable(), getTemplates(), initFirebase()
 
-### Community 73 - "Community 73"
+### Community 69 - "Group 69: android_app_src"
+Cohesion: 0.39
+Nodes (7): getCityZones(), saveCityZones(), generateCityTerritory(), generateSmartMapMask(), getCleanCityMask(), _localZoneCache, regenerateCityTerritory()
+
+### Community 70 - "Group 70: diagnostics_dia"
 Cohesion: 0.25
 Nodes (7): charError, charList, charLoading, charScreen, finalLogs, logs, text
 
-### Community 75 - "Community 75"
+### Community 72 - "Group 72: scripts_tests_v"
 Cohesion: 0.25
 Nodes (6): goblin, orc, originalTemplates, recipe, result, updated
 
-### Community 76 - "Community 76"
+### Community 73 - "Group 73: procedural_demo"
 Cohesion: 0.32
 Nodes (8): procedural_demo_screenshot_control_panel, procedural_demo_screenshot_event_log, procedural_demo_screenshot_file, procedural_demo_screenshot_h3, procedural_demo_screenshot_legend, procedural_demo_screenshot_map, procedural_demo_screenshot_procedural_generation, procedural_demo_screenshot_status_bar
 
-### Community 77 - "Community 77"
+### Community 74 - "Group 74: fightcraft_temp"
 Cohesion: 0.33
 Nodes (7): bbox, clipZonesAndDrawContour(), generateVoronoiFromCitadels(), loadDistrictsForPreview(), processAndRenderZones(), renderDistrictsFromData(), voronoi
 
-### Community 78 - "Community 78"
+### Community 75 - "Group 75: fightcraft_temp"
+Cohesion: 0.29
+Nodes (7): deleteSnapshot(), getAll(), getById(), init(), loadSnapshots(), mergeAndRenderSnapshots(), saveSnapshot()
+
+### Community 76 - "Group 76: android_app_src"
 Cohesion: 0.48
 Nodes (5): assignMonstersToPoints(), buildOverpassQuery(), fetchOverpassData(), generateMonstersFromOSM(), processOSMElements()
 
-### Community 79 - "Community 79"
+### Community 77 - "Group 77: scripts_tests_p"
 Cohesion: 0.29
 Nodes (6): { chromium }, dummyCitadels, dummySnapshot, fs, path, resultsDir
 
-### Community 80 - "Community 80"
+### Community 78 - "Group 78: gameplay_genera"
 Cohesion: 0.48
 Nodes (5): assignMonstersToPoints(), buildOverpassQuery(), fetchOverpassData(), generateMonstersFromOSM(), processOSMElements()
 
-### Community 81 - "Community 81"
+### Community 79 - "Group 79: firebase_fireba"
+Cohesion: 0.29
+Nodes (7): createArenaRTDB(), createUnifiedCombatRTDB(), setGroupActiveCombatRTDB(), subscribeToUnifiedCombat(), joinUnifiedCombat(), startGroupCombat(), checkGroupProximity()
+
+### Community 80 - "Group 80: firebase_fireba"
+Cohesion: 0.29
+Nodes (5): getCurrentUser(), getDB(), getStorageInstance(), SyncEngine, AdminBundler
+
+### Community 81 - "Group 81: templates_map_f"
 Cohesion: 0.29
 Nodes (7): fixAntimeridianGeoJSON, _fixRing, _haversineKm, renderCountriesLayer, renderLandContourVertices, renderLandLayer, renderWaterLayer
 
-### Community 83 - "Community 83"
+### Community 83 - "Group 83: procedural_demo"
 Cohesion: 0.38
 Nodes (7): procedural_demo_citadels_console, procedural_demo_citadels_controls, procedural_demo_citadels_legend, procedural_demo_citadels_map, procedural_demo_citadels_stats, procedural_demo_citadels_system, procedural_demo_citadels_ui
 
-### Community 84 - "Community 84"
+### Community 84 - "Group 84: zone_engine_ass"
+Cohesion: 0.33
+Nodes (7): assignCellsToZones, filterCitadelsInBoundary, generateCitadelsInBoundary, generateZonesForCity, getCellsInBoundary, pointInPolygon, Voronoi Zones
+
+### Community 85 - "Group 85: fightcraft_temp"
 Cohesion: 0.33
 Nodes (6): fixAntimeridianGeoJSON(), _haversineKm(), renderCountriesLayer(), renderLandContourVertices(), renderLandLayer(), renderWaterLayer()
 
-### Community 85 - "Community 85"
+### Community 86 - "Group 86: js_admin_vaults"
 Cohesion: 0.4
 Nodes (6): loadTemplates(), processNodesInternal(), renderMappingRules(), renderTemplateList(), saveState(), toggleMappingRule()
 
-### Community 86 - "Community 86"
+### Community 87 - "Group 87: android_app_src"
 Cohesion: 0.33
 Nodes (5): charScreen, container, gameContainer, mpPanel, temp
 
-### Community 87 - "Community 87"
+### Community 88 - "Group 88: generators_gene"
 Cohesion: 0.33
 Nodes (5): cities, filteredCities, fs, idCounts, mappedCities
 
-### Community 88 - "Community 88"
+### Community 89 - "Group 89: patches_fix_gen"
 Cohesion: 0.33
 Nodes (5): adminWorldPath, content, fs, generateGlobalStart, path
 
-### Community 89 - "Community 89"
+### Community 90 - "Group 90: auth_ui_ui_load"
 Cohesion: 0.33
 Nodes (5): charScreen, container, gameContainer, mpPanel, temp
 
-### Community 91 - "Community 91"
+### Community 92 - "Group 92: android_app_src"
 Cohesion: 0.4
 Nodes (4): byName, charRef, currentUser, db
 
-### Community 92 - "Community 92"
+### Community 93 - "Group 93: android_app_src"
 Cohesion: 0.4
 Nodes (3): confirm, db, unknownPlayers
 
-### Community 93 - "Community 93"
+### Community 94 - "Group 94: android_app_src"
 Cohesion: 0.4
 Nodes (3): backup, input, reader
 
-### Community 94 - "Community 94"
+### Community 95 - "Group 95: js_admin_monste"
 Cohesion: 0.4
 Nodes (5): loadTemplates(), renderTemplateList(), restoreState(), toggleTemplateSelection(), updateDistributionTable()
 
-### Community 95 - "Community 95"
+### Community 96 - "Group 96: android_app_src"
 Cohesion: 0.4
 Nodes (4): appendContent, content, fs, path
 
-### Community 96 - "Community 96"
+### Community 97 - "Group 97: android_app_src"
 Cohesion: 0.4
 Nodes (4): charRef, currentUser, data, db
 
-### Community 97 - "Community 97"
+### Community 98 - "Group 98: diagnostics_ana"
 Cohesion: 0.4
 Nodes (4): consoleMessages, els, layers, requests
 
-### Community 98 - "Community 98"
+### Community 99 - "Group 99: generators_repa"
 Cohesion: 0.4
 Nodes (4): appendContent, content, fs, path
 
-### Community 99 - "Community 99"
+### Community 100 - "Group 100: patches_delete_"
 Cohesion: 0.4
 Nodes (3): admin, db, serviceAccount
 
-### Community 100 - "Community 100"
+### Community 101 - "Group 101: patches_fix_adm"
 Cohesion: 0.4
 Nodes (4): content, filePath, fs, path
 
-### Community 101 - "Community 101"
+### Community 102 - "Group 102: patches_fix_adm"
 Cohesion: 0.4
 Nodes (4): content, filePath, fs, path
 
-### Community 102 - "Community 102"
+### Community 103 - "Group 103: patches_fix_adm"
 Cohesion: 0.4
 Nodes (4): content, filePath, fs, path
 
-### Community 103 - "Community 103"
+### Community 104 - "Group 104: patches_fix_tem"
 Cohesion: 0.4
 Nodes (4): content, fs, mapPath, path
 
-### Community 104 - "Community 104"
+### Community 105 - "Group 105: patches_patch_a"
 Cohesion: 0.4
 Nodes (4): content, filePath, fs, path
 
-### Community 105 - "Community 105"
+### Community 106 - "Group 106: patches_patch_t"
 Cohesion: 0.4
 Nodes (4): content, filePath, fs, path
 
-### Community 106 - "Community 106"
+### Community 107 - "Group 107: scripts_tests_t"
 Cohesion: 0.4
 Nodes (4): { chromium }, fs, path, resultsDir
 
-### Community 107 - "Community 107"
+### Community 108 - "Group 108: core_logger_con"
+Cohesion: 0.4
+Nodes (4): content, initLogger(), originalConsole, panel
+
+### Community 109 - "Group 109: firebase_fireba"
+Cohesion: 0.6
+Nodes (4): incrementReadCount(), monitoredGetDoc(), monitoredGetDocs(), monitoredOnSnapshot()
+
+### Community 110 - "Group 110: maintenance_cle"
 Cohesion: 0.4
 Nodes (4): byName, charRef, currentUser, db
 
-### Community 108 - "Community 108"
+### Community 111 - "Group 111: maintenance_dia"
 Cohesion: 0.4
 Nodes (3): confirm, db, unknownPlayers
 
-### Community 109 - "Community 109"
+### Community 112 - "Group 112: maintenance_res"
 Cohesion: 0.4
 Nodes (4): charRef, currentUser, data, db
 
-### Community 110 - "Community 110"
+### Community 113 - "Group 113: maintenance_res"
 Cohesion: 0.4
 Nodes (3): backup, input, reader
 
-### Community 111 - "Community 111"
+### Community 114 - "Group 114: procedural_demo"
 Cohesion: 0.5
 Nodes (5): procedural_demo_fixed_generation, procedural_demo_fixed_h3, procedural_demo_fixed_map, procedural_demo_fixed_screenshot, procedural_demo_fixed_ui
 
-### Community 112 - "Community 112"
+### Community 115 - "Group 115: zoom10_no_bound"
 Cohesion: 0.4
 Nodes (5): Hexagonal Grid Overlay, Leaflet Map Base, Seed-Based World Generation, Voronoi Zones, World Generation Map UI
 
-### Community 113 - "Community 113"
+### Community 116 - "Group 116: tests_monitor_p"
 Cohesion: 0.4
 Nodes (4): { chromium }, fs, metrics, metricsData
 
-### Community 114 - "Community 114"
+### Community 117 - "Group 117: fightcraft_patc"
 Cohesion: 0.5
 Nodes (3): fs, html, startIdx
 
-### Community 115 - "Community 115"
+### Community 118 - "Group 118: android_app_src"
 Cohesion: 0.5
 Nodes (3): testPlayers, tp103, user
 
-### Community 116 - "Community 116"
+### Community 119 - "Group 119: android_app_src"
 Cohesion: 0.5
 Nodes (3): charsQuery, data, db
 
-### Community 117 - "Community 117"
+### Community 120 - "Group 120: android_app_src"
 Cohesion: 0.5
 Nodes (3): data, db, usersRef
 
-### Community 118 - "Community 118"
+### Community 121 - "Group 121: android_app_src"
 Cohesion: 0.5
 Nodes (3): currentUser, data, db
 
-### Community 119 - "Community 119"
+### Community 122 - "Group 122: android_app_src"
 Cohesion: 0.5
 Nodes (3): availableFunctions, missingFunctions, requiredFunctions
 
-### Community 122 - "Community 122"
+### Community 125 - "Group 125: scripts_tests_t"
 Cohesion: 0.5
 Nodes (3): btn, paths, puppeteer
 
-### Community 123 - "Community 123"
+### Community 126 - "Group 126: maintenance_cle"
 Cohesion: 0.5
 Nodes (3): testPlayers, tp103, user
 
-### Community 124 - "Community 124"
+### Community 127 - "Group 127: maintenance_dee"
 Cohesion: 0.5
 Nodes (3): charsQuery, data, db
 
-### Community 125 - "Community 125"
+### Community 128 - "Group 128: maintenance_glo"
 Cohesion: 0.5
 Nodes (3): data, db, usersRef
 
-### Community 126 - "Community 126"
+### Community 129 - "Group 129: maintenance_nuk"
 Cohesion: 0.5
 Nodes (3): currentUser, data, db
 
-### Community 127 - "Community 127"
+### Community 130 - "Group 130: maintenance_tes"
 Cohesion: 0.5
 Nodes (3): availableFunctions, missingFunctions, requiredFunctions
 
-### Community 128 - "Community 128"
+### Community 131 - "Group 131: readme_document"
 Cohesion: 0.5
 Nodes (4): README.md Overview, H3 Global Territory, SyncEngine Optimization, Zone-Based Combat
 
-### Community 129 - "Community 129"
+### Community 132 - "Group 132: proceduraldemoz"
 Cohesion: 0.5
 Nodes (4): proceduraldemozones_file, proceduraldemozones_generation_ratios, proceduraldemozones_h3_zones, proceduraldemozones_seed
 
-### Community 130 - "Community 130"
+### Community 133 - "Group 133: map__syncpositi"
 Cohesion: 0.5
 Nodes (4): _syncPositionToRTDB, Leading + Trailing Edge Sync, updateFog, updatePlayerPosition
 
-### Community 131 - "Community 131"
+### Community 134 - "Group 134: zoom7_no_layers"
 Cohesion: 0.5
 Nodes (4): Citadels, Procedural Generation Seed, Voronoi Zones, World Generation UI
 
-### Community 132 - "Community 132"
+### Community 135 - "Group 135: zoom8_boundarie"
 Cohesion: 0.5
 Nodes (3): Level of Detail (LOD) Rendering, Procedural Generation Parameters, World Generation Admin Tool UI
 
-### Community 154 - "Community 154"
+### Community 157 - "Group 157: prd_system_arch"
 Cohesion: 0.67
 Nodes (3): System Architecture, Chunking Mechanism, Firebase Data Model
 
-### Community 155 - "Community 155"
+### Community 158 - "Group 158: 2026_04_24_glob"
 Cohesion: 0.67
 Nodes (3): Overpass POI Generation, Population Density Scaler, H3 Grid System
 
-### Community 156 - "Community 156"
+### Community 159 - "Group 159: procedural_engi"
 Cohesion: 0.67
 Nodes (3): procedural_engine_v2_test_makerecipe, procedural_world_renderer_test_makerecipe, snapshot_recipe_test_makevalidrecipe
 
-### Community 157 - "Community 157"
+### Community 160 - "Group 160: procedural_worl"
 Cohesion: 0.67
 Nodes (3): procedural_world_client_initproceduralworld, procedural_world_generation_engine_v2_snapshot_recipe, snapshot_recipe_loadactiverecipe
 
-### Community 158 - "Community 158"
+### Community 161 - "Group 161: procedural_worl"
 Cohesion: 0.67
 Nodes (3): procedural_world_preview_generation_ui, procedural_world_preview_lod_rendering, procedural_world_preview_png
 
-### Community 159 - "Community 159"
+### Community 162 - "Group 162: zoom10_voronoi_"
 Cohesion: 0.67
 Nodes (3): World Generation Controls, Map UI Interface, Voronoi Territories (Hexagonal Clusters)
 
+### Community 163 - "Group 163: fetch_city_pois"
+Cohesion: 0.67
+Nodes (3): fetchOverpass, main, Overpass API
+
 ## Knowledge Gaps
-- **1000 isolated node(s):** `fs`, `html`, `startIdx`, `body`, `chevron` (+995 more)
+- **1026 isolated node(s):** `fs`, `html`, `startIdx`, `body`, `chevron` (+1021 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **60 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **64 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `generateCitadelsAndZones()` connect `Community 33` to `Community 65`, `Community 18`, `Community 20`, `Community 45`?**
-  _High betweenness centrality (0.256) - this node is a cross-community bridge._
-- **Why does `getDistSq()` connect `Community 33` to `Community 14`?**
-  _High betweenness centrality (0.255) - this node is a cross-community bridge._
-- **Why does `rng` connect `Community 65` to `Community 33`, `Community 45`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
+- **Why does `generateCitadelsAndZones()` connect `Group 33: firebase_fireba` to `Group 17: fightcraft_temp`, `Group 58: core_h3_spatial`, `Group 20: core_territory_`, `Group 28: maintenance_adm`?**
+  _High betweenness centrality (0.248) - this node is a cross-community bridge._
+- **Why does `getDistSq()` connect `Group 33: firebase_fireba` to `Group 13: android_app_src`?**
+  _High betweenness centrality (0.247) - this node is a cross-community bridge._
+- **Why does `rng` connect `Group 58: core_h3_spatial` to `Group 33: firebase_fireba`, `Group 20: core_territory_`?**
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
 - **What connects `fs`, `html`, `startIdx` to the rest of the system?**
-  _1000 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1026 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `UI Controller` be split into smaller, more focused modules?**
   _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Should `Android UI Controller` be split into smaller, more focused modules?**
-  _Cohesion score 0.04 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Should `Android Firebase Services` be split into smaller, more focused modules?**
-  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04 - nodes in this community are weakly interconnected._

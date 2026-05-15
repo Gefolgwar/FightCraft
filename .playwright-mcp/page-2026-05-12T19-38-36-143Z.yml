@@ -1,0 +1,76 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic:
+      - generic [ref=e3]:
+        - button "Zoom in" [ref=e4] [cursor=pointer]: +
+        - button "Zoom out" [disabled] [ref=e5]: −
+      - generic [ref=e6]:
+        - link "Leaflet" [ref=e7] [cursor=pointer]:
+          - /url: https://leafletjs.com
+          - img [ref=e8]
+          - text: Leaflet
+        - text: "| © OpenStreetMap"
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]: Seed
+      - spinbutton [ref=e18]: "42"
+    - generic [ref=e19]:
+      - generic [ref=e20]: Monster ratio
+      - spinbutton [ref=e21]: "1000"
+    - generic [ref=e22]:
+      - generic [ref=e23]: Shop ratio
+      - spinbutton [ref=e24]: "16000"
+    - generic [ref=e25]:
+      - generic [ref=e26]: Castle ratio
+      - spinbutton [ref=e27]: "5000"
+    - generic [ref=e28]:
+      - generic [ref=e29]: Citadel ratio
+      - spinbutton [ref=e30]: "190476"
+    - button "Generating..." [disabled] [ref=e31]
+    - button "🎲 Random Seed" [ref=e32] [cursor=pointer]
+  - generic [ref=e33]:
+    - generic [ref=e34] [cursor=pointer]:
+      - checkbox "Monsters (z14+)" [checked] [ref=e35]
+      - text: Monsters (z14+)
+    - generic [ref=e37] [cursor=pointer]:
+      - checkbox "Shops (z11+)" [checked] [ref=e38]
+      - text: Shops (z11+)
+    - generic [ref=e40] [cursor=pointer]:
+      - checkbox "Vaults (z11+)" [checked] [ref=e41]
+      - text: Vaults (z11+)
+    - generic [ref=e43] [cursor=pointer]:
+      - checkbox "Castles (z8+)" [checked] [ref=e44]
+      - text: Castles (z8+)
+    - generic [ref=e46] [cursor=pointer]:
+      - checkbox "Citadels" [checked] [ref=e47]
+      - text: Citadels
+    - generic [ref=e49] [cursor=pointer]:
+      - checkbox "H3 Zones" [checked] [ref=e50]
+      - text: H3 Zones
+  - generic [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: "0"
+      - generic [ref=e55]: objects
+    - generic [ref=e56]:
+      - generic [ref=e57]: "0"
+      - generic [ref=e58]: citadels
+    - generic [ref=e59]:
+      - generic [ref=e60]: "0"
+      - generic [ref=e61]: viewport obj
+    - generic [ref=e62]:
+      - generic [ref=e63]: "4442"
+      - generic [ref=e64]: cities
+    - generic [ref=e65]:
+      - generic [ref=e66]: —
+      - generic [ref=e67]: zoom
+    - generic [ref=e68]:
+      - generic [ref=e69]: —
+      - generic [ref=e70]: LOD
+    - generic [ref=e71]:
+      - generic [ref=e72]: "0"
+      - generic [ref=e73]: ms
+  - generic [ref=e74]:
+    - generic [ref=e75]: "[21:38:36] Generating citadels for 4442 cities..."
+    - generic [ref=e76]: "[21:38:36] Loaded 4442 cities"
+    - generic [ref=e77]: "[21:38:36] Loading world cities..."
+    - generic [ref=e78]: "[21:38:36] Initializing Procedural World Preview..."

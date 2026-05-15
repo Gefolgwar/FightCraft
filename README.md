@@ -176,6 +176,7 @@ Defense covers 2 adjacent zones simultaneously (Head+Body, Body+Belt, Belt+Legs,
 
 ### Territory
 - **Procedural Global World:** Powered by H3 spatial indexing and OpenStreetMap, generating the world wherever you go.
+- **Pre-generated World Data:** City boundaries and POIs are pre-fetched via Node scripts to avoid rate-limiting Overpass API. Run `node scripts/generators/fetch-city-boundaries.js` and `node scripts/generators/fetch-city-pois.js` to build `www/gameplay/world_cities_boundaries.json` and `www/gameplay/world_cities_pois.json`.
 - **Auto-Discovery:** Landmarks (castles, monuments, ruins) are automatically discovered and spawned immediately upon logging in and as you explore.
 - City districts with citadels that can be captured when within 50m
 - District kings earn passive hourly gold income

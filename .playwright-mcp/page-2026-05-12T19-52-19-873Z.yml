@@ -1,0 +1,313 @@
+- generic [ref=e1]:
+  - generic [active] [ref=e2]:
+    - generic:
+      - generic:
+        - button "2" [ref=e267] [cursor=pointer]:
+          - generic [ref=e268]: "2"
+        - button "2" [ref=e269] [cursor=pointer]:
+          - generic [ref=e270]: "2"
+        - button "4" [ref=e271] [cursor=pointer]:
+          - generic [ref=e272]: "4"
+        - button "3" [ref=e273] [cursor=pointer]:
+          - generic [ref=e274]: "3"
+        - button "2" [ref=e275] [cursor=pointer]:
+          - generic [ref=e276]: "2"
+        - button "2" [ref=e277] [cursor=pointer]:
+          - generic [ref=e278]: "2"
+        - button "3" [ref=e279] [cursor=pointer]:
+          - generic [ref=e280]: "3"
+        - button "4" [ref=e281] [cursor=pointer]:
+          - generic [ref=e282]: "4"
+        - button "2" [ref=e283] [cursor=pointer]:
+          - generic [ref=e284]: "2"
+        - button "2" [ref=e285] [cursor=pointer]:
+          - generic [ref=e286]: "2"
+        - button "2" [ref=e287] [cursor=pointer]:
+          - generic [ref=e288]: "2"
+        - button "3" [ref=e289] [cursor=pointer]:
+          - generic [ref=e290]: "3"
+        - button "4" [ref=e291] [cursor=pointer]:
+          - generic [ref=e292]: "4"
+        - button "4" [ref=e293] [cursor=pointer]:
+          - generic [ref=e294]: "4"
+        - button "5" [ref=e295] [cursor=pointer]:
+          - generic [ref=e296]: "5"
+        - button "2" [ref=e297] [cursor=pointer]:
+          - generic [ref=e298]: "2"
+        - button "2" [ref=e299] [cursor=pointer]:
+          - generic [ref=e300]: "2"
+        - button "2" [ref=e301] [cursor=pointer]:
+          - generic [ref=e302]: "2"
+        - button "2" [ref=e303] [cursor=pointer]:
+          - generic [ref=e304]: "2"
+        - button "2" [ref=e305] [cursor=pointer]:
+          - generic [ref=e306]: "2"
+        - button "2" [ref=e307] [cursor=pointer]:
+          - generic [ref=e308]: "2"
+        - button "3" [ref=e309] [cursor=pointer]:
+          - generic [ref=e310]: "3"
+        - button "4" [ref=e311] [cursor=pointer]:
+          - generic [ref=e312]: "4"
+        - button "2" [ref=e313] [cursor=pointer]:
+          - generic [ref=e314]: "2"
+        - button "2" [ref=e315] [cursor=pointer]:
+          - generic [ref=e316]: "2"
+        - button "3" [ref=e317] [cursor=pointer]:
+          - generic [ref=e318]: "3"
+        - button "2" [ref=e319] [cursor=pointer]:
+          - generic [ref=e320]: "2"
+        - button "2" [ref=e321] [cursor=pointer]:
+          - generic [ref=e322]: "2"
+        - button "3" [ref=e323] [cursor=pointer]:
+          - generic [ref=e324]: "3"
+        - button "2" [ref=e325] [cursor=pointer]:
+          - generic [ref=e326]: "2"
+        - button "2" [ref=e327] [cursor=pointer]:
+          - generic [ref=e328]: "2"
+        - button "3" [ref=e329] [cursor=pointer]:
+          - generic [ref=e330]: "3"
+        - button "2" [ref=e331] [cursor=pointer]:
+          - generic [ref=e332]: "2"
+        - button "2" [ref=e333] [cursor=pointer]:
+          - generic [ref=e334]: "2"
+        - button "4" [ref=e335] [cursor=pointer]:
+          - generic [ref=e336]: "4"
+        - button "2" [ref=e337] [cursor=pointer]:
+          - generic [ref=e338]: "2"
+        - button "3" [ref=e339] [cursor=pointer]:
+          - generic [ref=e340]: "3"
+        - button "2" [ref=e341] [cursor=pointer]:
+          - generic [ref=e342]: "2"
+        - button "2" [ref=e343] [cursor=pointer]:
+          - generic [ref=e344]: "2"
+        - button "10" [ref=e345] [cursor=pointer]:
+          - generic [ref=e346]: "10"
+        - button "10" [ref=e347] [cursor=pointer]:
+          - generic [ref=e348]: "10"
+        - button "2" [ref=e349] [cursor=pointer]:
+          - generic [ref=e350]: "2"
+        - button "3" [ref=e351] [cursor=pointer]:
+          - generic [ref=e352]: "3"
+        - button "2" [ref=e353] [cursor=pointer]:
+          - generic [ref=e354]: "2"
+        - button "7" [ref=e355] [cursor=pointer]:
+          - generic [ref=e356]: "7"
+        - button "14" [ref=e357] [cursor=pointer]:
+          - generic [ref=e358]: "14"
+        - button "19" [ref=e359] [cursor=pointer]:
+          - generic [ref=e360]: "19"
+        - button "9" [ref=e361] [cursor=pointer]:
+          - generic [ref=e362]: "9"
+        - button "20" [ref=e363] [cursor=pointer]:
+          - generic [ref=e364]: "20"
+        - button "4" [ref=e365] [cursor=pointer]:
+          - generic [ref=e366]: "4"
+        - button "2" [ref=e367] [cursor=pointer]:
+          - generic [ref=e368]: "2"
+        - button "4" [ref=e369] [cursor=pointer]:
+          - generic [ref=e370]: "4"
+        - button "2" [ref=e371] [cursor=pointer]:
+          - generic [ref=e372]: "2"
+        - button "2" [ref=e373] [cursor=pointer]:
+          - generic [ref=e374]: "2"
+        - button "3" [ref=e375] [cursor=pointer]:
+          - generic [ref=e376]: "3"
+        - button "2" [ref=e377] [cursor=pointer]:
+          - generic [ref=e378]: "2"
+        - button "3" [ref=e379] [cursor=pointer]:
+          - generic [ref=e380]: "3"
+        - button "4" [ref=e381] [cursor=pointer]:
+          - generic [ref=e382]: "4"
+        - button "8" [ref=e383] [cursor=pointer]:
+          - generic [ref=e384]: "8"
+        - button "3" [ref=e385] [cursor=pointer]:
+          - generic [ref=e386]: "3"
+        - button "3" [ref=e387] [cursor=pointer]:
+          - generic [ref=e388]: "3"
+        - button "6" [ref=e389] [cursor=pointer]:
+          - generic [ref=e390]: "6"
+        - button "4" [ref=e391] [cursor=pointer]:
+          - generic [ref=e392]: "4"
+        - button "9" [ref=e393] [cursor=pointer]:
+          - generic [ref=e394]: "9"
+        - button "2" [ref=e395] [cursor=pointer]:
+          - generic [ref=e396]: "2"
+        - button "3" [ref=e397] [cursor=pointer]:
+          - generic [ref=e398]: "3"
+        - button "2" [ref=e399] [cursor=pointer]:
+          - generic [ref=e400]: "2"
+        - button "2" [ref=e401] [cursor=pointer]:
+          - generic [ref=e402]: "2"
+        - button "2" [ref=e403] [cursor=pointer]:
+          - generic [ref=e404]: "2"
+        - button "4" [ref=e405] [cursor=pointer]:
+          - generic [ref=e406]: "4"
+        - button "4" [ref=e407] [cursor=pointer]:
+          - generic [ref=e408]: "4"
+        - button "2" [ref=e409] [cursor=pointer]:
+          - generic [ref=e410]: "2"
+        - button "2" [ref=e411] [cursor=pointer]:
+          - generic [ref=e412]: "2"
+        - button "2" [ref=e413] [cursor=pointer]:
+          - generic [ref=e414]: "2"
+        - button "2" [ref=e415] [cursor=pointer]:
+          - generic [ref=e416]: "2"
+        - button "2" [ref=e417] [cursor=pointer]:
+          - generic [ref=e418]: "2"
+        - button "3" [ref=e419] [cursor=pointer]:
+          - generic [ref=e420]: "3"
+        - button "2" [ref=e421] [cursor=pointer]:
+          - generic [ref=e422]: "2"
+        - button "2" [ref=e423] [cursor=pointer]:
+          - generic [ref=e424]: "2"
+        - button "4" [ref=e425] [cursor=pointer]:
+          - generic [ref=e426]: "4"
+        - button "2" [ref=e427] [cursor=pointer]:
+          - generic [ref=e428]: "2"
+        - button "3" [ref=e429] [cursor=pointer]:
+          - generic [ref=e430]: "3"
+        - button "2" [ref=e431] [cursor=pointer]:
+          - generic [ref=e432]: "2"
+        - button "3" [ref=e433] [cursor=pointer]:
+          - generic [ref=e434]: "3"
+        - button "2" [ref=e435] [cursor=pointer]:
+          - generic [ref=e436]: "2"
+        - button "5" [ref=e437] [cursor=pointer]:
+          - generic [ref=e438]: "5"
+        - button "4" [ref=e439] [cursor=pointer]:
+          - generic [ref=e440]: "4"
+        - button "10" [ref=e441] [cursor=pointer]:
+          - generic [ref=e442]: "10"
+        - button "5" [ref=e443] [cursor=pointer]:
+          - generic [ref=e444]: "5"
+        - button "5" [ref=e445] [cursor=pointer]:
+          - generic [ref=e446]: "5"
+        - button "2" [ref=e447] [cursor=pointer]:
+          - generic [ref=e448]: "2"
+        - button "7" [ref=e449] [cursor=pointer]:
+          - generic [ref=e450]: "7"
+        - button "3" [ref=e451] [cursor=pointer]:
+          - generic [ref=e452]: "3"
+        - button "5" [ref=e453] [cursor=pointer]:
+          - generic [ref=e454]: "5"
+        - button "4" [ref=e455] [cursor=pointer]:
+          - generic [ref=e456]: "4"
+        - button "8" [ref=e457] [cursor=pointer]:
+          - generic [ref=e458]: "8"
+        - button "3" [ref=e459] [cursor=pointer]:
+          - generic [ref=e460]: "3"
+        - button "9" [ref=e461] [cursor=pointer]:
+          - generic [ref=e462]: "9"
+        - button "3" [ref=e463] [cursor=pointer]:
+          - generic [ref=e464]: "3"
+        - button "7" [ref=e465] [cursor=pointer]:
+          - generic [ref=e466]: "7"
+        - button "2" [ref=e467] [cursor=pointer]:
+          - generic [ref=e468]: "2"
+        - button "3" [ref=e469] [cursor=pointer]:
+          - generic [ref=e470]: "3"
+    - generic:
+      - generic [ref=e3]:
+        - button "Zoom in" [ref=e4] [cursor=pointer]: +
+        - button "Zoom out" [ref=e5] [cursor=pointer]: −
+      - generic [ref=e6]:
+        - link "Leaflet" [ref=e7] [cursor=pointer]:
+          - /url: https://leafletjs.com
+          - img [ref=e8]
+          - text: Leaflet
+        - text: "| © OpenStreetMap"
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]: Seed
+      - spinbutton [ref=e18]: "42"
+    - generic [ref=e19]:
+      - generic [ref=e20]: Monster ratio
+      - spinbutton [ref=e21]: "1000"
+    - generic [ref=e22]:
+      - generic [ref=e23]: Shop ratio
+      - spinbutton [ref=e24]: "16000"
+    - generic [ref=e25]:
+      - generic [ref=e26]: Castle ratio
+      - spinbutton [ref=e27]: "5000"
+    - generic [ref=e28]:
+      - generic [ref=e29]: Citadel ratio
+      - spinbutton [ref=e30]: "190476"
+    - button "🌍 Generate World Citadels" [ref=e124] [cursor=pointer]
+    - button "🎲 Random Seed" [ref=e32] [cursor=pointer]
+  - generic [ref=e33]:
+    - generic [ref=e34] [cursor=pointer]:
+      - checkbox "Monsters (z14+)" [ref=e35]
+      - text: Monsters (z14+)
+    - generic [ref=e37] [cursor=pointer]:
+      - checkbox "Shops (z11+)" [ref=e38]
+      - text: Shops (z11+)
+    - generic [ref=e40] [cursor=pointer]:
+      - checkbox "Vaults (z11+)" [ref=e41]
+      - text: Vaults (z11+)
+    - generic [ref=e43] [cursor=pointer]:
+      - checkbox "Castles (z8+)" [ref=e44]
+      - text: Castles (z8+)
+    - generic [ref=e46] [cursor=pointer]:
+      - checkbox "Citadels" [checked] [ref=e47]
+      - text: Citadels
+    - generic [ref=e49] [cursor=pointer]:
+      - checkbox "H3 Zones" [ref=e50]
+      - text: H3 Zones
+  - generic [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: "10732"
+      - generic [ref=e55]: objects
+    - generic [ref=e56]:
+      - generic [ref=e57]: "10732"
+      - generic [ref=e58]: citadels
+    - generic [ref=e59]:
+      - generic [ref=e60]: "0"
+      - generic [ref=e61]: viewport obj
+    - generic [ref=e62]:
+      - generic [ref=e63]: "4442"
+      - generic [ref=e64]: cities
+    - generic [ref=e65]:
+      - generic [ref=e66]: "7"
+      - generic [ref=e67]: zoom
+    - generic [ref=e68]:
+      - generic [ref=e69]: Citadels only
+      - generic [ref=e70]: LOD
+    - generic [ref=e71]:
+      - generic [ref=e72]: "157.6"
+      - generic [ref=e73]: ms
+  - generic [ref=e74]:
+    - generic [ref=e471]: "[21:51:03] Zones: 91 H3 hexagons (0.4ms)"
+    - generic [ref=e472]: "[21:50:54] Zones: 91 H3 hexagons (0.3ms)"
+    - generic [ref=e473]: "[21:50:54] Viewport: 19750 castle in 157.6ms (zoom 8)"
+    - generic [ref=e474]: "[21:50:53] Zones: 67 H3 hexagons (0.2ms)"
+    - generic [ref=e475]: "[21:50:53] Viewport: 19635 castle in 55.0ms (zoom 9)"
+    - generic [ref=e476]: "[21:50:52] Zones: 63 H3 hexagons (0.4ms)"
+    - generic [ref=e477]: "[21:50:52] Viewport: 5599 castle in 11.3ms (zoom 10)"
+    - generic [ref=e478]: "[21:50:51] Zones: 61 H3 hexagons (0.2ms)"
+    - generic [ref=e479]: "[21:50:51] Viewport: 2063 castle+shop+vault in 21.3ms (zoom 11)"
+    - generic [ref=e480]: "[21:50:51] Zones: 57 H3 hexagons (0.2ms)"
+    - generic [ref=e481]: "[21:50:51] Viewport: 129 castle+shop+vault in 2.6ms (zoom 13)"
+    - generic [ref=e482]: "[21:50:50] Zones: 57 H3 hexagons (0.3ms)"
+    - generic [ref=e483]: "[21:50:50] Viewport: 149 monster+castle+shop+vault in 3.0ms (zoom 14)"
+    - generic [ref=e484]: "[21:50:48] Zones: 57 H3 hexagons (0.3ms)"
+    - generic [ref=e485]: "[21:50:48] Viewport: 154 monster+castle+shop+vault in 7.2ms (zoom 14)"
+    - generic [ref=e486]: "[21:50:46] Zones: 61 H3 hexagons (0.2ms)"
+    - generic [ref=e487]: "[21:50:46] Viewport: 2056 castle+shop+vault in 50.0ms (zoom 11)"
+    - generic [ref=e488]: "[21:50:45] Zones: 63 H3 hexagons (0.3ms)"
+    - generic [ref=e489]: "[21:50:45] Viewport: 5598 castle in 13.0ms (zoom 10)"
+    - generic [ref=e490]: "[21:50:44] Zones: 63 H3 hexagons (0.3ms)"
+    - generic [ref=e491]: "[21:50:44] Viewport: 5544 castle in 23.1ms (zoom 10)"
+    - generic [ref=e492]: "[21:50:41] Zones: 68 H3 hexagons (0.2ms)"
+    - generic [ref=e493]: "[21:50:41] Viewport: 19614 castle in 102.2ms (zoom 9)"
+    - generic [ref=e494]: "[21:50:40] Zones: 91 H3 hexagons (0.8ms)"
+    - generic [ref=e495]: "[21:50:40] Viewport: 19742 castle in 178.8ms (zoom 8)"
+    - generic [ref=e496]: "[21:50:35] Zones: 88 H3 hexagons (1.5ms)"
+    - generic [ref=e497]: "[21:50:35] Viewport: 19562 castle in 244.3ms (zoom 8)"
+    - generic [ref=e498]: "[21:38:36] Zoom 1-7: citadels | 8-10: +castles | 11-13: +shops/vaults | 14+: +monsters"
+    - generic [ref=e499]: "[21:38:36] 🎮 World preview ready! Zoom in to see LOD in action."
+    - generic [ref=e500]: "[21:38:36] ✅ 10732 citadels generated in 430ms for 4442 cities"
+    - generic [ref=e501]: "[21:38:36] Rendering 10732 citadels with clustering..."
+    - generic [ref=e502]: "[21:38:36] Generating citadels for 4442 cities..."
+    - generic [ref=e503]: "[21:38:36] Loaded 4442 cities"
+    - generic [ref=e504]: "[21:38:36] Loading world cities..."
+    - generic [ref=e505]: "[21:38:36] Initializing Procedural World Preview..."

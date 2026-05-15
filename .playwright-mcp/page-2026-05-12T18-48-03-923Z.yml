@@ -1,0 +1,82 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic:
+      - generic:
+        - img
+    - generic:
+      - generic [ref=e91]:
+        - button "Zoom in" [ref=e92] [cursor=pointer]: +
+        - button "Zoom out" [ref=e93] [cursor=pointer]: −
+      - generic [ref=e94]:
+        - link "Leaflet" [ref=e95] [cursor=pointer]:
+          - /url: https://leafletjs.com
+          - img [ref=e96]
+          - text: Leaflet
+        - text: "| © OpenStreetMap"
+  - generic [ref=e100]:
+    - generic [ref=e101]:
+      - generic [ref=e102]: Seed
+      - spinbutton [ref=e103]: "42"
+    - generic [ref=e104]:
+      - generic [ref=e105]: H3 Resolution
+      - combobox [ref=e106]:
+        - option "7 (~1.2 km)"
+        - option "8 (~460 m)" [selected]
+        - option "9 (~174 m)"
+    - generic [ref=e107]:
+      - generic [ref=e108]: Monster ratio
+      - spinbutton [ref=e109]: "1000"
+    - generic [ref=e110]:
+      - generic [ref=e111]: Shop ratio
+      - spinbutton [ref=e112]: "16000"
+    - generic [ref=e113]:
+      - generic [ref=e114]: Castle ratio
+      - spinbutton [ref=e115]: "5000"
+    - generic [ref=e116]:
+      - generic [ref=e117]: Citadel ratio
+      - spinbutton [ref=e118]: "190476"
+    - button "🔄 Regenerate" [ref=e119] [cursor=pointer]
+    - button "⬡ Toggle H3 Cells" [ref=e120] [cursor=pointer]
+    - button "🎲 Random Seed" [ref=e121] [cursor=pointer]
+  - generic [ref=e122]:
+    - generic [ref=e123]: Monsters
+    - generic [ref=e125]: Shops
+    - generic [ref=e127]: Vaults
+    - generic [ref=e129]: Castles
+    - generic [ref=e131]: Citadels
+  - generic [ref=e133]:
+    - generic [ref=e134]:
+      - generic [ref=e135]: "88"
+      - generic [ref=e136]: objects
+    - generic [ref=e137]:
+      - generic [ref=e138]: "68"
+      - generic [ref=e139]: monsters
+    - generic [ref=e140]:
+      - generic [ref=e141]: "1"
+      - generic [ref=e142]: shops
+    - generic [ref=e143]:
+      - generic [ref=e144]: "3"
+      - generic [ref=e145]: vaults
+    - generic [ref=e146]:
+      - generic [ref=e147]: "16"
+      - generic [ref=e148]: castles
+    - generic [ref=e149]:
+      - generic [ref=e150]: "0"
+      - generic [ref=e151]: citadels
+    - generic [ref=e152]:
+      - generic [ref=e153]: "24"
+      - generic [ref=e154]: H3 cells
+    - generic [ref=e155]:
+      - generic [ref=e156]: Berlin (pop 3426K)
+      - generic [ref=e157]: nearest city
+    - generic [ref=e158]:
+      - generic [ref=e159]: "6.4"
+      - generic [ref=e160]: ms gen time
+  - generic [ref=e161]:
+    - generic [ref=e162]: "[20:39:42] Click any marker to see its deterministic ID and properties."
+    - generic [ref=e163]: "[20:39:42] 🎮 Demo ready! Pan/zoom the map to see procedural generation in real-time."
+    - generic [ref=e164]: "[20:39:42] ✅ Determinism verified: getObjectById(\"proc_monster_881f1d489dfffff_1...\") matches"
+    - generic [ref=e165]: "[20:39:42] Generated 88 objects in 24 cells (6.4ms) — Berlin"
+    - generic [ref=e166]: "[20:39:42] Loaded 4442 cities"
+    - generic [ref=e167]: "[20:39:42] Loading world cities..."
+    - generic [ref=e168]: "[20:39:42] Initializing Procedural Engine V2 Demo..."

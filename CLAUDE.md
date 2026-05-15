@@ -89,6 +89,7 @@ www/                         ← Firebase Hosting root
 │   ├── battle-logic.js      ← Extracted combat math — pure functions (testable)
 │   ├── pvp.js               ← PvP: battle requests, leaderboards, RTDB sync
 │   ├── data.js              ← Static databases: ITEMS_DB, MONSTER_LIBRARY, CITY_ANCHORS
+│   ├── world_cities*.json   ← Pre-generated boundaries & POIs (do not fetch dynamically)
 │   ├── monsters.js          ← Monster generation/rendering logic
 │   ├── groups.js            ← RTDB-synced group/party system
 │   ├── sync-engine.js       ← IndexedDB caching layer for Firestore (27KB)
@@ -112,7 +113,7 @@ www/                         ← Firebase Hosting root
 └── assets/                  ← Static assets
 
 scripts/                     ← Node/Bash utility scripts (run from project root)
-├── generators/              ← Data generators (generate-cities.js, repair_firebase.js)
+├── generators/              ← Data generators (fetch-city-boundaries.js, fetch-city-pois.js, repair_firebase.js)
 ├── diagnostics/             ← Playwright diagnostic tools
 ├── patches/                 ← Temporary patches and fix scripts
 └── tests/                   ← Testing scripts and play logic
@@ -218,6 +219,17 @@ Diagnostic: `window.__checkGlobalFunctions()` in browser console.
 ---
 
 ## Key Data Patterns
+
+### Pre-generated World Data
+
+To minimize Overpass API requests during procedural generation, city boundaries and POIs are pre-fetched via Node scripts and stored in `www/gameplay/`:
+- `world_cities.json`: Base list of cities worldwide.
+- `world_cities_boundaries.json`: City boundary polygons (generated via `scripts/generators/fetch-city-boundaries.js`).
+- `world_cities_pois.json`: Key landmarks used for Citadel snapping (generated via `scripts/generators/fetch-city-pois.js`).
+
+> **💡 Pro-tip for Scripts:** Both generator scripts support the `--resume` flag (e.g., `node scripts/generators/fetch-city-pois.js --resume`). This allows the script to safely skip successfully processed cities and retry only the failed ones or pick up where it left off, which is critical due to Overpass API rate limits.
+
+**DO NOT** duplicate OSM fetching logic inside client-side or procedural game loop code. Always rely on these pre-fetched JSON files to build the world zones and snap points.
 
 ### XP Uses BigInt
 

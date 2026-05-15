@@ -224,7 +224,7 @@ export function assignCellsToZones(cells, citadels) {
  *   }>
  * }}
  */
-export function generateZonesForCity(city, boundaryCoords, recipe) {
+export function generateZonesForCity(city, boundaryCoords, recipe, cityPOIs = null) {
   if (!city || !boundaryCoords || boundaryCoords.length < 3) {
     return { cityId: city?.id, cityName: city?.name, totalCells: 0, zones: [] };
   }
@@ -242,7 +242,81 @@ export function generateZonesForCity(city, boundaryCoords, recipe) {
   }
 
   // 3. Voronoi assignment
-  const zoneMap = assignCellsToZones(cells, citadels);
+  let zoneMap = assignCellsToZones(cells, citadels);
+
+  // --- NEW LOGIC: Snap Citadels to POIs or Centroid ---
+  let citadelsMoved = false;
+  const h3 = window.h3;
+
+  if (h3) {
+    for (const [id, zone] of zoneMap) {
+      if (zone.cells.length === 0) continue;
+
+      let snapped = false;
+      let targetLat, targetLng;
+
+      if (cityPOIs && cityPOIs.length > 0) {
+        // Find POIs inside this zone
+        const cellSet = new Set(zone.cells);
+        const poisInZone = cityPOIs.filter(poi => {
+          const poiCell = h3.latLngToCell(poi.lat, poi.lng, 7);
+          return cellSet.has(poiCell);
+        });
+
+        if (poisInZone.length > 0) {
+          // Pick closest POI to the original citadel
+          let minDist = Infinity;
+          let bestPoi = null;
+          for (const poi of poisInZone) {
+            const dlat = poi.lat - zone.citadel.lat;
+            const dlng = poi.lng - zone.citadel.lng;
+            const dist = dlat*dlat + dlng*dlng;
+            if (dist < minDist) {
+              minDist = dist;
+              bestPoi = poi;
+            }
+          }
+          targetLat = bestPoi.lat;
+          targetLng = bestPoi.lng;
+
+          if (bestPoi.name && bestPoi.name !== "Unknown") {
+            // Keep procedural name prefix but append POI name
+            zone.citadel.name = bestPoi.name;
+          }
+          snapped = true;
+        }
+      }
+
+      if (!snapped) {
+        // Fallback: move to geometric centroid of the zone
+        let sumLat = 0, sumLng = 0;
+        for (const cell of zone.cells) {
+          const [lat, lng] = h3.cellToLatLng(cell);
+          sumLat += lat;
+          sumLng += lng;
+        }
+        targetLat = sumLat / zone.cells.length;
+        targetLng = sumLng / zone.cells.length;
+      }
+
+      // Snap target back to the exact center of its H3 cell
+      const targetCell = h3.latLngToCell(targetLat, targetLng, 7);
+      const [finalLat, finalLng] = h3.cellToLatLng(targetCell);
+
+      if (zone.citadel.h3Index !== targetCell) {
+          zone.citadel.h3Index = targetCell;
+          zone.citadel.lat = finalLat;
+          zone.citadel.lng = finalLng;
+          citadelsMoved = true;
+      }
+    }
+
+    // Re-run Voronoi assignment so boundaries adjust to new citadel locations!
+    if (citadelsMoved) {
+      zoneMap = assignCellsToZones(cells, citadels);
+    }
+  }
+  // --- END NEW LOGIC ---
 
   // 4. Build zone objects with names and colors
   const zones = [];

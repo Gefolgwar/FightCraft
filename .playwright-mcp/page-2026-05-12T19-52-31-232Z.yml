@@ -1,0 +1,173 @@
+- generic [ref=e1]:
+  - generic [active] [ref=e2]:
+    - generic:
+      - generic:
+        - button "2" [ref=e506] [cursor=pointer]:
+          - generic [ref=e507]: "2"
+        - button "2" [ref=e508] [cursor=pointer]:
+          - generic [ref=e509]: "2"
+        - button "2" [ref=e510] [cursor=pointer]:
+          - generic [ref=e511]: "2"
+        - button "2" [ref=e512] [cursor=pointer]:
+          - generic [ref=e513]: "2"
+        - button "2" [ref=e514] [cursor=pointer]:
+          - generic [ref=e515]: "2"
+        - button "2" [ref=e516] [cursor=pointer]:
+          - generic [ref=e517]: "2"
+        - button "2" [ref=e518] [cursor=pointer]:
+          - generic [ref=e519]: "2"
+        - button "3" [ref=e520] [cursor=pointer]:
+          - generic [ref=e521]: "3"
+        - button "4" [ref=e522] [cursor=pointer]:
+          - generic [ref=e523]: "4"
+        - button "3" [ref=e524] [cursor=pointer]:
+          - generic [ref=e525]: "3"
+        - button "2" [ref=e526] [cursor=pointer]:
+          - generic [ref=e527]: "2"
+        - button "2" [ref=e528] [cursor=pointer]:
+          - generic [ref=e529]: "2"
+        - button "2" [ref=e530] [cursor=pointer]:
+          - generic [ref=e531]: "2"
+        - button "2" [ref=e532] [cursor=pointer]:
+          - generic [ref=e533]: "2"
+        - button "2" [ref=e534] [cursor=pointer]:
+          - generic [ref=e535]: "2"
+        - button "5" [ref=e536] [cursor=pointer]:
+          - generic [ref=e537]: "5"
+        - button "3" [ref=e538] [cursor=pointer]:
+          - generic [ref=e539]: "3"
+        - button "4" [ref=e540] [cursor=pointer]:
+          - generic [ref=e541]: "4"
+        - button "4" [ref=e542] [cursor=pointer]:
+          - generic [ref=e543]: "4"
+        - button "2" [ref=e544] [cursor=pointer]:
+          - generic [ref=e545]: "2"
+        - button "5" [ref=e546] [cursor=pointer]:
+          - generic [ref=e547]: "5"
+        - button "4" [ref=e548] [cursor=pointer]:
+          - generic [ref=e549]: "4"
+        - button "6" [ref=e550] [cursor=pointer]:
+          - generic [ref=e551]: "6"
+        - button "2" [ref=e552] [cursor=pointer]:
+          - generic [ref=e553]: "2"
+        - button "4" [ref=e554] [cursor=pointer]:
+          - generic [ref=e555]: "4"
+        - button "3" [ref=e556] [cursor=pointer]:
+          - generic [ref=e557]: "3"
+        - button "4" [ref=e558] [cursor=pointer]:
+          - generic [ref=e559]: "4"
+        - button "5" [ref=e560] [cursor=pointer]:
+          - generic [ref=e561]: "5"
+        - button "5" [ref=e562] [cursor=pointer]:
+          - generic [ref=e563]: "5"
+        - button "2" [ref=e564] [cursor=pointer]:
+          - generic [ref=e565]: "2"
+        - button "2" [ref=e566] [cursor=pointer]:
+          - generic [ref=e567]: "2"
+        - button "2" [ref=e568] [cursor=pointer]:
+          - generic [ref=e569]: "2"
+    - generic:
+      - generic [ref=e3]:
+        - button "Zoom in" [ref=e4] [cursor=pointer]: +
+        - button "Zoom out" [ref=e5] [cursor=pointer]: −
+      - generic [ref=e6]:
+        - link "Leaflet" [ref=e7] [cursor=pointer]:
+          - /url: https://leafletjs.com
+          - img [ref=e8]
+          - text: Leaflet
+        - text: "| © OpenStreetMap"
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]: Seed
+      - spinbutton [ref=e18]: "42"
+    - generic [ref=e19]:
+      - generic [ref=e20]: Monster ratio
+      - spinbutton [ref=e21]: "1000"
+    - generic [ref=e22]:
+      - generic [ref=e23]: Shop ratio
+      - spinbutton [ref=e24]: "16000"
+    - generic [ref=e25]:
+      - generic [ref=e26]: Castle ratio
+      - spinbutton [ref=e27]: "5000"
+    - generic [ref=e28]:
+      - generic [ref=e29]: Citadel ratio
+      - spinbutton [ref=e30]: "190476"
+    - button "🌍 Generate World Citadels" [ref=e124] [cursor=pointer]
+    - button "🎲 Random Seed" [ref=e32] [cursor=pointer]
+  - generic [ref=e33]:
+    - generic [ref=e34] [cursor=pointer]:
+      - checkbox "Monsters (z14+)" [ref=e35]
+      - text: Monsters (z14+)
+    - generic [ref=e37] [cursor=pointer]:
+      - checkbox "Shops (z11+)" [ref=e38]
+      - text: Shops (z11+)
+    - generic [ref=e40] [cursor=pointer]:
+      - checkbox "Vaults (z11+)" [ref=e41]
+      - text: Vaults (z11+)
+    - generic [ref=e43] [cursor=pointer]:
+      - checkbox "Castles (z8+)" [ref=e44]
+      - text: Castles (z8+)
+    - generic [ref=e46] [cursor=pointer]:
+      - checkbox "Citadels" [checked] [ref=e47]
+      - text: Citadels
+    - generic [ref=e49] [cursor=pointer]:
+      - checkbox "H3 Zones" [ref=e50]
+      - text: H3 Zones
+  - generic [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: "10732"
+      - generic [ref=e55]: objects
+    - generic [ref=e56]:
+      - generic [ref=e57]: "10732"
+      - generic [ref=e58]: citadels
+    - generic [ref=e59]:
+      - generic [ref=e60]: "0"
+      - generic [ref=e61]: viewport obj
+    - generic [ref=e62]:
+      - generic [ref=e63]: "4442"
+      - generic [ref=e64]: cities
+    - generic [ref=e65]:
+      - generic [ref=e66]: "8"
+      - generic [ref=e67]: zoom
+    - generic [ref=e68]:
+      - generic [ref=e69]: +Castles
+      - generic [ref=e70]: LOD
+    - generic [ref=e71]:
+      - generic [ref=e72]: "157.6"
+      - generic [ref=e73]: ms
+  - generic [ref=e74]:
+    - generic [ref=e471]: "[21:51:03] Zones: 91 H3 hexagons (0.4ms)"
+    - generic [ref=e472]: "[21:50:54] Zones: 91 H3 hexagons (0.3ms)"
+    - generic [ref=e473]: "[21:50:54] Viewport: 19750 castle in 157.6ms (zoom 8)"
+    - generic [ref=e474]: "[21:50:53] Zones: 67 H3 hexagons (0.2ms)"
+    - generic [ref=e475]: "[21:50:53] Viewport: 19635 castle in 55.0ms (zoom 9)"
+    - generic [ref=e476]: "[21:50:52] Zones: 63 H3 hexagons (0.4ms)"
+    - generic [ref=e477]: "[21:50:52] Viewport: 5599 castle in 11.3ms (zoom 10)"
+    - generic [ref=e478]: "[21:50:51] Zones: 61 H3 hexagons (0.2ms)"
+    - generic [ref=e479]: "[21:50:51] Viewport: 2063 castle+shop+vault in 21.3ms (zoom 11)"
+    - generic [ref=e480]: "[21:50:51] Zones: 57 H3 hexagons (0.2ms)"
+    - generic [ref=e481]: "[21:50:51] Viewport: 129 castle+shop+vault in 2.6ms (zoom 13)"
+    - generic [ref=e482]: "[21:50:50] Zones: 57 H3 hexagons (0.3ms)"
+    - generic [ref=e483]: "[21:50:50] Viewport: 149 monster+castle+shop+vault in 3.0ms (zoom 14)"
+    - generic [ref=e484]: "[21:50:48] Zones: 57 H3 hexagons (0.3ms)"
+    - generic [ref=e485]: "[21:50:48] Viewport: 154 monster+castle+shop+vault in 7.2ms (zoom 14)"
+    - generic [ref=e486]: "[21:50:46] Zones: 61 H3 hexagons (0.2ms)"
+    - generic [ref=e487]: "[21:50:46] Viewport: 2056 castle+shop+vault in 50.0ms (zoom 11)"
+    - generic [ref=e488]: "[21:50:45] Zones: 63 H3 hexagons (0.3ms)"
+    - generic [ref=e489]: "[21:50:45] Viewport: 5598 castle in 13.0ms (zoom 10)"
+    - generic [ref=e490]: "[21:50:44] Zones: 63 H3 hexagons (0.3ms)"
+    - generic [ref=e491]: "[21:50:44] Viewport: 5544 castle in 23.1ms (zoom 10)"
+    - generic [ref=e492]: "[21:50:41] Zones: 68 H3 hexagons (0.2ms)"
+    - generic [ref=e493]: "[21:50:41] Viewport: 19614 castle in 102.2ms (zoom 9)"
+    - generic [ref=e494]: "[21:50:40] Zones: 91 H3 hexagons (0.8ms)"
+    - generic [ref=e495]: "[21:50:40] Viewport: 19742 castle in 178.8ms (zoom 8)"
+    - generic [ref=e496]: "[21:50:35] Zones: 88 H3 hexagons (1.5ms)"
+    - generic [ref=e497]: "[21:50:35] Viewport: 19562 castle in 244.3ms (zoom 8)"
+    - generic [ref=e498]: "[21:38:36] Zoom 1-7: citadels | 8-10: +castles | 11-13: +shops/vaults | 14+: +monsters"
+    - generic [ref=e499]: "[21:38:36] 🎮 World preview ready! Zoom in to see LOD in action."
+    - generic [ref=e500]: "[21:38:36] ✅ 10732 citadels generated in 430ms for 4442 cities"
+    - generic [ref=e501]: "[21:38:36] Rendering 10732 citadels with clustering..."
+    - generic [ref=e502]: "[21:38:36] Generating citadels for 4442 cities..."
+    - generic [ref=e503]: "[21:38:36] Loaded 4442 cities"
+    - generic [ref=e504]: "[21:38:36] Loading world cities..."
+    - generic [ref=e505]: "[21:38:36] Initializing Procedural World Preview..."

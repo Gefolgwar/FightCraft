@@ -1,0 +1,85 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic:
+      - generic [ref=e3]:
+        - button "Zoom in" [ref=e4] [cursor=pointer]: +
+        - button "Zoom out" [ref=e5] [cursor=pointer]: −
+      - generic [ref=e6]:
+        - link "Leaflet" [ref=e7] [cursor=pointer]:
+          - /url: https://leafletjs.com
+          - img [ref=e8]
+          - text: Leaflet
+        - text: "| © OpenStreetMap"
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]: Seed
+      - spinbutton [ref=e15]: "42"
+    - generic [ref=e16]:
+      - generic [ref=e17]: Monster ratio
+      - spinbutton [ref=e18]: "1000"
+    - generic [ref=e19]:
+      - generic [ref=e20]: Shop ratio
+      - spinbutton [ref=e21]: "16000"
+    - generic [ref=e22]:
+      - generic [ref=e23]: Castle ratio
+      - spinbutton [ref=e24]: "5000"
+    - generic [ref=e25]:
+      - generic [ref=e26]: Citadel ratio
+      - spinbutton [ref=e27]: "100000"
+    - button "🌍 Generate World Citadels" [ref=e28] [cursor=pointer]
+    - button "🎲 Random Seed" [ref=e29] [cursor=pointer]
+    - button "🏰 Berlin Voronoi Zones" [ref=e30] [cursor=pointer]
+  - generic [ref=e31]:
+    - generic [ref=e32] [cursor=pointer]:
+      - checkbox "Monsters (z14+)" [ref=e33]
+      - text: Monsters (z14+)
+    - generic [ref=e35] [cursor=pointer]:
+      - checkbox "Shops (z11+)" [ref=e36]
+      - text: Shops (z11+)
+    - generic [ref=e38] [cursor=pointer]:
+      - checkbox "Vaults (z11+)" [ref=e39]
+      - text: Vaults (z11+)
+    - generic [ref=e41] [cursor=pointer]:
+      - checkbox "Castles (z8+)" [ref=e42]
+      - text: Castles (z8+)
+    - generic [ref=e44] [cursor=pointer]:
+      - checkbox "Citadels" [ref=e45]
+      - text: Citadels
+    - generic [ref=e47] [cursor=pointer]:
+      - checkbox "H3 Zones" [checked] [ref=e48]
+      - text: H3 Zones
+  - generic [ref=e50]:
+    - generic [ref=e51]:
+      - generic [ref=e52]: "19789"
+      - generic [ref=e53]: objects
+    - generic [ref=e54]:
+      - generic [ref=e55]: "19789"
+      - generic [ref=e56]: citadels
+    - generic [ref=e57]:
+      - generic [ref=e58]: "0"
+      - generic [ref=e59]: viewport obj
+    - generic [ref=e60]:
+      - generic [ref=e61]: "4442"
+      - generic [ref=e62]: cities
+    - generic [ref=e63]:
+      - generic [ref=e64]: "11"
+      - generic [ref=e65]: zoom
+    - generic [ref=e66]:
+      - generic [ref=e67]: +Shops/Vaults
+      - generic [ref=e68]: LOD
+    - generic [ref=e69]:
+      - generic [ref=e70]: "0"
+      - generic [ref=e71]: ms
+  - generic [ref=e72]:
+    - generic [ref=e211]: "[23:38:25] ✅ 22 Voronoi zones (196 cells) in 142ms"
+    - generic [ref=e212]: "[23:38:25] 196 H3 cells, 22 zones"
+    - generic [ref=e213]: "[23:38:25] Computing Berlin Voronoi zones via zone-engine..."
+    - generic [ref=e214]: "[23:37:14] Zoom 1-7: citadels | 8-10: +castles | 11-13: +shops/vaults | 14+: +monsters"
+    - generic [ref=e215]: "[23:37:14] 🎮 World preview ready! Zoom in to see LOD in action."
+    - generic [ref=e216]: "[23:37:14] ✅ 19789 citadels generated in 600ms for 4442 cities"
+    - generic [ref=e217]: "[23:37:13] Rendering 19789 citadels with clustering..."
+    - generic [ref=e218]: "[23:37:13] Generating citadels for 4442 cities..."
+    - generic [ref=e219]: "[23:37:13] Berlin boundary loaded from OSM"
+    - generic [ref=e220]: "[23:37:13] Loaded 4442 cities"
+    - generic [ref=e221]: "[23:37:13] Loading world cities..."
+    - generic [ref=e222]: "[23:37:13] Initializing Procedural World Preview..."

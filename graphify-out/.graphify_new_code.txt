@@ -1,0 +1,2 @@
+/mnt/d/Project/FightCraft/www/map/map.js
+/mnt/d/Project/FightCraft/www/map/territory-canvas.js
