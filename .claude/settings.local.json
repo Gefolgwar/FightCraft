@@ -34,7 +34,10 @@
       "Skill(grill-me)",
       "Skill(playwright-skill)",
       "Skill(superpowers:using-superpowers)",
-      "Skill(superpowers:systematic-debugging)"
+      "Skill(superpowers:systematic-debugging)",
+      "mcp__plugin_github_github__list_issues",
+      "mcp__plugin_github_github__issue_write",
+      "Skill(to-prd)"
     ],
     "defaultMode": "acceptEdits",
     "allowAll": true
