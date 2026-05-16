@@ -180,6 +180,50 @@
             </div>
           </div>
         </div>
+
+        <!-- Global Stats Block -->
+        <div class="stats p-3 border-t border-gray-700 bg-gray-800 flex flex-wrap gap-x-4 gap-y-2 z-10 text-[10px] text-gray-400 mt-auto">
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-total"
+                >0</span
+              ><span>objects</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-citadels"
+                >0</span
+              ><span>citadels</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-viewport"
+                >0</span
+              ><span>viewport obj</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-cities"
+                >0</span
+              ><span>cities</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-zoom"
+                >—</span
+              ><span>zoom</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-lod"
+                >—</span
+              ><span>LOD</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-boundaries"
+                >0</span
+              ><span>boundaries</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-blue-400 text-xs" id="stat-time"
+                >0</span
+              ><span>ms</span>
+            </div>
+        </div>
       </aside>
 
       <!-- Main Content: Map Viewer -->
@@ -196,51 +240,6 @@
           >
             <div class="progress-bar">
               <div class="progress-fill" id="progress-fill"></div>
-            </div>
-          </div>
-
-          <div
-            class="absolute top-4 left-4 z-[400] bg-gray-900/90 backdrop-blur border border-gray-700 rounded-lg p-2 flex flex-wrap gap-3 text-xs text-gray-400"
-          >
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-total"
-                >0</span
-              ><span>objects</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-citadels"
-                >0</span
-              ><span>citadels</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-viewport"
-                >0</span
-              ><span>viewport obj</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-cities"
-                >0</span
-              ><span>cities</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-zoom"
-                >—</span
-              ><span>zoom</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-lod"
-                >—</span
-              ><span>LOD</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-boundaries"
-                >0</span
-              ><span>boundaries</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="font-bold text-blue-400 text-sm" id="stat-time"
-                >0</span
-              ><span>ms</span>
             </div>
           </div>
         </div>
@@ -1809,6 +1808,175 @@
 
       }
 
+      // --- Stats Distribution Logic ---
+      window.switchStatsTab = (tab) => {
+        window.activeStatsTab = tab;
+        // Update Buttons
+        const btnMon = document.getElementById("tab-monsters");
+        const btnShop = document.getElementById("tab-shops");
+        const btnVau = document.getElementById("tab-vaults");
+        const btnCas = document.getElementById("tab-castles");
+        const btnCit = document.getElementById("tab-citadels");
+        const btnZon = document.getElementById("tab-boundaries");
+
+        // Reset styles
+        [btnMon, btnShop, btnVau, btnCas, btnCit, btnZon].forEach((b) => {
+          if (b)
+            b.className =
+              "px-2 py-1 rounded-md text-[9px] font-bold text-gray-500 hover:text-gray-300";
+        });
+
+        // Set active style
+        if (tab === "monsters") {
+          if (btnMon) btnMon.className = "px-2 py-1 rounded-md text-[9px] font-bold bg-purple-600 text-white";
+        } else if (tab === "shops") {
+          if (btnShop) btnShop.className = "px-2 py-1 rounded-md text-[9px] font-bold bg-yellow-600 text-white";
+        } else if (tab === "vaults") {
+          if (btnVau) btnVau.className = "px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-600 text-white";
+        } else if (tab === "castles") {
+          if (btnCas) btnCas.className = "px-2 py-1 rounded-md text-[9px] font-bold bg-blue-600 text-white";
+        } else if (tab === "citadels") {
+          if (btnCit) btnCit.className = "px-2 py-1 rounded-md text-[9px] font-bold bg-orange-600 text-white";
+        } else if (tab === "boundaries") {
+          if (btnZon) btnZon.className = "px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-600 text-white";
+        }
+        renderZoneStats();
+      };
+
+      window.filterZoneStats = (query) => {
+        renderZoneStats(query.toLowerCase());
+      };
+
+      window.renderZoneStats = function(filter = "") {
+        const container = document.getElementById("stats-list-container");
+        if (!container) return;
+
+        if (window.activeStatsTab === "boundaries") {
+          renderBoundaryStats(container, filter);
+          return;
+        }
+
+        const data = window.currentZoneStats ? window.currentZoneStats[window.activeStatsTab] || [] : [];
+
+        const accentColor =
+          window.activeStatsTab === "monsters"
+            ? "text-purple-400"
+            : window.activeStatsTab === "shops"
+              ? "text-yellow-400"
+              : window.activeStatsTab === "vaults"
+                ? "text-emerald-400"
+                : window.activeStatsTab === "citadels"
+                  ? "text-orange-400"
+                  : "text-blue-400";
+
+        const filtered = filter
+          ? data.filter((d) => d.id.toLowerCase().includes(filter))
+          : data;
+        const sorted = filtered.sort((a, b) => b.count - a.count);
+
+        if (sorted.length === 0) {
+          container.innerHTML = `<div class="text-[10px] text-gray-600 text-center py-4">No results found</div>`;
+          return;
+        }
+
+        container.innerHTML = sorted
+          .map((zd) => {
+            const displayName =
+              window.zoneNames && window.zoneNames[zd.id]
+                ? window.zoneNames[zd.id]
+                : zd.id.split("_").pop();
+            return `
+                            <div class="flex justify-between items-center bg-gray-900/40 px-2 py-1.5 rounded-lg text-[10px] border border-gray-800/50 hover:border-gray-700 transition group">
+                                <span class="text-gray-400 truncate mr-2 font-mono flex items-center gap-1" title="${zd.id}">
+                                    <i class="fas fa-location-dot text-[8px] opacity-40 group-hover:opacity-100 transition"></i>
+                                    ${displayName}
+                                </span>
+                                <b class="${accentColor} font-mono">${zd.count}</b>
+                            </div>
+                        `;
+          })
+          .join("");
+      }
+
+      function renderBoundaryStats(container, filter) {
+        if (!currentSnapshot) return;
+        const cache = adminDistrictCache[currentSnapshot.cityId];
+
+        if (!cache || !cache.boundary) {
+          container.innerHTML = `<div class="text-[10px] text-gray-500 text-center py-4">City Boundary not loaded</div>`;
+          return;
+        }
+
+        const turf = window.turf;
+        if (!turf) {
+          container.innerHTML = `<div class="text-[10px] text-red-500 text-center py-4">Turf.js not loaded</div>`;
+          return;
+        }
+
+        // Construct Turf boundary (Polygon)
+        let cityPoly;
+        try {
+          const rings = cache.boundary;
+          if (rings.length > 0 && Array.isArray(rings[0][0])) {
+            cityPoly = turf.multiPolygon(rings.map((r) => [r]));
+          } else {
+            cityPoly = turf.polygon(rings);
+          }
+          // buffer(0) fixes self-intersections for consistent boolean checks
+          cityPoly = turf.buffer(cityPoly, 0);
+        } catch (e) {
+          console.error("Failed to construct boundary poly:", e);
+          container.innerHTML = `<div class="text-[10px] text-red-500 text-center py-4">Boundary Geometry Error</div>`;
+          return;
+        }
+
+        const objects = currentSnapshot.objects || [];
+        const citadels = objects.filter(
+          (o) =>
+            o.icon === "🏯" ||
+            (o.name && o.name.includes("Citadel")),
+        );
+
+        const results = citadels.map((c) => {
+          const isInside = turf.booleanPointInPolygon(
+            [c.lng, c.lat],
+            cityPoly,
+          );
+          return { name: c.name, id: c.id, inside: isInside };
+        });
+
+        const filtered = filter
+          ? results.filter((r) =>
+              r.name.toLowerCase().includes(filter),
+            )
+          : results;
+
+        if (filtered.length === 0) {
+          container.innerHTML = `<div class="text-[10px] text-gray-600 text-center py-4">No citadels to show</div>`;
+          return;
+        }
+
+        const boundaryId = cache.boundaryId || "Unknown";
+        container.innerHTML =
+          `
+                            <div class="text-[9px] text-gray-500 mb-2 px-1 font-mono uppercase tracking-widest border-b border-gray-800 pb-1">
+                                Checking vs OSM Relation: <b>${boundaryId}</b>
+                            </div>
+                        ` +
+          filtered
+            .map(
+              (r) => `
+                            <div class="flex justify-between items-center bg-gray-900/40 px-2 py-1.5 rounded-lg text-[10px] border ${r.inside ? "border-emerald-700/30" : "border-red-700/50 bg-red-900/10"} hover:border-gray-700 transition">
+                                <span class="text-gray-400 truncate mr-2 font-mono flex items-center gap-1">
+                                    <i class="fas ${r.inside ? "fa-check-circle text-emerald-400" : "fa-times-circle text-red-400"} text-[10px]"></i>
+                                    ${r.name}
+                                </span>
+                                <b class="${r.inside ? "text-emerald-400" : "text-red-400"} font-bold">${r.inside ? "INSIDE" : "OUTSIDE"}</b>
+                            </div>
+                        `,
+            )
+            .join("");
+      }
       async function loadSnapshots() {
         const list = document.getElementById("snapshot-list");
 
@@ -1831,7 +1999,6 @@
           const seedInput = document.getElementById("seed");
           if (seedInput && snap.seed) seedInput.value = snap.seed;
           if (window.generateProceduralWorld) window.generateProceduralWorld();
-          return;
         }
         // LEGACY: chunked snapshot — load objects from Firestore subcollection
         if (snap.chunked && (!snap.objects || snap.objects.length === 0)) {
@@ -1953,7 +2120,178 @@
        * Result: every citadel has a zone, every zone has a citadel,
        * zones don't extend into ocean.
        */
-      
+
+      function renderSnapshotOnMap(snap) {
+        // Safety check
+        if (!markerLayerGroup || !map || !markerClusterGroup) return;
+
+        // Clear old
+        markerLayerGroup.clearLayers();
+        markerClusterGroup.clearLayers();
+
+        if (!snap.objects || !snap.objects.length) return;
+
+        // Fly to city center
+        const firstObj = snap.objects[0];
+        if (firstObj.lat && firstObj.lng) {
+          map.flyTo([firstObj.lat, firstObj.lng], 13);
+        } else {
+          const city = CITY_ANCHORS.find((c) => c.id === snap.cityId);
+          if (city) map.flyTo([city.lat, city.lng], 13);
+        }
+
+        const objectCount = snap.objects.length;
+        const useLightMode = objectCount > 1000;
+
+        if (useLightMode) {
+          // LIGHT MODE: Canvas circleMarkers — no DOM, no clusters
+          // Handles 10k+ objects smoothly
+          const canvasRenderer = L.canvas({ padding: 0.5 });
+          const colorMap = {
+            citadel: {
+              fill: "#f97316",
+              stroke: "#ea580c",
+              radius: 5,
+            },
+            monster: {
+              fill: "#a855f7",
+              stroke: "#7c3aed",
+              radius: 3,
+            },
+            shop: { fill: "#3b82f6", stroke: "#2563eb", radius: 3 },
+            vault: {
+              fill: "#10b981",
+              stroke: "#059669",
+              radius: 3,
+            },
+            castle: {
+              fill: "#78716c",
+              stroke: "#57534e",
+              radius: 4,
+            },
+            other: {
+              fill: "#6b7280",
+              stroke: "#4b5563",
+              radius: 3,
+            },
+          };
+
+          snap.objects.forEach((obj) => {
+            const lat = obj.lat || (obj.center && obj.center.lat);
+            const lng =
+              obj.lng ||
+              (obj.center && obj.center.lng) ||
+              (obj.center && obj.center.lon);
+            if (!lat || !lng) return;
+
+            const isCitadel =
+              obj.icon === "🏯" ||
+              (obj.name && obj.name.includes("Citadel")) ||
+              (obj.templateId && obj.templateId.includes("citadel"));
+            const objectType = isCitadel ? "citadel" : obj.type || "other";
+
+            // Visibility check
+            if (objectType === "monster" && !visibility.monster) return;
+            if (objectType === "shop" && !visibility.shop) return;
+            if (objectType === "vault" && !visibility.vault) return;
+            if (objectType === "castle" && !visibility.castle) return;
+            if (isCitadel && !visibility.citadel) return;
+
+            const style = colorMap[objectType] || colorMap.other;
+            L.circleMarker([lat, lng], {
+              renderer: canvasRenderer,
+              radius: style.radius,
+              fillColor: style.fill,
+              color: style.stroke,
+              weight: 1,
+              fillOpacity: 0.8,
+              interactive: false,
+            }).addTo(markerLayerGroup);
+          });
+
+          console.log(
+            `Rendered ${objectCount} objects as Canvas circleMarkers (light mode)`,
+          );
+        } else {
+          // FULL MODE: DOM divIcon markers with clustering (for <1000 objects)
+          const markersToCluster = [];
+
+          snap.objects.forEach((obj) => {
+            const lat = obj.lat || (obj.center && obj.center.lat);
+            const lng =
+              obj.lng ||
+              (obj.center && obj.center.lng) ||
+              (obj.center && obj.center.lon);
+            if (!lat || !lng) return;
+
+            let iconChar = obj.icon || "📍";
+            const objectType =
+              obj.type ||
+              (snap.type === "monster"
+                ? "monster"
+                : snap.type === "shop"
+                  ? "shop"
+                  : snap.type === "castle"
+                    ? "castle"
+                    : "unknown");
+            const isCitadel =
+              obj.icon === "🏯" || (obj.name && obj.name.includes("Citadel"));
+
+            if (objectType === "monster" && !visibility.monster) return;
+            if (objectType === "shop" && !visibility.shop) return;
+            if (objectType === "vault" && !visibility.vault) return;
+            if (objectType === "castle" && !isCitadel && !visibility.castle)
+              return;
+            if (isCitadel && !visibility.citadel) return;
+
+            if (objectType === "castle" && !obj.icon)
+              iconChar =
+                obj.name && obj.name.includes("Citadel") ? "🏯" : "🏰";
+            else if (objectType === "shop" && !obj.icon) iconChar = "🏪";
+            else if (objectType === "vault" && !obj.icon) iconChar = "📦";
+            else if (objectType === "monster" && !obj.icon) iconChar = "👾";
+
+            let iconHtml, actualIconSize, actualIconAnchor;
+            if (isCitadel) {
+              iconHtml = `<div class="w-12 h-12 flex items-center justify-center relative bg-transparent"><div class="absolute inset-0 rounded-full blur-md opacity-40 bg-orange-500"></div><div class="text-3xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] z-10 leading-none select-none">🏯</div></div>`;
+              actualIconSize = [48, 48];
+              actualIconAnchor = [24, 24];
+            } else {
+              let colorClass = "bg-gray-900/80 border-gray-500";
+              if (objectType === "shop")
+                colorClass = "bg-blue-900/80 border-blue-500";
+              else if (objectType === "vault")
+                colorClass = "bg-emerald-900/80 border-emerald-500";
+              else if (objectType === "castle")
+                colorClass = "bg-[#5d4037] border-[#3e2723]";
+              iconHtml = `<div class="relative flex items-center justify-center w-8 h-8 rounded-full border-2 ${colorClass} shadow-lg text-lg"><span class="leading-none select-none">${iconChar}</span></div>`;
+              actualIconSize = [32, 32];
+              actualIconAnchor = [16, 16];
+            }
+
+            const marker = L.marker([lat, lng], {
+              icon: L.divIcon({
+                html: iconHtml,
+                className: "custom-tpl-icon",
+                iconSize: actualIconSize,
+                iconAnchor: actualIconAnchor,
+              }),
+              zIndexOffset: isCitadel
+                ? 3000
+                : objectType === "castle"
+                  ? 1800
+                  : 1200,
+            }).bindPopup(
+              `<div class="text-xs p-1"><b class="text-sm text-blue-400">${obj.name || "Unknown"}</b><br><span class="text-gray-400">#${obj.id || "Template"}</span><br><hr class="my-1 border-gray-700"><span class="text-gray-300">Type: ${objectType}</span><br><code class="text-blue-300">${lat.toFixed(6)}, ${lng.toFixed(6)}</code></div>`,
+            );
+            markersToCluster.push(marker);
+          });
+
+          if (markersToCluster.length > 0) {
+            markerClusterGroup.addLayers(markersToCluster);
+          }
+        }
+      }
 
       window.toggleCurrentSnapshot = async () => {
         if (!currentSnapshot) return;
