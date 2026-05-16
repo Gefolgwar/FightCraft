@@ -78,190 +78,575 @@
 
                 <!-- Content (Hidden until verified) -->
                 <div id="admin-panel" class="hidden flex-1 flex flex-col gap-6">
-                    <!-- Generation Controls -->
+                    <!-- Tab Navigation -->
                     <div
-                        class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        class="flex border-b border-gray-700 gap-1"
+                        id="control-tabs"
                     >
-                        <h2
-                            class="text-lg font-bold text-purple-300 mb-4 flex items-center"
+                        <button
+                            onclick="switchTab('snapshot')"
+                            class="tab-btn active px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-800 text-purple-300"
+                            data-tab="snapshot"
                         >
-                            <i class="fas fa-globe-europe mr-2"></i> World
-                            Generation
-                        </h2>
+                            <i class="fas fa-globe-europe mr-1"></i> Snapshot
+                            Gen
+                        </button>
+                        <button
+                            onclick="switchTab('procedural')"
+                            class="tab-btn px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+                            data-tab="procedural"
+                        >
+                            <i class="fas fa-cogs mr-1"></i> Procedural Rules
+                        </button>
+                        <button
+                            onclick="switchTab('manual')"
+                            class="tab-btn px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+                            data-tab="manual"
+                        >
+                            <i class="fas fa-map-pin mr-1"></i> Manual Placement
+                        </button>
+                        <button
+                            onclick="switchTab('stats')"
+                            class="tab-btn px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+                            data-tab="stats"
+                        >
+                            <i class="fas fa-chart-bar mr-1"></i> Statistics
+                        </button>
+                    </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            <!-- Target Template Selector -->
-                            <div>
-                                <label
-                                    class="block text-xs text-gray-400 uppercase font-bold mb-1"
-                                    >Target Map Template</label
-                                >
-                                <div class="flex gap-2">
-                                    <select
-                                        id="gen-template"
+                    <!-- TAB: Snapshot Generation (existing) -->
+                    <div id="tab-snapshot" class="tab-content">
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                class="text-lg font-bold text-purple-300 mb-4 flex items-center"
+                            >
+                                <i class="fas fa-globe-europe mr-2"></i> World
+                                Generation
+                            </h2>
+
+                            <div
+                                class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
+                            >
+                                <!-- Target Template Selector -->
+                                <div>
+                                    <label
+                                        class="block text-xs text-gray-400 uppercase font-bold mb-1"
+                                        >Target Map Template</label
+                                    >
+                                    <div class="flex gap-2">
+                                        <select
+                                            id="gen-template"
+                                            class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
+                                        >
+                                            <option value="new">
+                                                + Create New Map Template
+                                            </option>
+                                        </select>
+                                        <button
+                                            onclick="window.location.reload()"
+                                            class="px-3 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
+                                            title="Refresh templates"
+                                        >
+                                            <i
+                                                class="fas fa-sync-alt text-gray-400"
+                                            ></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-[10px] text-gray-500 mt-1">
+                                        Existing templates will be OVERWRITTEN
+                                    </div>
+                                </div>
+
+                                <!-- Capacity -->
+                                <div>
+                                    <label
+                                        class="block text-xs text-gray-400 uppercase font-bold mb-1"
+                                        >Capacity per Zone</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="gen-capacity"
+                                        value="1000"
+                                        min="100"
+                                        max="5000"
                                         class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
-                                    >
-                                        <option value="new">
-                                            + Create New Map Template
-                                        </option>
-                                    </select>
+                                    />
+                                    <div class="text-[10px] text-gray-500 mt-1">
+                                        Rec: 800-1500 for large cities
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex items-end gap-2">
                                     <button
-                                        onclick="window.location.reload()"
-                                        class="px-3 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
-                                        title="Refresh templates"
+                                        onclick="startGeneration(true)"
+                                        class="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded font-bold text-sm relative overflow-hidden group border border-purple-400 shadow-lg text-white"
                                     >
-                                        <i
-                                            class="fas fa-sync-alt text-gray-400"
-                                        ></i>
+                                        <span class="relative z-10"
+                                            ><i class="fas fa-magic mr-2"></i>
+                                            Create / Del + Create</span
+                                        >
+                                    </button>
+                                    <button
+                                        onclick="startGeneration(false)"
+                                        class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm relative overflow-hidden group border border-blue-400 shadow-lg"
+                                    >
+                                        <span class="relative z-10"
+                                            ><i class="fas fa-plus mr-2"></i>
+                                            Add if exist</span
+                                        >
                                     </button>
                                 </div>
-                                <div class="text-[10px] text-gray-500 mt-1">
-                                    Existing templates will be OVERWRITTEN
+                            </div>
+
+                            <!-- Distribution Table -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+                            >
+                                <table class="w-full text-sm text-left">
+                                    <thead
+                                        class="bg-gray-800 text-gray-400 text-xs uppercase"
+                                    >
+                                        <tr>
+                                            <th class="px-4 py-2">
+                                                Monster Template
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Weight %
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Count
+                                            </th>
+                                            <th class="px-4 py-2 w-16"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="distribution-table"
+                                        class="divide-y divide-gray-800"
+                                    >
+                                        <!-- Existing Rules will be populated here -->
+                                        <tr>
+                                            <td
+                                                colspan="4"
+                                                class="p-4 text-center text-gray-500 italic"
+                                            >
+                                                Select templates from sidebar to
+                                                add to distribution
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot
+                                        class="bg-gray-800/50 text-xs font-bold"
+                                    >
+                                        <tr>
+                                            <td
+                                                class="px-4 py-2 text-right text-gray-400"
+                                            >
+                                                Total:
+                                            </td>
+                                            <td
+                                                class="px-4 py-2 text-center"
+                                                id="total-weight"
+                                            >
+                                                0%
+                                            </td>
+                                            <td
+                                                class="px-4 py-2 text-center"
+                                                id="total-count"
+                                            >
+                                                0
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            <div
+                                class="mt-2 text-xs text-yellow-500 hidden"
+                                id="dist-warning"
+                            >
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                Total weight must equal 100%
+                            </div>
+                        </div>
+
+                        <!-- Existing Objects Preview -->
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg flex-1"
+                        >
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-lg font-bold text-purple-300">
+                                    <i class="fas fa-database mr-2"></i> Current
+                                    Map Data
+                                </h2>
+                                <button
+                                    onclick="clearMapData()"
+                                    class="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-300 rounded text-xs border border-red-800"
+                                >
+                                    <i class="fas fa-trash-alt mr-1"></i> Clear
+                                    Zone
+                                </button>
+                            </div>
+                            <div
+                                class="bg-black/50 rounded-lg p-2 h-64 overflow-y-auto font-mono text-xs text-green-400"
+                                id="console-log"
+                            >
+                                <div class="text-gray-500">
+                                    System ready. Waiting for commands...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /tab-snapshot -->
+
+                    <!-- TAB: Procedural Rules -->
+                    <div id="tab-procedural" class="tab-content hidden">
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                class="text-lg font-bold text-purple-300 mb-4 flex items-center"
+                            >
+                                <i class="fas fa-cogs mr-2"></i> Procedural
+                                Generation Rules
+                            </h2>
+                            <p class="text-xs text-gray-400 mb-4">
+                                Configure which monster templates can spawn
+                                procedurally via the active recipe. Changes are
+                                saved to the recipe's
+                                <code>monsters</code> layer.
+                            </p>
+
+                            <!-- Active Recipe Info -->
+                            <div
+                                class="bg-gray-900 rounded-lg p-3 border border-gray-700 mb-4"
+                                id="recipe-info"
+                            >
+                                <div class="text-xs text-gray-500">
+                                    Loading active recipe...
                                 </div>
                             </div>
 
-                            <!-- Capacity -->
-                            <div>
-                                <label
-                                    class="block text-xs text-gray-400 uppercase font-bold mb-1"
-                                    >Capacity per Zone</label
+                            <!-- Density Ratio -->
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="label-text"
+                                        >Density Ratio (1 monster per N
+                                        population)</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="proc-density"
+                                        class="input-field"
+                                        value="1000"
+                                        min="100"
+                                        max="100000"
+                                    />
+                                </div>
+                                <div class="flex items-end">
+                                    <button
+                                        onclick="saveProceduralRules()"
+                                        class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-bold text-white"
+                                    >
+                                        <i class="fas fa-save mr-1"></i> Save
+                                        Rules to Recipe
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Procedural Template Whitelist -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+                            >
+                                <table class="w-full text-sm text-left">
+                                    <thead
+                                        class="bg-gray-800 text-gray-400 text-xs uppercase"
+                                    >
+                                        <tr>
+                                            <th class="px-4 py-2">Template</th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Weight
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Share %
+                                            </th>
+                                            <th class="px-4 py-2 w-16"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="proc-rules-table"
+                                        class="divide-y divide-gray-800"
+                                    >
+                                        <tr>
+                                            <td
+                                                colspan="4"
+                                                class="p-4 text-center text-gray-500 italic"
+                                            >
+                                                Loading...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Add Template to Whitelist -->
+                            <div class="mt-4 flex gap-2">
+                                <select
+                                    id="proc-add-template"
+                                    class="flex-1 bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
                                 >
+                                    <option value="">
+                                        Select template to add...
+                                    </option>
+                                </select>
                                 <input
                                     type="number"
-                                    id="gen-capacity"
-                                    value="1000"
-                                    min="100"
-                                    max="5000"
-                                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
+                                    id="proc-add-weight"
+                                    class="w-24 bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
+                                    value="10"
+                                    min="1"
+                                    max="100"
+                                    placeholder="Weight"
                                 />
-                                <div class="text-[10px] text-gray-500 mt-1">
-                                    Rec: 800-1500 for large cities
+                                <button
+                                    onclick="addToProceduralWhitelist()"
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold text-white"
+                                >
+                                    <i class="fas fa-plus mr-1"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /tab-procedural -->
+
+                    <!-- TAB: Manual Placement -->
+                    <div id="tab-manual" class="tab-content hidden">
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                class="text-lg font-bold text-purple-300 mb-4 flex items-center"
+                            >
+                                <i class="fas fa-map-pin mr-2"></i> Manual
+                                Entity Placement
+                            </h2>
+                            <p class="text-xs text-gray-400 mb-4">
+                                Place specific monsters manually on the map.
+                                These are saved to
+                                <code>spawned_objects</code> with
+                                <code>isManual: true</code> and will override
+                                procedural objects at the same location.
+                            </p>
+
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="label-text">Template</label>
+                                    <select
+                                        id="manual-template"
+                                        class="input-field bg-gray-900 text-white"
+                                    >
+                                        <option value="">
+                                            Select a monster template...
+                                        </option>
+                                    </select>
+                                </div>
+                                <div
+                                    id="manual-template-preview"
+                                    class="bg-gray-900 rounded-lg p-3 border border-gray-700 text-xs text-gray-400"
+                                >
+                                    Select a template to see preview
                                 </div>
                             </div>
 
-                            <!-- Actions -->
-                            <div class="flex items-end gap-2">
-                                <button
-                                    onclick="startGeneration(true)"
-                                    class="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded font-bold text-sm relative overflow-hidden group border border-purple-400 shadow-lg text-white"
-                                >
-                                    <span class="relative z-10"
-                                        ><i class="fas fa-magic mr-2"></i>
-                                        Create / Del + Create</span
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label class="label-text">Latitude</label>
+                                    <input
+                                        type="number"
+                                        id="manual-lat"
+                                        class="input-field"
+                                        step="0.000001"
+                                        placeholder="52.520008"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="label-text">Longitude</label>
+                                    <input
+                                        type="number"
+                                        id="manual-lng"
+                                        class="input-field"
+                                        step="0.000001"
+                                        placeholder="13.404954"
+                                    />
+                                </div>
+                                <div class="flex items-end">
+                                    <button
+                                        onclick="placeManualEntity()"
+                                        class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-bold text-white"
                                     >
-                                </button>
-                                <button
-                                    onclick="startGeneration(false)"
-                                    class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm relative overflow-hidden group border border-blue-400 shadow-lg"
-                                >
-                                    <span class="relative z-10"
-                                        ><i class="fas fa-plus mr-2"></i> Add if
-                                        exist</span
-                                    >
-                                </button>
+                                        <i
+                                            class="fas fa-map-marker-alt mr-1"
+                                        ></i>
+                                        Place on Map
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Distribution Table -->
-                        <div
-                            class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
-                        >
-                            <table class="w-full text-sm text-left">
-                                <thead
-                                    class="bg-gray-800 text-gray-400 text-xs uppercase"
-                                >
-                                    <tr>
-                                        <th class="px-4 py-2">
-                                            Monster Template
-                                        </th>
-                                        <th class="px-4 py-2 w-24 text-center">
-                                            Weight %
-                                        </th>
-                                        <th class="px-4 py-2 w-24 text-center">
-                                            Count
-                                        </th>
-                                        <th class="px-4 py-2 w-16"></th>
-                                    </tr>
-                                </thead>
-                                <tbody
-                                    id="distribution-table"
-                                    class="divide-y divide-gray-800"
-                                >
-                                    <!-- Existing Rules will be populated here -->
-                                    <tr>
-                                        <td
-                                            colspan="4"
-                                            class="p-4 text-center text-gray-500 italic"
-                                        >
-                                            Select templates from sidebar to add
-                                            to distribution
-                                        </td>
-                                    </tr>
-                                </tbody>
-                                <tfoot class="bg-gray-800/50 text-xs font-bold">
-                                    <tr>
-                                        <td
-                                            class="px-4 py-2 text-right text-gray-400"
-                                        >
-                                            Total:
-                                        </td>
-                                        <td
-                                            class="px-4 py-2 text-center"
-                                            id="total-weight"
-                                        >
-                                            0%
-                                        </td>
-                                        <td
-                                            class="px-4 py-2 text-center"
-                                            id="total-count"
-                                        >
-                                            0
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-
-                        <div
-                            class="mt-2 text-xs text-yellow-500 hidden"
-                            id="dist-warning"
-                        >
-                            <i class="fas fa-exclamation-triangle mr-1"></i>
-                            Total weight must equal 100%
-                        </div>
-                    </div>
-
-                    <!-- Existing Objects Preview -->
-                    <div
-                        class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg flex-1"
-                    >
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-lg font-bold text-purple-300">
-                                <i class="fas fa-database mr-2"></i> Current Map
-                                Data
-                            </h2>
-                            <button
-                                onclick="clearMapData()"
-                                class="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-300 rounded text-xs border border-red-800"
+                            <!-- Manual Objects List -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
                             >
-                                <i class="fas fa-trash-alt mr-1"></i> Clear Zone
-                            </button>
-                        </div>
-                        <div
-                            class="bg-black/50 rounded-lg p-2 h-64 overflow-y-auto font-mono text-xs text-green-400"
-                            id="console-log"
-                        >
-                            <div class="text-gray-500">
-                                System ready. Waiting for commands...
+                                <div
+                                    class="p-3 bg-gray-800 text-xs text-gray-400 font-bold uppercase flex justify-between"
+                                >
+                                    <span>Manually Placed Monsters</span>
+                                    <button
+                                        onclick="refreshManualList()"
+                                        class="text-blue-400 hover:text-blue-300"
+                                    >
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                                <div
+                                    id="manual-objects-list"
+                                    class="max-h-64 overflow-y-auto p-2 text-xs text-gray-400"
+                                >
+                                    Click "Refresh" to load placed objects.
+                                </div>
                             </div>
                         </div>
                     </div>
+                    <!-- /tab-manual -->
+
+                    <!-- TAB: Statistics -->
+                    <div id="tab-stats" class="tab-content hidden">
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                class="text-lg font-bold text-purple-300 mb-4 flex items-center"
+                            >
+                                <i class="fas fa-chart-bar mr-2"></i> Entity
+                                Statistics
+                            </h2>
+                            <p class="text-xs text-gray-400 mb-4">
+                                Overview of procedural vs manually placed
+                                monsters in the world.
+                            </p>
+
+                            <!-- Summary Cards -->
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <div
+                                    class="bg-gray-900 rounded-lg p-4 border border-gray-700 text-center"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-blue-400"
+                                        id="stat-procedural-total"
+                                    >
+                                        —
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Procedural
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-gray-900 rounded-lg p-4 border border-gray-700 text-center"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-green-400"
+                                        id="stat-manual-total"
+                                    >
+                                        —
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Manual
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-gray-900 rounded-lg p-4 border border-gray-700 text-center"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-purple-400"
+                                        id="stat-combined-total"
+                                    >
+                                        —
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Combined
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Breakdown Table -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+                            >
+                                <table class="w-full text-sm text-left">
+                                    <thead
+                                        class="bg-gray-800 text-gray-400 text-xs uppercase"
+                                    >
+                                        <tr>
+                                            <th class="px-4 py-2">Template</th>
+                                            <th
+                                                class="px-4 py-2 w-28 text-center"
+                                            >
+                                                Procedural
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-28 text-center"
+                                            >
+                                                Manual
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-28 text-center"
+                                            >
+                                                Total
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="stats-breakdown-table"
+                                        class="divide-y divide-gray-800"
+                                    >
+                                        <tr>
+                                            <td
+                                                colspan="4"
+                                                class="p-4 text-center text-gray-500 italic"
+                                            >
+                                                Click "Refresh" to load
+                                                statistics
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-4 flex justify-end">
+                                <button
+                                    onclick="refreshStatistics()"
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold text-white"
+                                >
+                                    <i class="fas fa-sync-alt mr-1"></i> Refresh
+                                    Statistics
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /tab-stats -->
                 </div>
             </main>
         </div>
-
-        <!-- Template Edit Modal -->
         <div
             id="template-modal"
             class="fixed inset-0 z-[100] bg-black/80 hidden flex items-center justify-center p-4"

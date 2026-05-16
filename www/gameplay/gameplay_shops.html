@@ -1,209 +1,737 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Admin: Shop Generation</title>
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <link rel="stylesheet" href="../css/style.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        />
+        <script type="module" src="../components/admin-header.js"></script>
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin: Shop Generation</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-    <script type="module" src="../components/admin-header.js"></script>
-</head>
+    <body
+        class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden"
+    >
+        <!-- Header (Shared) -->
+        <admin-header current-page="shops"></admin-header>
 
-<body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
-
-    <!-- Header (Shared) -->
-    <admin-header current-page="shops"></admin-header>
-
-    <!-- Main Layout -->
-    <div class="flex flex-1 overflow-hidden relative">
-
-        <!-- Sidebar: Templates -->
-        <aside class="w-80 bg-gray-800/50 border-r border-gray-700 flex flex-col">
-            <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-                <h2 class="font-bold text-gray-300">Shop Templates</h2>
-                <div class="flex gap-1">
-                    <button onclick="window.createDefaultShopTemplates?.().then(() => window.location.reload())"
-                        class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-400"
-                        title="Add Defaults">
-                        <i class="fas fa-magic"></i>
-                    </button>
-                    <button onclick="openTemplateModal()"
-                        class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs">
-                        <i class="fas fa-plus"></i> New
-                    </button>
+        <!-- Main Layout -->
+        <div class="flex flex-1 overflow-hidden relative">
+            <!-- Sidebar: Templates -->
+            <aside
+                class="w-80 bg-gray-800/50 border-r border-gray-700 flex flex-col"
+            >
+                <div
+                    class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-800"
+                >
+                    <h2 class="font-bold text-gray-300">Shop Templates</h2>
+                    <div class="flex gap-1">
+                        <button
+                            onclick="
+                                window
+                                    .createDefaultShopTemplates?.()
+                                    .then(() => window.location.reload())
+                            "
+                            class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-400"
+                            title="Add Defaults"
+                        >
+                            <i class="fas fa-magic"></i>
+                        </button>
+                        <button
+                            onclick="openTemplateModal()"
+                            class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs"
+                        >
+                            <i class="fas fa-plus"></i> New
+                        </button>
+                    </div>
                 </div>
-            </div>
-            <div id="template-list" class="flex-1 overflow-y-auto p-2 space-y-2">
-                <!-- Template Items Injected Here -->
-            </div>
-        </aside>
+                <div
+                    id="template-list"
+                    class="flex-1 overflow-y-auto p-2 space-y-2"
+                >
+                    <!-- Template Items Injected Here -->
+                </div>
+            </aside>
 
-        <!-- Main Content -->
-        <main class="flex-1 flex flex-col p-6 overflow-y-auto bg-gray-900" id="main-content">
+            <!-- Main Content -->
+            <main
+                class="flex-1 flex flex-col p-6 overflow-y-auto bg-gray-900"
+                id="main-content"
+            >
+                <!-- Security Overlay -->
+                <admin-guard id="admin-lock"></admin-guard>
 
-            <!-- Security Overlay -->
-            <admin-guard id="admin-lock"></admin-guard>
+                <div id="admin-panel" class="hidden flex-1 flex flex-col gap-6">
+                    <!-- Tab Navigation -->
+                    <div
+                        class="flex border-b border-gray-700 gap-1"
+                        id="control-tabs"
+                    >
+                        <button
+                            onclick="switchTab('snapshot')"
+                            class="tab-btn active px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-800 text-blue-300"
+                            data-tab="snapshot"
+                        >
+                            <i class="fas fa-globe-europe mr-1"></i> Snapshot
+                            Gen
+                        </button>
+                        <button
+                            onclick="switchTab('procedural')"
+                            class="tab-btn px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+                            data-tab="procedural"
+                        >
+                            <i class="fas fa-cogs mr-1"></i> Procedural Rules
+                        </button>
+                        <button
+                            onclick="switchTab('manual')"
+                            class="tab-btn px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+                            data-tab="manual"
+                        >
+                            <i class="fas fa-map-pin mr-1"></i> Manual Placement
+                        </button>
+                        <button
+                            onclick="switchTab('stats')"
+                            class="tab-btn px-4 py-2 text-sm font-bold rounded-t-lg border border-b-0 border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+                            data-tab="stats"
+                        >
+                            <i class="fas fa-chart-bar mr-1"></i> Statistics
+                        </button>
+                    </div>
 
-            <div id="admin-panel" class="hidden flex-1 flex flex-col gap-6">
+                    <!-- TAB: Snapshot Generation -->
+                    <div id="tab-snapshot" class="tab-content">
+                        <!-- Overpass Control -->
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2 class="text-lg font-bold text-blue-300 mb-4">
+                                <i class="fas fa-globe-europe mr-2"></i> World
+                                Generation
+                            </h2>
 
-                <!-- Overpass Control -->
-                <div class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg">
-                    <h2 class="text-lg font-bold text-blue-300 mb-4">
-                        <i class="fas fa-globe-europe mr-2"></i> World Generation
-                    </h2>
+                            <div
+                                class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
+                            >
+                                <!-- Target Template Selector -->
+                                <div>
+                                    <label
+                                        class="block text-xs text-gray-400 uppercase font-bold mb-1"
+                                        >Target Map Template</label
+                                    >
+                                    <div class="flex gap-2">
+                                        <select
+                                            id="gen-template"
+                                            class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
+                                        >
+                                            <option value="new">
+                                                + Create New Map Template
+                                            </option>
+                                        </select>
+                                        <button
+                                            onclick="window.location.reload()"
+                                            class="px-3 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
+                                            title="Refresh templates"
+                                        >
+                                            <i
+                                                class="fas fa-sync-alt text-gray-400"
+                                            ></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-[10px] text-gray-500 mt-1">
+                                        Existing templates will be OVERWRITTEN
+                                    </div>
+                                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <!-- Target Template Selector -->
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Target Map
-                                Template</label>
-                            <div class="flex gap-2">
-                                <select id="gen-template"
-                                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
-                                    <option value="new">+ Create New Map Template</option>
-                                </select>
-                                <button onclick="window.location.reload()"
-                                    class="px-3 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
-                                    title="Refresh templates">
-                                    <i class="fas fa-sync-alt text-gray-400"></i>
+                                <!-- Scan Radius -->
+                                <div>
+                                    <label
+                                        class="block text-xs text-gray-400 uppercase font-bold mb-1"
+                                        >Capacity per Zone</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="gen-capacity"
+                                        value="1000"
+                                        min="100"
+                                        max="5000"
+                                        class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
+                                    />
+                                    <div class="text-[10px] text-gray-500 mt-1">
+                                        Rec: 800-1500 for large cities
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex items-end gap-2">
+                                    <button
+                                        onclick="startGeneration(true)"
+                                        class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm relative overflow-hidden group border border-blue-400 shadow-lg text-white"
+                                    >
+                                        <span class="relative z-10"
+                                            ><i class="fas fa-magic mr-2"></i>
+                                            Create / Del + Create</span
+                                        >
+                                    </button>
+                                    <button
+                                        onclick="startGeneration(false)"
+                                        class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 rounded font-bold text-sm relative overflow-hidden group border border-indigo-400 shadow-lg"
+                                    >
+                                        <span class="relative z-10"
+                                            ><i class="fas fa-plus mr-2"></i>
+                                            Add if exist</span
+                                        >
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Active Mapping Rules -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+                            >
+                                <table class="w-full text-sm text-left">
+                                    <thead
+                                        class="bg-gray-800 text-gray-400 text-xs uppercase"
+                                    >
+                                        <tr>
+                                            <th class="px-4 py-2">Shop Type</th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Weight %
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Count
+                                            </th>
+                                            <th class="px-4 py-2">
+                                                OSM Match Tag
+                                            </th>
+                                            <th class="px-4 py-2 w-16"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="rules-table"
+                                        class="divide-y divide-gray-800"
+                                    >
+                                        <!-- Dynamic Rows -->
+                                    </tbody>
+                                    <tfoot
+                                        class="bg-gray-800/50 text-xs font-bold"
+                                    >
+                                        <tr>
+                                            <td
+                                                class="px-4 py-2 text-right text-gray-400"
+                                            >
+                                                Total:
+                                            </td>
+                                            <td
+                                                class="px-4 py-2 text-center"
+                                                id="total-weight"
+                                            >
+                                                0%
+                                            </td>
+                                            <td
+                                                class="px-4 py-2 text-center"
+                                                id="total-count"
+                                            >
+                                                0
+                                            </td>
+                                            <td colspan="2"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                                <div
+                                    id="rules-empty"
+                                    class="p-4 text-center text-gray-500 italic hidden"
+                                >
+                                    Click shop templates in the sidebar to add
+                                    them here.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results / Console -->
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg flex-1 flex flex-col mt-6"
+                        >
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-lg font-bold text-blue-300">
+                                    Scan Results
+                                </h2>
+                                <button
+                                    onclick="saveScannedShops()"
+                                    id="btn-save-shops"
+                                    class="px-4 py-1 bg-green-600 hover:bg-green-500 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled
+                                >
+                                    <i class="fas fa-save mr-1"></i> Save to
+                                    Database
                                 </button>
                             </div>
-                            <div class="text-[10px] text-gray-500 mt-1">Existing templates will be OVERWRITTEN</div>
-                        </div>
-
-                        <!-- Scan Radius -->
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase font-bold mb-1">Capacity per Zone</label>
-                            <input type="number" id="gen-capacity" value="1000" min="100" max="5000"
-                                class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
-                            <div class="text-[10px] text-gray-500 mt-1">Rec: 800-1500 for large cities</div>
-                        </div>
-
-                        <!-- Actions -->
-                        <div class="flex items-end gap-2">
-                            <button onclick="startGeneration(true)"
-                                class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm relative overflow-hidden group border border-blue-400 shadow-lg text-white">
-                                <span class="relative z-10"><i class="fas fa-magic mr-2"></i> Create / Del +
-                                    Create</span>
-                            </button>
-                            <button onclick="startGeneration(false)"
-                                class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 rounded font-bold text-sm relative overflow-hidden group border border-indigo-400 shadow-lg">
-                                <span class="relative z-10"><i class="fas fa-plus mr-2"></i> Add if exist</span>
-                            </button>
+                            <div
+                                class="bg-black/50 rounded-lg p-2 flex-1 overflow-y-auto font-mono text-xs"
+                                id="console-log"
+                            >
+                                <div class="text-gray-500">Ready to scan.</div>
+                            </div>
                         </div>
                     </div>
+                    <!-- /tab-snapshot -->
 
-                    <!-- Active Mapping Rules -->
-                    <div class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                                <tr>
-                                    <th class="px-4 py-2">Shop Type</th>
-                                    <th class="px-4 py-2 w-24 text-center">Weight %</th>
-                                    <th class="px-4 py-2 w-24 text-center">Count</th>
-                                    <th class="px-4 py-2">OSM Match Tag</th>
-                                    <th class="px-4 py-2 w-16"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="rules-table" class="divide-y divide-gray-800">
-                                <!-- Dynamic Rows -->
-                            </tbody>
-                            <tfoot class="bg-gray-800/50 text-xs font-bold">
-                                <tr>
-                                    <td class="px-4 py-2 text-right text-gray-400">Total:</td>
-                                    <td class="px-4 py-2 text-center" id="total-weight">0%</td>
-                                    <td class="px-4 py-2 text-center" id="total-count">0</td>
-                                    <td colspan="2"></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                        <div id="rules-empty" class="p-4 text-center text-gray-500 italic hidden">
-                            Click shop templates in the sidebar to add them here.
+                    <!-- TAB: Procedural Rules -->
+                    <div id="tab-procedural" class="tab-content hidden">
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                class="text-lg font-bold text-blue-300 mb-4 flex items-center"
+                            >
+                                <i class="fas fa-cogs mr-2"></i> Procedural
+                                Generation Rules
+                            </h2>
+                            <p class="text-xs text-gray-400 mb-4">
+                                Configure which shop templates can spawn
+                                procedurally via the active recipe. Changes are
+                                saved to the recipe's <code>shops</code> layer.
+                            </p>
+
+                            <!-- Active Recipe Info -->
+                            <div
+                                class="bg-gray-900 rounded-lg p-3 border border-gray-700 mb-4"
+                                id="recipe-info"
+                            >
+                                <div class="text-xs text-gray-500">
+                                    Loading active recipe...
+                                </div>
+                            </div>
+
+                            <!-- Density Ratio -->
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="label-text"
+                                        >Density Ratio (1 shop per N
+                                        population)</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="proc-density"
+                                        class="input-field"
+                                        value="16000"
+                                        min="100"
+                                        max="100000"
+                                    />
+                                </div>
+                                <div class="flex items-end">
+                                    <button
+                                        onclick="saveProceduralRules()"
+                                        class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-bold text-white"
+                                    >
+                                        <i class="fas fa-save mr-1"></i> Save
+                                        Rules to Recipe
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Procedural Template Whitelist -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+                            >
+                                <table class="w-full text-sm text-left">
+                                    <thead
+                                        class="bg-gray-800 text-gray-400 text-xs uppercase"
+                                    >
+                                        <tr>
+                                            <th class="px-4 py-2">Template</th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Weight
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-24 text-center"
+                                            >
+                                                Share %
+                                            </th>
+                                            <th class="px-4 py-2 w-16"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="proc-rules-table"
+                                        class="divide-y divide-gray-800"
+                                    >
+                                        <tr>
+                                            <td
+                                                colspan="4"
+                                                class="p-4 text-center text-gray-500 italic"
+                                            >
+                                                Loading...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Add Template to Whitelist -->
+                            <div class="mt-4 flex gap-2">
+                                <select
+                                    id="proc-add-template"
+                                    class="flex-1 bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
+                                >
+                                    <option value="">
+                                        Select a shop template to add...
+                                    </option>
+                                </select>
+                                <input
+                                    type="number"
+                                    id="proc-add-weight"
+                                    class="w-24 bg-gray-900 border border-gray-600 rounded p-2 text-white text-sm"
+                                    value="10"
+                                    min="1"
+                                    max="100"
+                                    placeholder="Weight"
+                                />
+                                <button
+                                    onclick="addToProceduralWhitelist()"
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold text-white"
+                                >
+                                    <i class="fas fa-plus mr-1"></i> Add
+                                </button>
+                            </div>
                         </div>
                     </div>
+                    <!-- /tab-procedural -->
+
+                    <!-- TAB: Manual Placement -->
+                    <div id="tab-manual" class="tab-content hidden">
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                class="text-lg font-bold text-blue-300 mb-4 flex items-center"
+                            >
+                                <i class="fas fa-map-pin mr-2"></i> Manual
+                                Entity Placement
+                            </h2>
+                            <p class="text-xs text-gray-400 mb-4">
+                                Place specific shops manually on the map. These
+                                are saved to
+                                <code>spawned_objects</code> with
+                                <code>isManual: true</code> and will override
+                                procedural objects at the same location.
+                            </p>
+
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="label-text">Template</label>
+                                    <select
+                                        id="manual-template"
+                                        class="input-field bg-gray-900 text-white"
+                                    >
+                                        <option value="">
+                                            Select a shop template...
+                                        </option>
+                                    </select>
+                                </div>
+                                <div
+                                    id="manual-template-preview"
+                                    class="bg-gray-900 rounded-lg p-3 border border-gray-700 text-xs text-gray-400"
+                                >
+                                    Select a template to see preview
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label class="label-text">Latitude</label>
+                                    <input
+                                        type="number"
+                                        id="manual-lat"
+                                        class="input-field"
+                                        step="0.000001"
+                                        placeholder="52.520008"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="label-text">Longitude</label>
+                                    <input
+                                        type="number"
+                                        id="manual-lng"
+                                        class="input-field"
+                                        step="0.000001"
+                                        placeholder="13.404954"
+                                    />
+                                </div>
+                                <div class="flex items-end">
+                                    <button
+                                        onclick="placeManualEntity()"
+                                        class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-bold text-white"
+                                    >
+                                        <i
+                                            class="fas fa-map-marker-alt mr-1"
+                                        ></i>
+                                        Place on Map
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Manual Objects List -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+                            >
+                                <div
+                                    class="p-3 bg-gray-800 text-xs text-gray-400 font-bold uppercase flex justify-between"
+                                >
+                                    <span>Manually Placed Shops</span>
+                                    <button
+                                        onclick="refreshManualList()"
+                                        class="text-blue-400 hover:text-blue-300"
+                                    >
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                                <div
+                                    id="manual-objects-list"
+                                    class="max-h-64 overflow-y-auto p-2 text-xs text-gray-400"
+                                >
+                                    Click "Refresh" to load placed objects.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /tab-manual -->
+
+                    <!-- TAB: Statistics -->
+                    <div id="tab-stats" class="tab-content hidden">
+                        <div
+                            class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg"
+                        >
+                            <h2
+                                class="text-lg font-bold text-blue-300 mb-4 flex items-center"
+                            >
+                                <i class="fas fa-chart-bar mr-2"></i> Entity
+                                Statistics
+                            </h2>
+                            <p class="text-xs text-gray-400 mb-4">
+                                Overview of procedural vs manually placed shops
+                                in the world.
+                            </p>
+
+                            <!-- Summary Cards -->
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <div
+                                    class="bg-gray-900 rounded-lg p-4 border border-gray-700 text-center"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-blue-400"
+                                        id="stat-procedural-total"
+                                    >
+                                        —
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Procedural
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-gray-900 rounded-lg p-4 border border-gray-700 text-center"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-green-400"
+                                        id="stat-manual-total"
+                                    >
+                                        —
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Manual
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-gray-900 rounded-lg p-4 border border-gray-700 text-center"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-blue-400"
+                                        id="stat-combined-total"
+                                    >
+                                        —
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Combined
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Breakdown Table -->
+                            <div
+                                class="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+                            >
+                                <table class="w-full text-sm text-left">
+                                    <thead
+                                        class="bg-gray-800 text-gray-400 text-xs uppercase"
+                                    >
+                                        <tr>
+                                            <th class="px-4 py-2">Template</th>
+                                            <th
+                                                class="px-4 py-2 w-28 text-center"
+                                            >
+                                                Procedural
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-28 text-center"
+                                            >
+                                                Manual
+                                            </th>
+                                            <th
+                                                class="px-4 py-2 w-28 text-center"
+                                            >
+                                                Total
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        id="stats-breakdown-table"
+                                        class="divide-y divide-gray-800"
+                                    >
+                                        <tr>
+                                            <td
+                                                colspan="4"
+                                                class="p-4 text-center text-gray-500 italic"
+                                            >
+                                                Click "Refresh" to load
+                                                statistics
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-4 flex justify-end">
+                                <button
+                                    onclick="refreshStatistics()"
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold text-white"
+                                >
+                                    <i class="fas fa-sync-alt mr-1"></i> Refresh
+                                    Statistics
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /tab-stats -->
                 </div>
-            </div>
+            </main>
+        </div>
 
-            <!-- Results / Console -->
-            <div class="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg flex-1 flex flex-col">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-blue-300">Scan Results</h2>
-                    <button onclick="saveScannedShops()" id="btn-save-shops"
-                        class="px-4 py-1 bg-green-600 hover:bg-green-500 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled>
-                        <i class="fas fa-save mr-1"></i> Save to Database
+        <!-- Template Modal -->
+        <div
+            id="template-modal"
+            class="fixed inset-0 z-[100] bg-black/80 hidden flex items-center justify-center p-4"
+        >
+            <div
+                class="bg-gray-800 rounded-xl w-full max-w-lg shadow-2xl border border-gray-600"
+            >
+                <div
+                    class="p-4 border-b border-gray-700 flex justify-between items-center"
+                >
+                    <h3 class="text-lg font-bold text-white">
+                        Edit Shop Template
+                    </h3>
+                    <button
+                        onclick="closeTemplateModal()"
+                        class="text-gray-400 hover:text-white"
+                    >
+                        ✕
                     </button>
                 </div>
-                <div class="bg-black/50 rounded-lg p-2 flex-1 overflow-y-auto font-mono text-xs" id="console-log">
-                    <div class="text-gray-500">Ready to scan.</div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="tpl-id" />
+                    <div>
+                        <label class="label-text">Shop Name Type</label>
+                        <input
+                            type="text"
+                            id="tpl-name"
+                            class="input-field"
+                            placeholder="e.g. Alchemist"
+                        />
+                    </div>
+                    <div>
+                        <label class="label-text">Icon</label>
+                        <input
+                            type="text"
+                            id="tpl-icon"
+                            class="input-field"
+                            placeholder="⚗️"
+                        />
+                    </div>
+                    <div>
+                        <label class="label-text">OSM Tag Match</label>
+                        <input
+                            type="text"
+                            id="tpl-osm"
+                            class="input-field"
+                            placeholder="amenity=pharmacy"
+                        />
+                        <p class="text-[10px] text-gray-500 mt-1">
+                            Key=Value pair to match from OpenStreetMap
+                        </p>
+                    </div>
+                    <div>
+                        <label class="label-text">Inventory (JSON Array)</label>
+                        <textarea
+                            id="tpl-inventory"
+                            class="input-field h-24 font-mono text-xs"
+                            placeholder='[{"id":"potion_hp","price":50}]'
+                        ></textarea>
+                    </div>
                 </div>
-            </div>
-
-    </div>
-    </main>
-    </div>
-
-    <!-- Template Modal -->
-    <div id="template-modal" class="fixed inset-0 z-[100] bg-black/80 hidden flex items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-xl w-full max-w-lg shadow-2xl border border-gray-600">
-            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-                <h3 class="text-lg font-bold text-white">Edit Shop Template</h3>
-                <button onclick="closeTemplateModal()" class="text-gray-400 hover:text-white">✕</button>
-            </div>
-            <div class="p-6 space-y-4">
-                <input type="hidden" id="tpl-id">
-                <div>
-                    <label class="label-text">Shop Name Type</label>
-                    <input type="text" id="tpl-name" class="input-field" placeholder="e.g. Alchemist">
+                <div
+                    class="p-4 border-t border-gray-700 flex justify-end gap-3"
+                >
+                    <button
+                        onclick="deleteTemplate()"
+                        class="px-4 py-2 bg-red-900/50 text-red-400 rounded text-sm hidden"
+                        id="btn-delete"
+                    >
+                        Delete
+                    </button>
+                    <button
+                        onclick="saveTemplateForm()"
+                        class="px-4 py-2 bg-blue-600 rounded text-sm font-bold text-white"
+                    >
+                        Save
+                    </button>
                 </div>
-                <div>
-                    <label class="label-text">Icon</label>
-                    <input type="text" id="tpl-icon" class="input-field" placeholder="⚗️">
-                </div>
-                <div>
-                    <label class="label-text">OSM Tag Match</label>
-                    <input type="text" id="tpl-osm" class="input-field" placeholder="amenity=pharmacy">
-                    <p class="text-[10px] text-gray-500 mt-1">Key=Value pair to match from OpenStreetMap</p>
-                </div>
-                <div>
-                    <label class="label-text">Inventory (JSON Array)</label>
-                    <textarea id="tpl-inventory" class="input-field h-24 font-mono text-xs"
-                        placeholder='[{"id":"potion_hp","price":50}]'></textarea>
-                </div>
-            </div>
-            <div class="p-4 border-t border-gray-700 flex justify-end gap-3">
-                <button onclick="deleteTemplate()" class="px-4 py-2 bg-red-900/50 text-red-400 rounded text-sm hidden"
-                    id="btn-delete">Delete</button>
-                <button onclick="saveTemplateForm()"
-                    class="px-4 py-2 bg-blue-600 rounded text-sm font-bold text-white">Save</button>
             </div>
         </div>
-    </div>
 
-    <style>
-        .label-text {
-            display: block;
-            font-size: 0.75rem;
-            color: #9ca3af;
-            margin-bottom: 0.25rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
+        <style>
+            .label-text {
+                display: block;
+                font-size: 0.75rem;
+                color: #9ca3af;
+                margin-bottom: 0.25rem;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
 
-        .input-field {
-            width: 100%;
-            background-color: #111827;
-            border: 1px solid #374151;
-            border-radius: 0.375rem;
-            padding: 0.5rem;
-            color: white;
-            font-size: 0.875rem;
-        }
-    </style>
+            .input-field {
+                width: 100%;
+                background-color: #111827;
+                border: 1px solid #374151;
+                border-radius: 0.375rem;
+                padding: 0.5rem;
+                color: white;
+                font-size: 0.875rem;
+            }
 
-    <script type="module" src="../maintenance/admin-shops.js"></script>
-</body>
+            .input-field:focus {
+                outline: none;
+                border-color: #3b82f6;
+            }
+        </style>
 
+        <script type="module" src="../maintenance/admin-shops.js"></script>
+    </body>
 </html>

@@ -16,6 +16,19 @@ import {
   distributePointsInZone,
   hashSeed,
 } from "../gameplay/zone-generator.js";
+import {
+  buildEntityStatistics,
+  createManualEntity,
+  validateManualEntity,
+  getProceduralRulesForType,
+} from "../gameplay/entity-control-center.js";
+import {
+  loadActiveRecipe,
+  updateRecipe,
+  addTemplateToLayer,
+  removeTemplateFromLayer,
+  updateTemplateWeight,
+} from "../gameplay/snapshot-recipe.js";
 
 let templates = [];
 let currentEditId = null;
@@ -850,3 +863,366 @@ function logConsole(msg) {
   div.innerHTML = `<span class="text-gray-500">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
   con.prepend(div);
 }
+
+// ==================== TAB NAVIGATION ====================
+
+let activeRecipe = null;
+
+window.switchTab = (tabName) => {
+  // Hide all tab contents
+  document.querySelectorAll(".tab-content").forEach((el) => {
+    el.classList.add("hidden");
+  });
+  // Show selected tab
+  const target = document.getElementById(`tab-${tabName}`);
+  if (target) target.classList.remove("hidden");
+
+  // Update tab button styles
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.classList.remove("active", "bg-gray-800", "text-purple-300");
+    btn.classList.add("bg-gray-900", "text-gray-400");
+  });
+  const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add("active", "bg-gray-800", "text-purple-300");
+    activeBtn.classList.remove("bg-gray-900", "text-gray-400");
+  }
+
+  // Lazy-load tab data
+  if (tabName === "procedural") loadProceduralRules();
+  if (tabName === "manual") populateManualTemplateDropdown();
+  if (tabName === "stats") refreshStatistics();
+};
+
+// ==================== PROCEDURAL RULES TAB ====================
+
+async function loadProceduralRules() {
+  const infoEl = document.getElementById("recipe-info");
+  try {
+    activeRecipe = await loadActiveRecipe();
+    if (!activeRecipe) {
+      infoEl.innerHTML =
+        '<div class="text-xs text-yellow-400"><i class="fas fa-exclamation-triangle mr-1"></i> No active recipe found. Create one in the Map Admin tool first.</div>';
+      return;
+    }
+    infoEl.innerHTML = `<div class="text-xs text-green-400"><i class="fas fa-check-circle mr-1"></i> Active recipe: <strong>${activeRecipe.id}</strong> (seed: ${activeRecipe.seed}, v${activeRecipe.version || 1})</div>`;
+
+    // Set density ratio
+    const densityInput = document.getElementById("proc-density");
+    if (densityInput && activeRecipe.densityRatios?.monster) {
+      densityInput.value = activeRecipe.densityRatios.monster;
+    }
+
+    renderProceduralRulesTable();
+    populateAddTemplateDropdown();
+  } catch (err) {
+    infoEl.innerHTML = `<div class="text-xs text-red-400"><i class="fas fa-times-circle mr-1"></i> Error: ${err.message}</div>`;
+  }
+}
+
+function renderProceduralRulesTable() {
+  const table = document.getElementById("proc-rules-table");
+  if (!activeRecipe) {
+    table.innerHTML =
+      '<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">No active recipe</td></tr>';
+    return;
+  }
+
+  const rules = getProceduralRulesForType(activeRecipe, "monsters");
+  if (rules.templates.length === 0) {
+    table.innerHTML =
+      '<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">No monster templates in recipe whitelist. Add templates below.</td></tr>';
+    return;
+  }
+
+  table.innerHTML = rules.templates
+    .map(
+      (t) => `
+    <tr class="border-b border-gray-800 hover:bg-gray-800/50">
+      <td class="px-4 py-2">${t.templateId}</td>
+      <td class="px-4 py-2 text-center">
+        <input type="number" class="w-16 bg-gray-900 border border-gray-700 rounded text-center text-xs p-1"
+          value="${t.weight}" onchange="updateProcWeight('${t.templateId}', this.value)" min="1" max="100">
+      </td>
+      <td class="px-4 py-2 text-center text-gray-400">${t.weightPercent}%</td>
+      <td class="px-4 py-2 text-right">
+        <button onclick="removeProcTemplate('${t.templateId}')" class="text-red-500 hover:text-white"><i class="fas fa-times"></i></button>
+      </td>
+    </tr>
+  `,
+    )
+    .join("");
+}
+
+function populateAddTemplateDropdown() {
+  const select = document.getElementById("proc-add-template");
+  if (!select) return;
+  const existingIds = new Set(
+    (activeRecipe?.layers?.monsters?.templates || []).map((t) => t.templateId),
+  );
+  select.innerHTML = '<option value="">Select template to add...</option>';
+  templates
+    .filter((t) => !existingIds.has(t.id))
+    .forEach((t) => {
+      select.innerHTML += `<option value="${t.id}">${t.icon || ""} ${t.name}</option>`;
+    });
+}
+
+window.addToProceduralWhitelist = async () => {
+  const templateId = document.getElementById("proc-add-template").value;
+  const weight =
+    parseInt(document.getElementById("proc-add-weight").value) || 10;
+  if (!templateId || !activeRecipe) return;
+
+  activeRecipe = addTemplateToLayer(
+    activeRecipe,
+    "monsters",
+    templateId,
+    weight,
+  );
+  try {
+    await updateRecipe(activeRecipe.id, { layers: activeRecipe.layers });
+    logConsole(
+      `<span class="text-green-400">Added ${templateId} to procedural whitelist (weight: ${weight})</span>`,
+    );
+    renderProceduralRulesTable();
+    populateAddTemplateDropdown();
+  } catch (err) {
+    logConsole(
+      `<span class="text-red-400">Error saving: ${err.message}</span>`,
+    );
+  }
+};
+
+window.removeProcTemplate = async (templateId) => {
+  if (!activeRecipe) return;
+  activeRecipe = removeTemplateFromLayer(activeRecipe, "monsters", templateId);
+  try {
+    await updateRecipe(activeRecipe.id, { layers: activeRecipe.layers });
+    logConsole(
+      `<span class="text-yellow-400">Removed ${templateId} from procedural whitelist</span>`,
+    );
+    renderProceduralRulesTable();
+    populateAddTemplateDropdown();
+  } catch (err) {
+    logConsole(
+      `<span class="text-red-400">Error saving: ${err.message}</span>`,
+    );
+  }
+};
+
+window.updateProcWeight = async (templateId, newWeight) => {
+  if (!activeRecipe) return;
+  activeRecipe = updateTemplateWeight(
+    activeRecipe,
+    "monsters",
+    templateId,
+    parseInt(newWeight) || 1,
+  );
+  try {
+    await updateRecipe(activeRecipe.id, { layers: activeRecipe.layers });
+    renderProceduralRulesTable();
+  } catch (err) {
+    logConsole(
+      `<span class="text-red-400">Error updating weight: ${err.message}</span>`,
+    );
+  }
+};
+
+window.saveProceduralRules = async () => {
+  if (!activeRecipe) return;
+  const density =
+    parseInt(document.getElementById("proc-density").value) || 1000;
+  try {
+    await updateRecipe(activeRecipe.id, {
+      densityRatios: { ...activeRecipe.densityRatios, monster: density },
+      layers: activeRecipe.layers,
+    });
+    activeRecipe.densityRatios.monster = density;
+    logConsole(
+      '<span class="text-green-400">Procedural rules saved to recipe!</span>',
+    );
+  } catch (err) {
+    logConsole(
+      `<span class="text-red-400">Error saving rules: ${err.message}</span>`,
+    );
+  }
+};
+
+// ==================== MANUAL PLACEMENT TAB ====================
+
+function populateManualTemplateDropdown() {
+  const select = document.getElementById("manual-template");
+  if (!select) return;
+  select.innerHTML = '<option value="">Select a monster template...</option>';
+  templates.forEach((t) => {
+    select.innerHTML += `<option value="${t.id}">${t.icon || ""} ${t.name} (HP:${t.hp || "?"} DMG:${t.dmg || t.damage || "?"})</option>`;
+  });
+  select.onchange = () => {
+    const t = templates.find((tp) => tp.id === select.value);
+    const preview = document.getElementById("manual-template-preview");
+    if (t && preview) {
+      preview.innerHTML = `<div class="text-white font-bold">${t.icon || ""} ${t.name}</div>
+        <div class="text-gray-400 mt-1">HP: ${t.hp || "?"} | DMG: ${t.dmg || t.damage || "?"} | DEF: ${t.defense || 0} | XP: ${t.xpReward || t.xp || 0}</div>`;
+    }
+  };
+}
+
+window.placeManualEntity = async () => {
+  const templateId = document.getElementById("manual-template").value;
+  const lat = parseFloat(document.getElementById("manual-lat").value);
+  const lng = parseFloat(document.getElementById("manual-lng").value);
+  const template = templates.find((t) => t.id === templateId);
+
+  if (!templateId || !template) {
+    alert("Please select a template.");
+    return;
+  }
+
+  const entity = createManualEntity(
+    "monster",
+    templateId,
+    {
+      name: template.name,
+      icon: template.icon,
+      hp: template.hp,
+      damage: template.dmg || template.damage,
+      defense: template.defense,
+      xpReward: template.xpReward || template.xp,
+      loot: template.loot || [],
+      level: template.level || 1,
+    },
+    { lat, lng },
+  );
+
+  const validation = validateManualEntity(entity);
+  if (!validation.valid) {
+    alert("Validation failed:\n" + validation.errors.join("\n"));
+    return;
+  }
+
+  try {
+    await saveGeneratedObjects([entity]);
+    logConsole(
+      `<span class="text-green-400">Placed manual monster: ${entity.name} at (${lat}, ${lng})</span>`,
+    );
+    document.getElementById("manual-lat").value = "";
+    document.getElementById("manual-lng").value = "";
+    refreshManualList();
+  } catch (err) {
+    logConsole(
+      `<span class="text-red-400">Error placing entity: ${err.message}</span>`,
+    );
+  }
+};
+
+window.refreshManualList = async () => {
+  const listEl = document.getElementById("manual-objects-list");
+  listEl.innerHTML =
+    '<div class="text-gray-500">Loading manual objects...</div>';
+  try {
+    const { collection, query, where, getDocs } =
+      await import("https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js");
+    const { getDB } = await import("../firebase/firebase-service.js");
+    const db = getDB();
+    const q = query(
+      collection(db, "spawned_objects"),
+      where("type", "==", "monster"),
+      where("isManual", "==", true),
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      listEl.innerHTML =
+        '<div class="text-gray-500">No manual monsters found.</div>';
+      return;
+    }
+    listEl.innerHTML = snap.docs
+      .map((doc) => {
+        const d = doc.data();
+        return `<div class="flex justify-between items-center p-1 hover:bg-gray-800 rounded">
+        <span>${d.icon || "👾"} ${d.name || d.templateId} (${d.lat?.toFixed(4)}, ${d.lng?.toFixed(4)})</span>
+        <span class="text-gray-500 text-[10px]">${doc.id.slice(0, 12)}...</span>
+      </div>`;
+      })
+      .join("");
+  } catch (err) {
+    listEl.innerHTML = `<div class="text-red-400">Error: ${err.message}</div>`;
+  }
+};
+
+// ==================== STATISTICS TAB ====================
+
+window.refreshStatistics = async () => {
+  const procEl = document.getElementById("stat-procedural-total");
+  const manEl = document.getElementById("stat-manual-total");
+  const combEl = document.getElementById("stat-combined-total");
+  const tableEl = document.getElementById("stats-breakdown-table");
+
+  procEl.textContent = "...";
+  manEl.textContent = "...";
+  combEl.textContent = "...";
+
+  try {
+    // Get procedural count from recipe
+    if (!activeRecipe) activeRecipe = await loadActiveRecipe();
+    const rules = getProceduralRulesForType(activeRecipe, "monsters");
+
+    // Get manual objects from Firestore
+    const { collection, query, where, getDocs } =
+      await import("https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js");
+    const { getDB } = await import("../firebase/firebase-service.js");
+    const db = getDB();
+    const q = query(
+      collection(db, "spawned_objects"),
+      where("type", "==", "monster"),
+      where("isManual", "==", true),
+    );
+    const snap = await getDocs(q);
+    const manualObjects = snap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Build procedural placeholder array from recipe rules
+    const proceduralCount = rules.templates.length > 0 ? "~recipe" : 0;
+
+    const stats = buildEntityStatistics([], manualObjects);
+
+    // Display
+    procEl.textContent =
+      rules.templates.length > 0 ? `${rules.templates.length} rules` : "0";
+    manEl.textContent = String(stats.manual.total);
+    combEl.textContent = String(stats.manual.total) + " placed";
+
+    // Breakdown table
+    const allTemplateIds = new Set([
+      ...rules.templates.map((t) => t.templateId),
+      ...Object.keys(stats.manual.byTemplate),
+    ]);
+
+    if (allTemplateIds.size === 0) {
+      tableEl.innerHTML =
+        '<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">No data available</td></tr>';
+      return;
+    }
+
+    tableEl.innerHTML = Array.from(allTemplateIds)
+      .map((tid) => {
+        const procRule = rules.templates.find((t) => t.templateId === tid);
+        const manCount = stats.manual.byTemplate[tid] || 0;
+        const procInfo = procRule ? `${procRule.weightPercent}% weight` : "—";
+        return `<tr class="border-b border-gray-800">
+        <td class="px-4 py-2">${tid}</td>
+        <td class="px-4 py-2 text-center text-blue-400">${procInfo}</td>
+        <td class="px-4 py-2 text-center text-green-400">${manCount}</td>
+        <td class="px-4 py-2 text-center text-gray-300">${manCount}${procRule ? " + proc" : ""}</td>
+      </tr>`;
+      })
+      .join("");
+  } catch (err) {
+    procEl.textContent = "Err";
+    manEl.textContent = "Err";
+    combEl.textContent = "Err";
+    tableEl.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-400">${err.message}</td></tr>`;
+  }
+};
