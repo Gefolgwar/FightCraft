@@ -603,6 +603,15 @@
         </div>
 
         <!-- Scripts -->
+
+        <!-- Non-module: global functions needed by inline onclick handlers before module loads -->
+        <script>
+            function toggleConsole() {
+                const panel = document.getElementById("console-panel");
+                if (panel) panel.classList.toggle("hidden");
+            }
+        </script>
+
         <script type="module">
             import {
                 initFirebase,
@@ -1566,11 +1575,6 @@
                 }
             }
 
-            window.toggleConsole = () => {
-                const panel = document.getElementById("console-panel");
-                panel.classList.toggle("hidden");
-            };
-
             function logConsole(msg) {
                 const con = document.getElementById("console-log");
                 if (!con) return;
@@ -1591,7 +1595,7 @@
                 if (window._initProceduralMap) {
                     window
                         ._initProceduralMap("map", {
-                            onLog: window._logConsole,
+                            onLog: logConsole,
                         })
                         .then((proceduralMap) => {
                             map = proceduralMap;
