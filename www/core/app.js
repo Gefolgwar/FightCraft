@@ -52,6 +52,7 @@ import {
 } from "../gameplay/monsters.js";
 import { initCharacterSelection } from "../auth-ui/character-selection.js";
 import "../gameplay/combat.js"; // Combat system (exports to window)
+import { mergeProceduralAndManual } from "../gameplay/world-merge.js";
 
 window.logout = logout;
 
@@ -311,10 +312,20 @@ async function init() {
       getTemplates("castle"),
     ]);
 
-    // Re-render monsters + POIs from freshly loaded Firestore data
+    // Seed + Overrides: merge procedural base with manual admin placements
     if (loadedObjects && loadedObjects.length > 0) {
-      const freshMonsters = loadedObjects.filter((o) => o.type === "monster");
-      const freshPOIs = loadedObjects.filter(
+      const manualObjects = loadedObjects.filter((o) => o.isManual === true);
+      const proceduralObjects = loadedObjects.filter((o) => !o.isManual);
+      const mergedWorld = mergeProceduralAndManual(
+        proceduralObjects,
+        manualObjects,
+      );
+      console.log(
+        `🌍 Seed+Overrides merge: ${proceduralObjects.length} procedural + ${manualObjects.length} manual → ${mergedWorld.length} total`,
+      );
+
+      const freshMonsters = mergedWorld.filter((o) => o.type === "monster");
+      const freshPOIs = mergedWorld.filter(
         (o) => o.type === "shop" || o.type === "castle" || o.type === "vault",
       );
       setStaticMonsters(freshMonsters);
@@ -746,11 +757,21 @@ window.startGameWithCharacter = async function (characterId, data) {
     updateProgress("Spawning monsters...", 80);
     localStorage.removeItem(STATIC_MONSTER_KEY);
 
-    // Render world objects from Firestore data (loaded earlier by fetchSpawnedObjectsOnce)
+    // Seed + Overrides: merge procedural base with manual admin placements
     const cachedWorld = await fetchSpawnedObjectsOnce(); // returns instantly from cache
     if (cachedWorld && cachedWorld.length > 0) {
-      const freshMonsters = cachedWorld.filter((o) => o.type === "monster");
-      const freshPOIs = cachedWorld.filter(
+      const manualObjects = cachedWorld.filter((o) => o.isManual === true);
+      const proceduralObjects = cachedWorld.filter((o) => !o.isManual);
+      const mergedWorld = mergeProceduralAndManual(
+        proceduralObjects,
+        manualObjects,
+      );
+      console.log(
+        `🌍 Seed+Overrides merge: ${proceduralObjects.length} procedural + ${manualObjects.length} manual → ${mergedWorld.length} total`,
+      );
+
+      const freshMonsters = mergedWorld.filter((o) => o.type === "monster");
+      const freshPOIs = mergedWorld.filter(
         (o) => o.type === "shop" || o.type === "castle" || o.type === "vault",
       );
       setStaticMonsters(freshMonsters);

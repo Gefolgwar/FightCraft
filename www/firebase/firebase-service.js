@@ -55,6 +55,7 @@ let _cityZonesCache = {}; // {cityId: data}
 let _templatesCache = {}; // {type: [templates]}
 import { showNotification, addEventLog } from "../auth-ui/ui-controller.js";
 import { SyncEngine } from "../gameplay/sync-engine.js";
+import { computeSnapshotStats } from "../gameplay/snapshot-stats.js";
 
 // Configuration from google-services.json
 const firebaseConfig = {
@@ -1953,6 +1954,11 @@ export async function saveWorldSnapshot(snapshotData) {
     const { id: _, ...cleanedData } = snapshotData;
     cleanedData.isActive = false; // Initialize as inactive
 
+    // AC1: Pre-calculate entity stats for instant sidebar rendering (Issue #13)
+    if (cleanedData.objects && Array.isArray(cleanedData.objects)) {
+      cleanedData.stats = computeSnapshotStats(cleanedData.objects);
+    }
+
     // Check for total size (approximate)
     const sizeApprox = JSON.stringify(cleanedData).length;
     console.log(
@@ -2067,12 +2073,11 @@ export async function getWorldSnapshots() {
   }
 }
 
-
 /**
  * Save a world snapshot split into country-based chunks (subcollections).
  * Metadata doc: world_snapshots/{id} (name, seed, config, chunk list — small)
  * Chunk docs:   world_snapshots/{id}/chunks/{countryCode} (objects array — each <1MB)
- * 
+ *
  * @param {Object} metadata - Snapshot metadata (name, seed, zoneConfig, cityId, etc.)
  * @param {Object} objectsByCountry - { 'DE': [...objects], 'US': [...objects], ... }
  * @returns {boolean} success
@@ -2081,31 +2086,47 @@ export async function saveWorldSnapshotChunked(metadata, objectsByCountry) {
   if (!isAdmin()) return false;
   try {
     const { doc, setDoc, collection, serverTimestamp, writeBatch } =
-      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
-    const id = metadata.id || 'snap_' + Date.now();
+    const id = metadata.id || "snap_" + Date.now();
     const countries = Object.keys(objectsByCountry);
-    const totalObjects = Object.values(objectsByCountry).reduce((s, arr) => s + arr.length, 0);
+    const totalObjects = Object.values(objectsByCountry).reduce(
+      (s, arr) => s + arr.length,
+      0,
+    );
 
     // 1. Save metadata document (no objects — lightweight)
     const metaDoc = {
-      name: metadata.name || 'World Snapshot',
-      cityId: metadata.cityId || 'global',
-      type: metadata.type || 'mixed',
+      name: metadata.name || "World Snapshot",
+      cityId: metadata.cityId || "global",
+      type: metadata.type || "mixed",
       seed: metadata.seed || Math.floor(Math.random() * 2147483647),
       zoneConfig: metadata.zoneConfig || null,
       isActive: false,
       chunked: true,
       chunkCount: countries.length,
       totalObjects: totalObjects,
+      // AC1: Pre-calculate entity stats for instant sidebar rendering (Issue #13)
+      stats: computeSnapshotStats(Object.values(objectsByCountry).flat()),
       countries: countries,
       createdAt: serverTimestamp(),
-      createdBy: currentUser && currentUser.email ? currentUser.email : 'admin@fightcraft.com',
+      createdBy:
+        currentUser && currentUser.email
+          ? currentUser.email
+          : "admin@fightcraft.com",
     };
 
-    const metaRef = doc(db, 'world_snapshots', id);
+    const metaRef = doc(db, "world_snapshots", id);
     await setDoc(metaRef, metaDoc);
-    console.log('📄 Metadata saved: ' + id + ' (' + countries.length + ' chunks, ' + totalObjects + ' objects)');
+    console.log(
+      "📄 Metadata saved: " +
+        id +
+        " (" +
+        countries.length +
+        " chunks, " +
+        totalObjects +
+        " objects)",
+    );
 
     // 2. Save chunks in batches (Firestore batch limit: 500 ops)
     let batchOps = 0;
@@ -2114,7 +2135,10 @@ export async function saveWorldSnapshotChunked(metadata, objectsByCountry) {
 
     for (const countryCode of countries) {
       const objects = objectsByCountry[countryCode];
-      const chunkRef = doc(collection(db, 'world_snapshots', id, 'chunks'), countryCode);
+      const chunkRef = doc(
+        collection(db, "world_snapshots", id, "chunks"),
+        countryCode,
+      );
 
       batch.set(chunkRef, {
         country: countryCode,
@@ -2127,7 +2151,9 @@ export async function saveWorldSnapshotChunked(metadata, objectsByCountry) {
       if (batchOps >= 450) {
         await batch.commit();
         batchCount++;
-        console.log('📦 Batch ' + batchCount + ' committed (' + batchOps + ' chunks)');
+        console.log(
+          "📦 Batch " + batchCount + " committed (" + batchOps + " chunks)",
+        );
         batch = writeBatch(db);
         batchOps = 0;
       }
@@ -2137,15 +2163,28 @@ export async function saveWorldSnapshotChunked(metadata, objectsByCountry) {
     if (batchOps > 0) {
       await batch.commit();
       batchCount++;
-      console.log('📦 Final batch committed (' + batchOps + ' chunks)');
+      console.log("📦 Final batch committed (" + batchOps + " chunks)");
     }
 
-    trackUsage('write', '[admin] [chunked snapshot: ' + id + ']', 1 + countries.length, 'world_snapshots/' + id);
-    console.log('✅ Chunked snapshot saved: ' + id + ' (' + batchCount + ' batches, ' + countries.length + ' country chunks)');
-    localStorage.removeItem('admin_snapshots_list');
+    trackUsage(
+      "write",
+      "[admin] [chunked snapshot: " + id + "]",
+      1 + countries.length,
+      "world_snapshots/" + id,
+    );
+    console.log(
+      "✅ Chunked snapshot saved: " +
+        id +
+        " (" +
+        batchCount +
+        " batches, " +
+        countries.length +
+        " country chunks)",
+    );
+    localStorage.removeItem("admin_snapshots_list");
     return true;
   } catch (e) {
-    console.error('Chunked snapshot save error:', e);
+    console.error("Chunked snapshot save error:", e);
     return false;
   }
 }
@@ -2158,24 +2197,35 @@ export async function saveWorldSnapshotChunked(metadata, objectsByCountry) {
 export async function loadSnapshotChunks(snapshotId) {
   try {
     const { collection, getDocs } =
-      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
-    const chunksRef = collection(db, 'world_snapshots', snapshotId, 'chunks');
+    const chunksRef = collection(db, "world_snapshots", snapshotId, "chunks");
     const snap = await getDocs(chunksRef);
-    trackUsage('read', '[admin] [load chunks: ' + snapshotId + ']', snap.size, 'world_snapshots/' + snapshotId + '/chunks');
+    trackUsage(
+      "read",
+      "[admin] [load chunks: " + snapshotId + "]",
+      snap.size,
+      "world_snapshots/" + snapshotId + "/chunks",
+    );
 
     const allObjects = [];
-    snap.docs.forEach(d => {
+    snap.docs.forEach((d) => {
       const data = d.data();
       if (data.objects && Array.isArray(data.objects)) {
         allObjects.push(...data.objects);
       }
     });
 
-    console.log('📥 Loaded ' + allObjects.length + ' objects from ' + snap.size + ' chunks');
+    console.log(
+      "📥 Loaded " +
+        allObjects.length +
+        " objects from " +
+        snap.size +
+        " chunks",
+    );
     return allObjects;
   } catch (e) {
-    console.error('Error loading snapshot chunks:', e);
+    console.error("Error loading snapshot chunks:", e);
     return [];
   }
 }
@@ -2189,22 +2239,35 @@ export async function loadSnapshotChunks(snapshotId) {
 export async function loadSnapshotChunkByCountry(snapshotId, countryCode) {
   try {
     const { doc, getDoc } =
-      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
-    const chunkRef = doc(db, 'world_snapshots', snapshotId, 'chunks', countryCode);
+    const chunkRef = doc(
+      db,
+      "world_snapshots",
+      snapshotId,
+      "chunks",
+      countryCode,
+    );
     const snap = await getDoc(chunkRef);
-    trackUsage('read', '[player] [chunk: ' + countryCode + ']', 1, 'world_snapshots/' + snapshotId + '/chunks/' + countryCode);
+    trackUsage(
+      "read",
+      "[player] [chunk: " + countryCode + "]",
+      1,
+      "world_snapshots/" + snapshotId + "/chunks/" + countryCode,
+    );
 
     if (!snap.exists()) {
-      console.log('No chunk found for country: ' + countryCode);
+      console.log("No chunk found for country: " + countryCode);
       return [];
     }
 
     const data = snap.data();
-    console.log('🌍 Loaded ' + (data.count || 0) + ' objects for ' + countryCode);
+    console.log(
+      "🌍 Loaded " + (data.count || 0) + " objects for " + countryCode,
+    );
     return data.objects || [];
   } catch (e) {
-    console.error('Error loading country chunk:', e);
+    console.error("Error loading country chunk:", e);
     return [];
   }
 }
