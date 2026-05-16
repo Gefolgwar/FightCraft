@@ -40,3 +40,19 @@ firebase-key.json
 **/.env
 !**/.env.example
 .playwright-profile/
+.playwright-mcp/
+
+# Graphify cache (regenerable)
+graphify-out/cache/
+graphify-out/.graphify_old.json
+graphify-out/.graphify_agent_calls.json
+graphify-out/.chunk_manifest.json
+
+# Temp screenshots & scripts
+*.png
+!www/assets/**/*.png
+nul
+extract.js
+get_*.py
+test_*.js
+!scripts/tests/**/*.js
