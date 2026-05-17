@@ -13,6 +13,8 @@ import {
   initFirebase,
 } from "../firebase/firebase-service.js";
 import { EntityConfigManager } from "./admin-entity-config.js";
+import { latLngToH3, ensureH3Loaded } from "../core/h3-spatial.js";
+import { validateCitadelCollisions } from "./admin-validators.js";
 
 let templates = [];
 let currentEditId = null;
@@ -23,6 +25,7 @@ const configManager = new EntityConfigManager("citadels", {
   accentColor: "orange",
   tableId: "config-table-body",
 });
+window.configManager = configManager;
 
 // Initialization
 document.addEventListener("DOMContentLoaded", async () => {
@@ -48,10 +51,14 @@ async function loadTemplates() {
     '<div class="text-center text-gray-500 text-xs mt-4">Loading...</div>';
 
   try {
-    // Citadels are stored as type 'castle' — filter by citadel indicators
+    // Citadels were historically stored as type 'castle', new ones are 'citadel'
     const allCastles = await getTemplates("castle");
-    templates = allCastles.filter(
+    const allCitadels = await getTemplates("citadel");
+    const combined = [...allCastles, ...allCitadels];
+
+    templates = combined.filter(
       (t) =>
+        t.type === "citadel" ||
         t.icon === "🏯" ||
         (t.name && t.name.includes("Citadel")) ||
         (t.id && t.id.includes("citadel")),
@@ -80,7 +87,7 @@ window.createDefaultCitadelTemplates = async function () {
       icon: "🏯",
       osmTag:
         "historic~castle|monument|memorial; tourism=museum; amenity~townhall|library|university|bus_station|arts_centre|place_of_worship; railway~station|subway_entrance; leisure~park|square|viewpoint|stadium",
-      type: "castle",
+      type: "citadel",
       level: 15,
       hp: 2000,
     },
@@ -225,7 +232,7 @@ window.saveTemplateForm = async () => {
     osmTag: document.getElementById("tpl-osm").value,
     level: parseInt(document.getElementById("tpl-level").value) || 10,
     hp: 2000,
-    type: "castle",
+    type: "citadel",
   };
 
   if (currentEditId) template.id = currentEditId;
@@ -309,7 +316,7 @@ function renderConfigTable() {
         : "generated";
       const showCoords = entryType === "manual";
 
-      return `<tr class="${colorClass}">
+      return `<tr id="row-${entry.templateId}" class="${colorClass}">
           <td class="px-3 py-2">${icon} ${name}</td>
           <td class="px-3 py-2 text-center">
             <input type="number" class="w-16 bg-gray-900 border border-gray-700 rounded text-center text-xs p-1"
@@ -479,9 +486,29 @@ window.onSnapshotSelected = async () => {
         objects = await loadSnapshotChunks(snapshotId);
       }
 
+      // Seed-based snapshot: no stored objects, generate procedurally
+      if (objects.length === 0 && snapshot?.seed) {
+        logConsole(
+          `🌱 Seed-based snapshot (seed: ${snapshot.seed}). Generating objects from procedural engine...`,
+        );
+        try {
+          const { generateWorldFromSeed } =
+            await import("../map/procedural-map-ui.js");
+          if (typeof generateWorldFromSeed === "function") {
+            objects = await generateWorldFromSeed(snapshot.seed);
+            logConsole(`🌱 Generated ${objects.length} objects from seed.`);
+          }
+        } catch (genErr) {
+          logConsole(
+            `ℹ️ Seed-based snapshot. Add citadel templates below and set counts.`,
+          );
+        }
+      }
+
       // Filter citadel objects
       const citadelObjects = objects.filter(
         (o) =>
+          o.type === "citadel" ||
           o.icon === "🏯" ||
           (o.name && o.name.includes("Citadel")) ||
           (o.templateId && o.templateId.includes("citadel")),
@@ -561,6 +588,31 @@ window.applyConfigChanges = async () => {
     return;
   }
 
+  // Pre-save validation: Check for manual citadel collisions
+  await ensureH3Loaded();
+  const collisions = validateCitadelCollisions(configManager.workingConfig, { latLngToH3 });
+
+  // Clear any previous error highlights
+  configManager.workingConfig.forEach(entry => {
+    const row = document.getElementById(`row-${entry.templateId}`);
+    if (row) {
+      row.classList.remove("border-red-500", "bg-red-900/40", "border-2");
+    }
+  });
+
+  if (collisions.length > 0) {
+    logConsole(`❌ Validation Failed: Multiple manual citadels placed in the same H3 zone. Resolution required.`);
+    alert("Save aborted! Multiple manual citadels share the same zone. See highlighted rows.");
+
+    collisions.forEach(templateId => {
+      const row = document.getElementById(`row-${templateId}`);
+      if (row) {
+        row.classList.add("border-red-500", "bg-red-900/40", "border-2");
+      }
+    });
+    return;
+  }
+
   const btn = document.getElementById("btn-apply-changes");
   const origText = btn.innerHTML;
   btn.disabled = true;
@@ -618,6 +670,7 @@ function updateSnapshotStats(objects) {
 
   for (const o of objects) {
     const isCitadel =
+      o.type === "citadel" ||
       o.icon === "🏯" ||
       (o.name && o.name.includes("Citadel")) ||
       (o.templateId && o.templateId.includes("citadel"));
