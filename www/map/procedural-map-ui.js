@@ -203,6 +203,27 @@ export function toggleVisibility(layerName, isVisible) {
   }
 }
 
+export async function generateWorldFromSeed(seed) {
+  if (cities.length === 0) {
+    await loadDependencies();
+  }
+
+  const recipe = { ...currentRecipe, seed };
+
+  const citiesWithBoundaries = cities.filter(
+    (c) => cityBoundaries[c.id] && cityBoundaries[c.id].boundary,
+  );
+
+  const generatedCitadels = generateAllCitadels(
+    citiesWithBoundaries,
+    recipe,
+    cityBoundaries,
+    cityPOIs,
+  );
+
+  return generatedCitadels;
+}
+
 export async function generateWorld() {
   invalidateCitadelCache();
   clearCellCityCache();
