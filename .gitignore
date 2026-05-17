@@ -56,3 +56,4 @@ extract.js
 get_*.py
 test_*.js
 !scripts/tests/**/*.js
+.claude/settings.local.json
