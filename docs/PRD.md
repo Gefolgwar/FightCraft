@@ -122,12 +122,12 @@ FightCraft is a geolocation RPG delivered as an HTML5 web app (wrapped via Capac
 
 ### World Sync & Spawning
 
-76. As a player, I want monsters, shops, and castles spawned from Firestore and synced per-city, so that the world is persistent and shared.
+76. As a player, I want monsters, shops, castles, vaults, and citadels spawned from Firestore templates and synced per-city, so that the world is persistent and shared.
 77. As a player, I want the world to re-sync when I move to a different city zone, so that content is location-relevant.
 78. As a player, I want shops where I can buy and sell items, so that gold has economic utility.
 79. As a player, I want monsters spawned on a grid (500m spacing) around city anchors, so that distribution is predictable.
-80. As an admin, I want Firestore templates for monsters, shops, and castles, so that world content is data-driven.
-81. As an admin, I want admin pages (Monsters, Shops, Castles, Leveling Table) to manage world generation, so that content can be tuned without code changes.
+80. As an admin, I want Firestore templates for ALL map entity types (monsters, shops, vaults, castles, citadels), so that world content is entirely data-driven. No map objects may exist outside of the template system.
+81. As an admin, I want admin pages (Monsters, Shops, Vaults, Castles, Citadels, Leveling Table) to manage world generation, so that content can be tuned without code changes. Each page has a sidebar with entity templates; the map is generated exclusively from these templates and edited only through them.
 
 ### Quests
 
