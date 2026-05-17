@@ -7,6 +7,7 @@ import {
 } from "../core/procedural-world-renderer.js";
 import { generateZonesForCity, zonesToGeoJSON } from "../core/zone-engine.js";
 import { clearCellCityCache } from "../core/procedural-engine-v2.js";
+import { ensureH3Loaded } from "../core/h3-spatial.js";
 
 // Internal map state
 let map;
@@ -204,6 +205,8 @@ export function toggleVisibility(layerName, isVisible) {
 }
 
 export async function generateWorldFromSeed(seed) {
+  await ensureH3Loaded();
+
   if (cities.length === 0) {
     await loadDependencies();
   }
