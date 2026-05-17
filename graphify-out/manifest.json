@@ -1,22 +1,1266 @@
 {
+  "/mnt/d/Project/FightCraft/temp_script.js": {
+    "mtime": 1778266924.886324,
+    "hash": "a0abe6ba60b35142c2df55554400e86f"
+  },
+  "/mnt/d/Project/FightCraft/test-page.js": {
+    "mtime": 1778266897.706779,
+    "hash": "be7f72912245c222be4c089c04debf6d"
+  },
+  "/mnt/d/Project/FightCraft/android/build.gradle": {
+    "mtime": 1775407859.8830843,
+    "hash": "b0144187c6f272c0a04342f1d6735cba"
+  },
+  "/mnt/d/Project/FightCraft/android/capacitor.settings.gradle": {
+    "mtime": 1775414145.4215307,
+    "hash": "eada587f4a488e9702c21ab180b89403"
+  },
+  "/mnt/d/Project/FightCraft/android/gradlew": {
+    "mtime": 1723050380.0,
+    "hash": "67314203057d87c0de17d1c7c44a9628"
+  },
+  "/mnt/d/Project/FightCraft/android/settings.gradle": {
+    "mtime": 1775414123.9763227,
+    "hash": "d9d535027e811ca9263e62eeda950f78"
+  },
+  "/mnt/d/Project/FightCraft/android/variables.gradle": {
+    "mtime": 1775407857.865702,
+    "hash": "745f8c2a07ace32db0d8c99a4ce19e15"
+  },
+  "/mnt/d/Project/FightCraft/android/app/build.gradle": {
+    "mtime": 1769537930.6825588,
+    "hash": "5a06efa0366875128dbffe5e816adf9e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/capacitor.build.gradle": {
+    "mtime": 1775414145.4255626,
+    "hash": "15c05e6a1525228845e2738350c5ebc6"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java": {
+    "mtime": 1723050380.0,
+    "hash": "fbaf7cc870c663eb52dcf218531c439d"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/backup-firestore.js": {
+    "mtime": 1769597861.0716844,
+    "hash": "9729ac142a7d0e9bb1f7ccd2ca494d65"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/capacitor.js": {
+    "mtime": 1769542026.9484344,
+    "hash": "4265d8002d209241ba628e9b7b6ff054"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/cleanup-duplicates.js": {
+    "mtime": 1769686705.174654,
+    "hash": "d7958125270a7f6c164199dce69abc9c"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/cleanup-testplayer103.js": {
+    "mtime": 1769677196.4247456,
+    "hash": "6a212271cc24233530f3970d9a76e16e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/cordova.js": {
+    "mtime": 1775414145.3709974,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/cordova_plugins.js": {
+    "mtime": 1775414145.3715034,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/deep-nuke.js": {
+    "mtime": 1769681239.209092,
+    "hash": "5752fa6c63fdb8a624a54e3f9c5bac7a"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/diagnose-multiplayer.js": {
+    "mtime": 1769556692.9079492,
+    "hash": "445e7c1a4fea76365303d34eadc8acf8"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/emergency-cleanup.js": {
+    "mtime": 1769677392.4553995,
+    "hash": "f6e46439eb4a85bf975b2a7f522ad42e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/global-cleanup.js": {
+    "mtime": 1769680691.1924417,
+    "hash": "16cf296d7d0ac9f82904856e882ac604"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/nuke-all-others.js": {
+    "mtime": 1769681641.5536346,
+    "hash": "47f42d8ecf28be7cd388667ece1e3028"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/restore-firestore.js": {
+    "mtime": 1769597882.4824064,
+    "hash": "de40bb2d3295342f42883d136ba38195"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/test-character-selection.js": {
+    "mtime": 1769599746.807342,
+    "hash": "cb859c67ae73541e05f5cbf3a880dd52"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/admin-bundler.js": {
+    "mtime": 1770200632.3354619,
+    "hash": "4a156d7eebdf9e6fd7b2403e2b9f1d86"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/admin-castles.js": {
+    "mtime": 1770200632.9895208,
+    "hash": "1fdc206e599bde6c772e8bb5a7d11cd0"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/admin-citadels.js": {
+    "mtime": 1770200632.825568,
+    "hash": "8ef921102bcf66c165393b70f6b5e310"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/admin-leveling.js": {
+    "mtime": 1770200632.4197948,
+    "hash": "b08df2e9c4eca754de32744413563bdc"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/admin-monsters.js": {
+    "mtime": 1770200633.302569,
+    "hash": "8466c7b64f8239659df8486899a358f1"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/admin-shops.js": {
+    "mtime": 1770200632.6849518,
+    "hash": "6b9d2d1eefca34573f528790a2fc5d7a"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/admin-vaults.js": {
+    "mtime": 1770200632.5193458,
+    "hash": "a343d680a56e07808de8d5eaab80001a"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/app.js": {
+    "mtime": 1775406060.4869225,
+    "hash": "9b0cfa0c633d635a86beedf2d8edc755"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/battle-logic.js": {
+    "mtime": 1770199902.8349485,
+    "hash": "55ba9843da5a6fd61042bdd9cb9a43be"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/bridge.js": {
+    "mtime": 1770199902.8374531,
+    "hash": "36c83abef2e7ac2f596759b646618da0"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/character-selection.js": {
+    "mtime": 1770243805.5511491,
+    "hash": "cf6564d84283e1ec071de5ad15fa4e99"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/combat.js": {
+    "mtime": 1775405322.80777,
+    "hash": "5f9de406ba2cb45f62d30353a56494f9"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/data.js": {
+    "mtime": 1770199902.8670676,
+    "hash": "d51669416be77cae43aea0ec94ea7125"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/db-usage.js": {
+    "mtime": 1770243810.1058316,
+    "hash": "fc2228694e15fa38a8c67a24bc609737"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/diagnostics.js": {
+    "mtime": 1770200632.23851,
+    "hash": "0ab190958476a052eb794565ebc5a5c5"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/districts.js": {
+    "mtime": 1770199902.888237,
+    "hash": "33a1867e5e196b951a77e404cb408079"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/emergency-monitor.js": {
+    "mtime": 1770199902.891775,
+    "hash": "7192311f99edf401529677f9e45da783"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/firebase-monitor.js": {
+    "mtime": 1770199902.8945165,
+    "hash": "59de23374383b244b7786de70c549a78"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/firebase-service.js": {
+    "mtime": 1775406042.9858062,
+    "hash": "3b48db014607a72e0877a9ed9ee1b9cb"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/gameState.js": {
+    "mtime": 1770199902.9873216,
+    "hash": "a16b2ccb351c6d9172134e9f3bc5c0c1"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/generation-service.js": {
+    "mtime": 1770199902.9920273,
+    "hash": "a8f2c9b88ab2693c94747ed3ca196226"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/geometry-utils.js": {
+    "mtime": 1770199902.9956324,
+    "hash": "061ebd6f13f0da39905edd6a51cacead"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/groups.js": {
+    "mtime": 1770199903.0289438,
+    "hash": "ece046c0484c76f2af93e5298ea9faa0"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/kingdom.js": {
+    "mtime": 1770200631.0253897,
+    "hash": "7ab0a57e22af290b544e9f3007e7d222"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/logger.js": {
+    "mtime": 1770199903.0364943,
+    "hash": "4444857a39e666943776f0c0bc5d830d"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/map.js": {
+    "mtime": 1775405982.7155685,
+    "hash": "a6d7beaf2c8f5672f52a92238d1368ab"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/migrate-monsters.js": {
+    "mtime": 1770200631.988772,
+    "hash": "dd17fc80710d908f7f650d8b6541802b"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/monsters.js": {
+    "mtime": 1770200631.1284025,
+    "hash": "866870938c5d80aa7b14a265bae60045"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/overpass-service.js": {
+    "mtime": 1770199903.1092625,
+    "hash": "337e4185e11446950424d1bd2477f6eb"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/poi.js": {
+    "mtime": 1770200633.7194383,
+    "hash": "5411d3c679e85890a07429cfe60b0512"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/pvp.js": {
+    "mtime": 1775405374.1632814,
+    "hash": "c96f8ad0ae3ee5f2b91a666111aac94a"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/repair_firebase.js": {
+    "mtime": 1770199903.1513813,
+    "hash": "7f1df9221e1da2397e95b263ae9df78c"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/restore-char.js": {
+    "mtime": 1770199903.1539106,
+    "hash": "272a8208cc077c1ebbd1c4a3e6fbb835"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/sync-engine.js": {
+    "mtime": 1770201271.118838,
+    "hash": "3321a1d324fd646678301abfcdce1e74"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/territory-service.js": {
+    "mtime": 1770200633.3969953,
+    "hash": "570a0203759be04685621afba50eff26"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/ui-controller.js": {
+    "mtime": 1775403255.593119,
+    "hash": "228e1404cca9347c97feb275861aec94"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/ui-loader.js": {
+    "mtime": 1770199903.3244991,
+    "hash": "111e8eb3d70701c88a012938aa05247a"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/ui.js": {
+    "mtime": 1770240193.213938,
+    "hash": "6acad1931753c40e8eb90dc0c0d8febe"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/js/__test-globals.js": {
+    "mtime": 1770199903.3280554,
+    "hash": "d0629b5a74e857b995f06dfad7f126dc"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/java/com/fightcraft/game/MainActivity.java": {
+    "mtime": 1769110079.8596797,
+    "hash": "2a2ea41db970e509891fa8fff61de91e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java": {
+    "mtime": 1723050380.0,
+    "hash": "e91b4501c14da821682fa5c26a16d616"
+  },
+  "/mnt/d/Project/FightCraft/android/capacitor-cordova-android-plugins/build.gradle": {
+    "mtime": 1775414145.4270804,
+    "hash": "5a522043da5fc6333024de5e59682b6f"
+  },
+  "/mnt/d/Project/FightCraft/android/capacitor-cordova-android-plugins/cordova.variables.gradle": {
+    "mtime": 1775414145.4270804,
+    "hash": "299becb7733b8720b74d289e3cb837f1"
+  },
+  "/mnt/d/Project/FightCraft/scripts/diagnostics/analyze-page.mjs": {
+    "mtime": 1777819916.569106,
+    "hash": "f18b2ea6e87b27bfbf4dc081ca0b4ad5"
+  },
+  "/mnt/d/Project/FightCraft/scripts/diagnostics/diagnose.mjs": {
+    "mtime": 1777822694.0081534,
+    "hash": "42f890048acdcb4397331b331de17a75"
+  },
+  "/mnt/d/Project/FightCraft/scripts/diagnostics/play.mjs": {
+    "mtime": 1777828100.2776887,
+    "hash": "e8363e65beddfa6d5ef135180c97cade"
+  },
+  "/mnt/d/Project/FightCraft/scripts/generators/fetch-city-boundaries.js": {
+    "mtime": 1778972377.7579994,
+    "hash": "4477ba29a4fe4a6997c03cfdb4b6dc3c"
+  },
   "/mnt/d/Project/FightCraft/scripts/generators/fetch-city-pois.js": {
-    "mtime": 1778776433.5134227,
-    "hash": "7aec0d638fcba32f2bea23f6f68da740"
+    "mtime": 1778972377.761506,
+    "hash": "fd00f2e5fcd78dcd2b1d525d3c233492"
+  },
+  "/mnt/d/Project/FightCraft/scripts/generators/generate-cities.js": {
+    "mtime": 1777703598.0458398,
+    "hash": "1c1dd0d06eaf2e3b187cac79ce9b3736"
+  },
+  "/mnt/d/Project/FightCraft/scripts/generators/repair_firebase.js": {
+    "mtime": 1770199903.1513813,
+    "hash": "7f1df9221e1da2397e95b263ae9df78c"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/delete-with-zones.js": {
+    "mtime": 1778275601.4773433,
+    "hash": "f0d24aa8b2b1eab43dc71e381d3d5e4c"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/fix_admin_world.js": {
+    "mtime": 1778187941.274973,
+    "hash": "07e765cc11ac13b10e1d65804948426a"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/fix_admin_world_2.js": {
+    "mtime": 1778187959.3814156,
+    "hash": "2dcfb4497001a1c05c5361c632980e82"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/fix_admin_world_3.js": {
+    "mtime": 1778187992.7682319,
+    "hash": "33f9e6a9d24797053df9476755ffa06f"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/fix_generate_global.js": {
+    "mtime": 1778264698.1387398,
+    "hash": "1d6d5e6494acff59aa03535b801d010a"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/fix_templates_map.js": {
+    "mtime": 1778264706.7476573,
+    "hash": "63d33e3182013c0c5c4d5abc6c873db8"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch-zones.js": {
+    "mtime": 1778972377.796221,
+    "hash": "41a1d27ab510122af33daf2799baefc1"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch.js": {
+    "mtime": 1778046223.5526736,
+    "hash": "7b8d4e1319bdd8d792e35cb44628e213"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_admin_world.js": {
+    "mtime": 1778187927.9600582,
+    "hash": "05eb7b97209abf9454b91dfab5d3f79d"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_alert.js": {
+    "mtime": 1778047008.4238176,
+    "hash": "81f7c0f016c2c88d51eccf3e0eaefa1b"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_auth.js": {
+    "mtime": 1778046719.564713,
+    "hash": "f485a2170c1ee90d04c0d323deb5ec1a"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_debug.js": {
+    "mtime": 1778046701.4011257,
+    "hash": "d4e2d2b85185595c64c4075ea6ecc055"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_error.js": {
+    "mtime": 1778046663.700266,
+    "hash": "940b2337dfc82adf29f9aef6299124f2"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_fb_error.js": {
+    "mtime": 1778046950.1900902,
+    "hash": "be10cf802d42717c6066ba693fe53efb"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_firebase_apply.js": {
+    "mtime": 1778188576.3316932,
+    "hash": "f2b20ec3e76529ace11106b788141df6"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_fix_save.js": {
+    "mtime": 1778047056.629643,
+    "hash": "a7ce4467f9b68ec9bc9ed026a929a882"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_redirect.js": {
+    "mtime": 1778046806.7756681,
+    "hash": "02a8137785752c46b7b5a2ebd043c40b"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_redirect_2.js": {
+    "mtime": 1778046870.239998,
+    "hash": "6a9a4ef79c73fdc3641a38fb2266dbee"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_refresh.js": {
+    "mtime": 1778046303.9448187,
+    "hash": "3041ce9ad47aee7b82bbe6aefcbc56c9"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_sync_engine.js": {
+    "mtime": 1778188628.520026,
+    "hash": "958daa04f56e7edc9a6712f29b379f03"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_templates_map.js": {
+    "mtime": 1778187601.342876,
+    "hash": "7bd1cec9662e3379da41a9477bc1aca0"
+  },
+  "/mnt/d/Project/FightCraft/scripts/patches/patch_territory_service.js": {
+    "mtime": 1778188817.0981889,
+    "hash": "9cf0d27b1f6dfb3e48e7dedaa3d92ad4"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/citadel-collision-test.js": {
+    "mtime": 1779012783.8891325,
+    "hash": "e39e47173bcb32bfe8e7b38a31af0534"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/headful-test.mjs": {
+    "mtime": 1778060246.7678006,
+    "hash": "76d38625803cc8780f5ee2c64608ad19"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/monitor_performance.js": {
+    "mtime": 1778972377.797227,
+    "hash": "f3f7a9060d52433f9e2fb6d34904c90c"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/playwright_test.js": {
+    "mtime": 1778057499.0251553,
+    "hash": "0f24606dc8f44c553251b4424fd9ce09"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/run_playwright_test.mjs": {
+    "mtime": 1778057299.12226,
+    "hash": "0fd745749618bd5162c5930ae501a2de"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/syntax_check.js": {
+    "mtime": 1778046337.049264,
+    "hash": "27b81c70721cc209a475b79a02335d44"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/test-template.js": {
+    "mtime": 1778054324.3076665,
+    "hash": "e9d8cddc3f1fe1f99f1cf5e3a9c00552"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/test-templates.mjs": {
+    "mtime": 1778052923.194393,
+    "hash": "3df3f6cfa4a6c52dc4a1a060f9e3c142"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/test.js": {
+    "mtime": 1778052129.0,
+    "hash": "b9fdedfbd26eab4147143d4418a75630"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/test_logic.js": {
+    "mtime": 1777828099.9932418,
+    "hash": "49b907b5f770d683e906106113fa3c1b"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/test_puppeteer.js": {
+    "mtime": 1777708067.667156,
+    "hash": "85903174244d750d51e324f25910b36a"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/admin-entity-config.test.js": {
+    "mtime": 1778984409.9528224,
+    "hash": "0bec7c55965bb4914aa0bfee846db5b7"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/admin-validators.test.js": {
+    "mtime": 1779011831.7612658,
+    "hash": "ebe90b8110cab71cccc52c7a7daa3307"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/browser-mocks.js": {
+    "mtime": 1776682809.0445845,
+    "hash": "e3290a97cb3e8cfd864f2e4363180c89"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/core-logic.test.js": {
+    "mtime": 1776663253.3469954,
+    "hash": "dd142b9ba421b7dbbea9bfded3b839ba"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/entity-config-generation.test.js": {
+    "mtime": 1778984587.6022081,
+    "hash": "3c0c484477b1d6a990b05c2032975fa5"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/entity-control-center.test.js": {
+    "mtime": 1778972377.7993782,
+    "hash": "fcdf7ee591da50ae8e8ac957a2d1d841"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/integration.test.js": {
+    "mtime": 1776683905.4241252,
+    "hash": "907cf941df62025661b01f5535399760"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/mocks.js": {
+    "mtime": 1776663077.318436,
+    "hash": "bc0af5125cf10fd53db6e756571fb26d"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/procedural-engine-v2.test.js": {
+    "mtime": 1778972377.8487058,
+    "hash": "4fe1de35836a7db77c1a85fb0f7dad62"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/procedural-world-renderer.test.js": {
+    "mtime": 1778972377.8944073,
+    "hash": "1043a38ea6e2023b8cfed805166b3fa7"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/setup.js": {
+    "mtime": 1776663075.320211,
+    "hash": "c2c305d5c1a20121c6df724aaa81d1eb"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/snapshot-recipe.test.js": {
+    "mtime": 1778972377.9104683,
+    "hash": "177eaf8f1e05eb7976c862768e681872"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/snapshot-stats.test.js": {
+    "mtime": 1778972377.9306424,
+    "hash": "d60cd8af78bb5fc90241c023bf04829b"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/vitest.config.js": {
+    "mtime": 1778146686.0685792,
+    "hash": "062d1897951707f7a477c16c5ee0f469"
+  },
+  "/mnt/d/Project/FightCraft/scripts/tests/vitest/world-merge.test.js": {
+    "mtime": 1778972377.9306424,
+    "hash": "29130d5fa464c38e5e8ddb653c99ccc0"
+  },
+  "/mnt/d/Project/FightCraft/www/auth-ui/character-selection.js": {
+    "mtime": 1777823145.997781,
+    "hash": "ba04c6fe02aacc820c06c965eef9d4fb"
+  },
+  "/mnt/d/Project/FightCraft/www/auth-ui/ui-controller.js": {
+    "mtime": 1776963936.1545439,
+    "hash": "aa0e25526c39aa9e47f4b6f33509eac5"
+  },
+  "/mnt/d/Project/FightCraft/www/auth-ui/ui-loader.js": {
+    "mtime": 1776522905.6172109,
+    "hash": "10da6ef85a22d2d5df2f29e5133b0dfb"
+  },
+  "/mnt/d/Project/FightCraft/www/auth-ui/ui.js": {
+    "mtime": 1776519999.5495312,
+    "hash": "87c585ca06e19802d470e85533bd0c32"
+  },
+  "/mnt/d/Project/FightCraft/www/components/admin-guard.js": {
+    "mtime": 1777012150.8073318,
+    "hash": "5247a67b951c09745d1eec6fc26631e6"
+  },
+  "/mnt/d/Project/FightCraft/www/components/admin-header.js": {
+    "mtime": 1777012158.063729,
+    "hash": "b7aaba84fc31780ee6300c9436ca49e3"
+  },
+  "/mnt/d/Project/FightCraft/www/core/app.js": {
+    "mtime": 1778972377.9582133,
+    "hash": "964426eb565d6f43163c13e1cd72e8f6"
+  },
+  "/mnt/d/Project/FightCraft/www/core/bridge.js": {
+    "mtime": 1776522685.3181534,
+    "hash": "4055bf19e0867ee8930adb2743f9e359"
+  },
+  "/mnt/d/Project/FightCraft/www/core/capacitor.js": {
+    "mtime": 1769542026.9484344,
+    "hash": "4265d8002d209241ba628e9b7b6ff054"
+  },
+  "/mnt/d/Project/FightCraft/www/core/diagnostics.js": {
+    "mtime": 1776519999.5249252,
+    "hash": "7dbdc63e384bc1472e37c11a18479733"
+  },
+  "/mnt/d/Project/FightCraft/www/core/discovery-service.js": {
+    "mtime": 1777222070.808588,
+    "hash": "90f01c77c028610d9531268dd3cc9523"
+  },
+  "/mnt/d/Project/FightCraft/www/core/gameState.js": {
+    "mtime": 1776520067.6538825,
+    "hash": "d99fabe7cde882a82b498655c6217b8e"
+  },
+  "/mnt/d/Project/FightCraft/www/core/geometry-utils.js": {
+    "mtime": 1777206559.6234279,
+    "hash": "2cb2a2bf257b33fbe006be07db5975bb"
+  },
+  "/mnt/d/Project/FightCraft/www/core/h3-spatial.js": {
+    "mtime": 1778972377.969242,
+    "hash": "e22f491ba8cf3f4502b766b1d6c90063"
+  },
+  "/mnt/d/Project/FightCraft/www/core/h3-territory.js": {
+    "mtime": 1777225850.8649025,
+    "hash": "6f141cced7d02c6f8d9c60f33603db1d"
+  },
+  "/mnt/d/Project/FightCraft/www/core/logger.js": {
+    "mtime": 1777240856.2923224,
+    "hash": "80da87d5ceb87799ca8eaa583352e963"
+  },
+  "/mnt/d/Project/FightCraft/www/core/procedural-engine-v2.js": {
+    "mtime": 1778972377.969242,
+    "hash": "f1d819727cfc1e4ade1ce624a5da08c9"
+  },
+  "/mnt/d/Project/FightCraft/www/core/procedural-engine.js": {
+    "mtime": 1777215607.0181105,
+    "hash": "909b115ccec7d36c840cae9758bbd438"
+  },
+  "/mnt/d/Project/FightCraft/www/core/procedural-world-renderer.js": {
+    "mtime": 1778972377.969242,
+    "hash": "c917c8db510d8806304262760f36f4de"
+  },
+  "/mnt/d/Project/FightCraft/www/core/random.js": {
+    "mtime": 1778187584.1009057,
+    "hash": "68c537d3195c04b774d88c232f18eec4"
+  },
+  "/mnt/d/Project/FightCraft/www/core/territory-math.js": {
+    "mtime": 1777222434.6231468,
+    "hash": "0386ca30cc90a923e7c0e282a0afb44f"
   },
   "/mnt/d/Project/FightCraft/www/core/zone-engine.js": {
-    "mtime": 1778775273.724517,
-    "hash": "7782dfd4b9831b2bd5aeeb22b8218477"
+    "mtime": 1778972377.987288,
+    "hash": "b3ed2595cd2087b911cf89d261bd3ace"
+  },
+  "/mnt/d/Project/FightCraft/www/firebase/db-usage.js": {
+    "mtime": 1776522685.4869316,
+    "hash": "3616a92c67af03e0f2ebbdbab32e0319"
+  },
+  "/mnt/d/Project/FightCraft/www/firebase/emergency-monitor.js": {
+    "mtime": 1770199902.891775,
+    "hash": "7192311f99edf401529677f9e45da783"
+  },
+  "/mnt/d/Project/FightCraft/www/firebase/entity-config-generator.js": {
+    "mtime": 1778984658.8221247,
+    "hash": "851a267afd122a685fb6ef89665a4343"
+  },
+  "/mnt/d/Project/FightCraft/www/firebase/firebase-monitor.js": {
+    "mtime": 1770199902.8945165,
+    "hash": "59de23374383b244b7786de70c549a78"
+  },
+  "/mnt/d/Project/FightCraft/www/firebase/firebase-service.js": {
+    "mtime": 1778972378.0224352,
+    "hash": "57cfb9fafb5c42a6e11c9d0ed6207206"
+  },
+  "/mnt/d/Project/FightCraft/www/firebase/snapshot-service.js": {
+    "mtime": 1778984717.658,
+    "hash": "c238331b925785c94c9dd0b8e1b49dda"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/battle-logic.js": {
+    "mtime": 1776520069.665086,
+    "hash": "f20de97f52544c156fc2238339e4563d"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/combat.js": {
+    "mtime": 1776522685.3505967,
+    "hash": "1268646695c75f03f4eb091e365889a2"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/data.js": {
+    "mtime": 1778351681.276838,
+    "hash": "12790c15563ab5971b4821434b857d68"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/defeated-state-manager.js": {
+    "mtime": 1778972378.0289428,
+    "hash": "2f420f1743bb1689d539b9f485e67562"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/entity-control-center.js": {
+    "mtime": 1778972378.0364816,
+    "hash": "4cbabc67274b429a8cde4eb671b056ad"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/generation-service.js": {
+    "mtime": 1770199902.9920273,
+    "hash": "a8f2c9b88ab2693c94747ed3ca196226"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/groups.js": {
+    "mtime": 1776974890.5415072,
+    "hash": "741add997bbb8fdcb417b9273a189cce"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/monsters.js": {
+    "mtime": 1777206152.5611017,
+    "hash": "c4cbb4c219600120c3d030590c141d28"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/procedural-world-client.js": {
+    "mtime": 1778972378.0705917,
+    "hash": "0056cd113e2c13c34d5efd3189fa1c89"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/pvp.js": {
+    "mtime": 1776972571.8932812,
+    "hash": "fd76b1c9c52f16ce33ef11fa2324b759"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/snapshot-recipe.js": {
+    "mtime": 1778972378.1092331,
+    "hash": "62c00b3b5eaedcc4fe1ef08ff520dc4d"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/snapshot-stats.js": {
+    "mtime": 1778972378.1092331,
+    "hash": "cddcdc9f1b8132619af4ffbd4f6b661e"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/sync-engine.js": {
+    "mtime": 1778188628.5628352,
+    "hash": "4cd9fb59e09033abee7a9ab85ae1181f"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/world-cities-loader.js": {
+    "mtime": 1778972378.1227763,
+    "hash": "5f68c37279ec46e7b4b77f6a0cab222d"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/world-merge.js": {
+    "mtime": 1778972378.1227763,
+    "hash": "74787bb1c220c6cef03b6898a9ee369d"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/world_cities.js": {
+    "mtime": 1777703598.262939,
+    "hash": "0654bc7bbe021a2840603710d05dc354"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/zone-generator.js": {
+    "mtime": 1777236171.2807727,
+    "hash": "06f2e55642a6001fbd2547dbe974ba75"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-bundler.js": {
+    "mtime": 1776519999.5547216,
+    "hash": "ea236195aea7fc68aa9d9fae4af83535"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-castles.js": {
+    "mtime": 1779006142.8814118,
+    "hash": "49554a676f79335a7c9ca2e1f130a90e"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-citadel-generator.js": {
+    "mtime": 1777670348.0254047,
+    "hash": "f6c05e19ecb60db7b2d857290c46e0a9"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-citadels.js": {
+    "mtime": 1779012088.079103,
+    "hash": "64fa0ff08a19029c0e57369201ad2616"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-core.js": {
+    "mtime": 1778056403.9519286,
+    "hash": "fb4788bf9c17bbc95644d5694a5eb073"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-entity-config.js": {
+    "mtime": 1778986173.431013,
+    "hash": "f6d2787fa41206a94d55b5892dac6189"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-leveling.js": {
+    "mtime": 1777012571.597227,
+    "hash": "99f6db779a41cf35be3bef24b1ecf82e"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-monsters.js": {
+    "mtime": 1779006135.4682243,
+    "hash": "92843b45f700a637c2e0d20c0d21f1c8"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-recipe-adapter.js": {
+    "mtime": 1778972382.5676134,
+    "hash": "8053d9fcd98dd232445eeed739218a44"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-shops.js": {
+    "mtime": 1779006141.763519,
+    "hash": "20d927ab288d2baf7a6cd7fb7a072343"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-validators.js": {
+    "mtime": 1779011831.490731,
+    "hash": "f3a877fb86098c09261d31492c5a5ff9"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-vaults.js": {
+    "mtime": 1779006142.0873194,
+    "hash": "8f389bb8f82f39831d58e864911930f0"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin-world.js": {
+    "mtime": 1778972382.9161298,
+    "hash": "075fe00b8c1995aa4581ab655da457ef"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/backup-firestore.js": {
+    "mtime": 1769597861.0716844,
+    "hash": "9729ac142a7d0e9bb1f7ccd2ca494d65"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/cleanup-duplicates.js": {
+    "mtime": 1769686705.174654,
+    "hash": "d7958125270a7f6c164199dce69abc9c"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/cleanup-testplayer103.js": {
+    "mtime": 1769677196.4247456,
+    "hash": "6a212271cc24233530f3970d9a76e16e"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/deep-nuke.js": {
+    "mtime": 1769681239.209092,
+    "hash": "5752fa6c63fdb8a624a54e3f9c5bac7a"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/diagnose-multiplayer.js": {
+    "mtime": 1769556692.9079492,
+    "hash": "445e7c1a4fea76365303d34eadc8acf8"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/emergency-cleanup.js": {
+    "mtime": 1769677392.4553995,
+    "hash": "f6e46439eb4a85bf975b2a7f522ad42e"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/global-cleanup.js": {
+    "mtime": 1769680691.1924417,
+    "hash": "16cf296d7d0ac9f82904856e882ac604"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/local-snapshots.js": {
+    "mtime": 1778972382.9970052,
+    "hash": "c975b3ff906e407a51582b91dedb7502"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/migrate-monsters-script.js": {
+    "mtime": 1776519999.5604942,
+    "hash": "364351538664db1265fd4261c10b194c"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/nuke-all-others.js": {
+    "mtime": 1769681641.5536346,
+    "hash": "47f42d8ecf28be7cd388667ece1e3028"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/restore-char.js": {
+    "mtime": 1776519999.5613525,
+    "hash": "bdeef128963b3cba27124ca6885c14d7"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/restore-firestore.js": {
+    "mtime": 1769597882.4824064,
+    "hash": "de40bb2d3295342f42883d136ba38195"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/template-bulk-actions.js": {
+    "mtime": 1777013280.8620682,
+    "hash": "fc067a0cf84918d8eb9002f9838395ba"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/test-character-selection.js": {
+    "mtime": 1769599746.807342,
+    "hash": "cb859c67ae73541e05f5cbf3a880dd52"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/__test-globals.js": {
+    "mtime": 1770199903.3280554,
+    "hash": "d0629b5a74e857b995f06dfad7f126dc"
+  },
+  "/mnt/d/Project/FightCraft/www/map/canvas-renderer.js": {
+    "mtime": 1777238872.1825497,
+    "hash": "cef9d2b4a9e22f03f5a9f4fb120807fd"
+  },
+  "/mnt/d/Project/FightCraft/www/map/districts.js": {
+    "mtime": 1777240642.1212137,
+    "hash": "7ab910e2f1336e4f74d1e019cbc13fe6"
+  },
+  "/mnt/d/Project/FightCraft/www/map/kingdom.js": {
+    "mtime": 1777226845.5876644,
+    "hash": "8a1925dde9692bd7b57a6fdd59c228d2"
+  },
+  "/mnt/d/Project/FightCraft/www/map/map.js": {
+    "mtime": 1778972383.0225854,
+    "hash": "b02736053818ee544bebc9565b7b5076"
+  },
+  "/mnt/d/Project/FightCraft/www/map/overpass-service.js": {
+    "mtime": 1777230490.7233245,
+    "hash": "cdff16e79cc02d45444f2e9a347aeafa"
+  },
+  "/mnt/d/Project/FightCraft/www/map/poi.js": {
+    "mtime": 1776522685.345328,
+    "hash": "aaf7e2d90c5b9bd0358c52c7359f30c7"
+  },
+  "/mnt/d/Project/FightCraft/www/map/procedural-map-ui.js": {
+    "mtime": 1778981527.1527421,
+    "hash": "a98b4f75d7af70134ef6ae8dd02310af"
+  },
+  "/mnt/d/Project/FightCraft/www/map/territory-canvas.js": {
+    "mtime": 1778972383.0888748,
+    "hash": "f1e014837a7b7ef32940d57cc3cd4c28"
+  },
+  "/mnt/d/Project/FightCraft/www/map/territory-service.js": {
+    "mtime": 1778188817.1455712,
+    "hash": "86ea2d50767a308250a287d5a176c148"
+  },
+  "/mnt/d/Project/FightCraft/changelog.md": {
+    "mtime": 1778972376.6554677,
+    "hash": "064063d69c45e30f627025da005708b1"
   },
   "/mnt/d/Project/FightCraft/CLAUDE.md": {
-    "mtime": 1778777453.160637,
-    "hash": "5ab3992e72b80bd1a084af91bc21dc7d"
+    "mtime": 1778972376.6354253,
+    "hash": "f26fafd0d0dd6c3a4c65c79a879641b8"
+  },
+  "/mnt/d/Project/FightCraft/CONTRIBUTING.md": {
+    "mtime": 1776682951.9282024,
+    "hash": "25e7129e54371901c3d5c432a19a337c"
+  },
+  "/mnt/d/Project/FightCraft/GEMINI.md": {
+    "mtime": 1778968764.3220778,
+    "hash": "06d86afc75140b11d788359197cff0ed"
   },
   "/mnt/d/Project/FightCraft/README.md": {
-    "mtime": 1778776191.2273717,
-    "hash": "6793b0e4c66ea546b6e759a64b509898"
+    "mtime": 1778972376.6354253,
+    "hash": "62d6cf3591c12262bed096ece79eff6a"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/admin.html": {
+    "mtime": 1770243810.2711668,
+    "hash": "10a152823c24642da675e700ac305c01"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/backup.html": {
+    "mtime": 1769628625.937596,
+    "hash": "170c14c592926b30cd72788fa6dac248"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/character-selection-ui.html": {
+    "mtime": 1770235770.7903693,
+    "hash": "8fcde95265704f7d42e5cdc262f4b3dc"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/db-usage.html": {
+    "mtime": 1770237297.2997763,
+    "hash": "26ac4178e47e18b2db9da128935709b4"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/gameplay_castle.html": {
+    "mtime": 1770057635.9879448,
+    "hash": "5943fe2b64a576f88eb839b966613602"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/gameplay_citadels.html": {
+    "mtime": 1770057662.085764,
+    "hash": "d157a099817f907f8eb4a008750b55db"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/gameplay_leveling.html": {
+    "mtime": 1770057663.951593,
+    "hash": "fc5deecfbbdb9ea418ff30e1a9823e14"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/gameplay_monsters.html": {
+    "mtime": 1770057629.2897236,
+    "hash": "50ff6f3a8d40f556a363630fa8cfe3da"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/gameplay_shops.html": {
+    "mtime": 1770057634.0985198,
+    "hash": "551d06069abbbb2f0b6638bf57a28265"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/gameplay_vaults.html": {
+    "mtime": 1770057258.7887237,
+    "hash": "ec92914908dcee91ac27212b170891bc"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/index-backup.html": {
+    "mtime": 1769329630.0,
+    "hash": "825c9467f6c3a544dbe18e62fc918be8"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/index-modular-clean.html": {
+    "mtime": 1769329630.0,
+    "hash": "825c9467f6c3a544dbe18e62fc918be8"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/index-modular-template.html": {
+    "mtime": 1769548075.52876,
+    "hash": "a1f18c3e68fd9417b8964e908f0f427c"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/index-modular.html": {
+    "mtime": 1769548189.0609033,
+    "hash": "e00ac19490f77361696ba3e9da9d65df"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/index-test.html": {
+    "mtime": 1769548230.2814364,
+    "hash": "0347895c6010152876db257fae114453"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/index.html": {
+    "mtime": 1775405437.1974947,
+    "hash": "93004b1c25b841bbc4071b45a07df96e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/login.html": {
+    "mtime": 1769633986.403135,
+    "hash": "5c8809e62080cd34acd553e5bbbb8055"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/migrate-monsters.html": {
+    "mtime": 1769775101.2665894,
+    "hash": "e21f3c863d52b5ae7525cbbe8d87101b"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/templates_map.html": {
+    "mtime": 1770065406.971642,
+    "hash": "fc3581479663f7b12732299e542d5f54"
+  },
+  "/mnt/d/Project/FightCraft/docs/DEV-QUICK-REFERENCE.md": {
+    "mtime": 1776662139.253852,
+    "hash": "b94b87c37d94f12f4496a73242ce95c6"
+  },
+  "/mnt/d/Project/FightCraft/docs/GAMEPLAY_SCENARIOS.md": {
+    "mtime": 1777012929.9584968,
+    "hash": "1d1c1384cee37e5ebbbbcc6b75b6f49d"
+  },
+  "/mnt/d/Project/FightCraft/docs/ISSUES-STATIC-ANCHORS.md": {
+    "mtime": 1777223706.5156145,
+    "hash": "d7c5d2ea460eb92e07b1745023bd67e0"
+  },
+  "/mnt/d/Project/FightCraft/docs/PRD.md": {
+    "mtime": 1778982500.87804,
+    "hash": "464b7016070f67f17a918991a402ccac"
+  },
+  "/mnt/d/Project/FightCraft/docs/REFACTOR-PLAN-GLOBAL-TERRITORY.md": {
+    "mtime": 1777222271.716685,
+    "hash": "41f6d41e549de537b82f081744c85fee"
+  },
+  "/mnt/d/Project/FightCraft/docs/SRC.md": {
+    "mtime": 1776662514.044196,
+    "hash": "5df70a1a981666443bef4586c54a7139"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/page.html": {
+    "mtime": 1778052939.036369,
+    "hash": "d7a38cc389df802765839833131f884f"
+  },
+  "/mnt/d/Project/FightCraft/docs/proposals/PROPOSAL-ARCHITECTURE.md": {
+    "mtime": 1777832004.5423748,
+    "hash": "e2d5c7c1c15e4583ea0d630bf9e59a76"
+  },
+  "/mnt/d/Project/FightCraft/docs/proposals/PROPOSAL-CHUNKED-SNAPSHOTS.md": {
+    "mtime": 1778972376.6825733,
+    "hash": "09c66038452c338cd2761fdc971a015c"
+  },
+  "/mnt/d/Project/FightCraft/docs/proposals/PROPOSAL-LOGIC.md": {
+    "mtime": 1777832058.8325098,
+    "hash": "eedd063864aca0497117b33f4242fab3"
+  },
+  "/mnt/d/Project/FightCraft/docs/proposals/PROPOSAL-PERFORMANCE.md": {
+    "mtime": 1777832168.4611166,
+    "hash": "169ccea8f338a78143c0f4170bf01232"
+  },
+  "/mnt/d/Project/FightCraft/docs/proposals/PROPOSAL-SECURITY.md": {
+    "mtime": 1777832382.2140212,
+    "hash": "72453d02eb517ec6a7e2e768f1f527dc"
+  },
+  "/mnt/d/Project/FightCraft/docs/reports/2026-05-12-seed-snapshot-refactor.md": {
+    "mtime": 1778972376.7007332,
+    "hash": "b852ddc705f0a444a4e21a85eb087f27"
+  },
+  "/mnt/d/Project/FightCraft/docs/reports/project-analysis-uk.md": {
+    "mtime": 1778972376.7345037,
+    "hash": "4478e1219c47c0141ff24663ddcc3a5e"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/plans/2026-04-24-global-generation-overpass-citadels-plan.md": {
+    "mtime": 1777036670.9166772,
+    "hash": "c80b8f6bb2d149b197299e5e673ed667"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/plans/2026-04-24-monster-distribution-plan.md": {
+    "mtime": 1777058176.8712523,
+    "hash": "1b0ee8d07d6edb23301963cd6b8f8d7f"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/plans/2026-04-24-osm-population-scaling.md": {
+    "mtime": 1777041054.280796,
+    "hash": "8662577a2e3a0f87244242a668fd527c"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/plans/2026-04-24-overpass-api-fix.md": {
+    "mtime": 1777046544.9951458,
+    "hash": "5880028d73bc8c14e066ef8fc3cabf3d"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/plans/2026-04-24-template-ui.md": {
+    "mtime": 1777050159.6415565,
+    "hash": "55284dd9fe00b6a147a8d92eb4841ac3"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/specs/2026-04-24-global-generation-overpass-citadels-design.md": {
+    "mtime": 1777036510.263148,
+    "hash": "7a96878b33aa67882ec5fe38c8e3847a"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/specs/2026-04-24-monster-distribution-design.md": {
+    "mtime": 1777057958.8916988,
+    "hash": "add69afdd1c9571b94f0b898859afbf4"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/specs/2026-04-24-osm-population-scaling-design.md": {
+    "mtime": 1777040826.6670043,
+    "hash": "7a15c548d126895904dc360078ee5ee6"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/specs/2026-04-24-overpass-api-fix-design.md": {
+    "mtime": 1777046426.4046104,
+    "hash": "8aed4036405c4b38f149e637fc6ee164"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/specs/2026-04-24-template-ui-design.md": {
+    "mtime": 1777049562.0148525,
+    "hash": "cfbb89e93ef2340d609cdaafe803c9a7"
+  },
+  "/mnt/d/Project/FightCraft/docs/superpowers/specs/2026-05-03-scripts-and-ai-infra-migration-design.md": {
+    "mtime": 1777827205.9828093,
+    "hash": "3067878322c881c4fe8cbfbd1ddeb28f"
+  },
+  "/mnt/d/Project/FightCraft/docs/tasks/migrate_procedural_map.md": {
+    "mtime": 1778972376.858477,
+    "hash": "da2e6c97e40564f3ef6c60733f356070"
+  },
+  "/mnt/d/Project/FightCraft/docs/tasks/Procedural World Generation Engine v2.md": {
+    "mtime": 1778972376.858477,
+    "hash": "ed3f5b116ed6c8c4daab97739fdf448b"
+  },
+  "/mnt/d/Project/FightCraft/www/index.html": {
+    "mtime": 1776522072.5978694,
+    "hash": "52855c19d47d9ff7d85d77a9bbeec631"
+  },
+  "/mnt/d/Project/FightCraft/www/auth-ui/character-selection-ui.html": {
+    "mtime": 1776945962.3330994,
+    "hash": "ac36d280f5ec63d0744053ffe5fba59b"
+  },
+  "/mnt/d/Project/FightCraft/www/auth-ui/login.html": {
+    "mtime": 1777668269.5265062,
+    "hash": "ef16044dd274e69e5427c582341b874b"
+  },
+  "/mnt/d/Project/FightCraft/www/core/index.html": {
+    "mtime": 1777669522.798612,
+    "hash": "a302eefe8cd9ac359312075da3274a4b"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/gameplay_castle.html": {
+    "mtime": 1778983293.5797582,
+    "hash": "8222222777a86eb4f6385f28f6bcda55"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/gameplay_citadels.html": {
+    "mtime": 1778983560.9894345,
+    "hash": "c004e80a85d7278d40f90e4fc4dee552"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/gameplay_leveling.html": {
+    "mtime": 1777011929.7131596,
+    "hash": "0ee048685139f295bbd8f04491e10ea2"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/gameplay_monsters.html": {
+    "mtime": 1778980923.9314158,
+    "hash": "3eb565d859565b8b130eceb0e3bec667"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/gameplay_shops.html": {
+    "mtime": 1778983292.9292629,
+    "hash": "c52ea80609bc6439ed3d78b4f131b298"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/gameplay_vaults.html": {
+    "mtime": 1778983311.7234106,
+    "hash": "439d684cc9e1b865f76682f9e7143a63"
+  },
+  "/mnt/d/Project/FightCraft/www/gameplay/zone-generator.test.html": {
+    "mtime": 1777236499.660975,
+    "hash": "f1b08e161e1d9e58d0b476c93be6c974"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/admin.html": {
+    "mtime": 1778264648.9396563,
+    "hash": "724d32ff9953830378125ad79dfd8681"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/backup.html": {
+    "mtime": 1769628625.937596,
+    "hash": "170c14c592926b30cd72788fa6dac248"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/db-usage.html": {
+    "mtime": 1776972633.4947755,
+    "hash": "124c4d131dec767b91eebea273eaca8b"
+  },
+  "/mnt/d/Project/FightCraft/www/maintenance/migrate-monsters.html": {
+    "mtime": 1776522733.3670154,
+    "hash": "28262445d6343c66e5b125a8a4527099"
   },
   "/mnt/d/Project/FightCraft/www/maintenance/procedural-demo.html": {
-    "mtime": 1778775500.8735285,
-    "hash": "e606c660b93311dac9b7dac2b1f3fa39"
+    "mtime": 1778972383.0005226,
+    "hash": "1eccc1c9e80dbe8f8214e6a494090acf"
+  },
+  "/mnt/d/Project/FightCraft/www/map/templates_map.html": {
+    "mtime": 1778981805.27968,
+    "hash": "029ae22e2b96b0ec9a68d666e24dd9ef"
+  },
+  "/mnt/d/Project/FightCraft/www/tests/territory-math.test.html": {
+    "mtime": 1777222486.9908388,
+    "hash": "55d34d4b7c456762f17095e979177097"
+  },
+  "/mnt/d/Project/FightCraft/citadels-fix-result.png": {
+    "mtime": 1779007930.9654226,
+    "hash": "938371d64f9979727f06da90d1e7e2b8"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/assets/icon.png": {
+    "mtime": 1769968975.7975607,
+    "hash": "e42478f913b4734f903320a039841ba1"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "acc976d4a36479233371a53021525c0c"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-land-hdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "f7a80786dd355bd39014e58027aa6e19"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-land-mdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "acc976d4a36479233371a53021525c0c"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-land-xhdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "b8c72969bc1f78aab71a76035360d4af"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-land-xxhdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "f87e988387b07d843905f38b084929fb"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-land-xxxhdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "055a69553b16b0bf5f72094a2e459fc7"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-port-hdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "5eb10d16c81338abe8bbc033d49638a8"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-port-mdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "d855a76a5070c8e6fcfd83a27549bdce"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-port-xhdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "df100b2a36bdb98b711cca58941728de"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-port-xxhdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "2c1b668364e815256f67b71dcdfa4d6e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/drawable-port-xxxhdpi/splash.png": {
+    "mtime": 1723050380.0,
+    "hash": "b5b1b22b59abe686c1df0d74a423d034"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+    "mtime": 1723050380.0,
+    "hash": "1956941339dd5fe36d5c66601c89a08d"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": {
+    "mtime": 1723050380.0,
+    "hash": "73b1e06d769fa08a9c3b8328cc15fd75"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": {
+    "mtime": 1723050380.0,
+    "hash": "f43e5674865a00186dd76183cf1f2f8e"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+    "mtime": 1723050380.0,
+    "hash": "7ed1b3739b83215d0c4a0b4a7f2dcab4"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": {
+    "mtime": 1723050380.0,
+    "hash": "5b77e8aec8b17eed320a97567c7cb8bf"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": {
+    "mtime": 1723050380.0,
+    "hash": "a49547a32c7d9b529af607b033811d81"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+    "mtime": 1723050380.0,
+    "hash": "5689511ee4e41a367d0342f37ac48bdf"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": {
+    "mtime": 1723050380.0,
+    "hash": "15cdded29b9877ac98c5931024c5da5d"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": {
+    "mtime": 1723050380.0,
+    "hash": "c890fa4af62a63486d5dea62441ce7ab"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+    "mtime": 1723050380.0,
+    "hash": "a3285eeaedda8201f04e7737b9df8421"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1723050380.0,
+    "hash": "4e9584ecc16d1fc75afb798688ce576f"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": {
+    "mtime": 1723050380.0,
+    "hash": "14cde87848553e24d7106f56eb8ceb6f"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+    "mtime": 1723050380.0,
+    "hash": "9e029293ab1ae8e3a6a7b7d0b7177e46"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1723050380.0,
+    "hash": "ed3696b7c52d9747411a475dbe3fa34a"
+  },
+  "/mnt/d/Project/FightCraft/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": {
+    "mtime": 1723050380.0,
+    "hash": "85addb4159ecd3f76f02fbacd5ec86de"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/01-initial.png": {
+    "mtime": 1778052938.9955194,
+    "hash": "69b2ee074e4749529c940153957e6654"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/1-initial.png": {
+    "mtime": 1778052197.5387094,
+    "hash": "77c9298ce01435b73df15b42a7d52a5f"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/1_initial_load.png": {
+    "mtime": 1778057707.6061952,
+    "hash": "6013d4db4d211472f5e28247108a0130"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2-01-page.png": {
+    "mtime": 1778057319.081159,
+    "hash": "c67e3c2baaea4775d003162481a3f428"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2-02-result.png": {
+    "mtime": 1778057339.3158126,
+    "hash": "c67e3c2baaea4775d003162481a3f428"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2026-05-08_16-54_initial-load.png": {
+    "mtime": 1778252064.2236447,
+    "hash": "10ee75d8856ae713e0e7fe77d801d597"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2026-05-08_17-00_hero-panel.png": {
+    "mtime": 1778252433.8076591,
+    "hash": "738de5889adbc5962e3d9895588c49a8"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2026-05-08_17-03_inventory-panel.png": {
+    "mtime": 1778252646.7259884,
+    "hash": "1b0407b04661f38bc67f52c0e1f47ef4"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2026-05-08_17-06_quests-panel.png": {
+    "mtime": 1778252829.4527657,
+    "hash": "b5d7c6a242daa56686dda6bcbfa1427b"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2026-05-08_17-08_stats-panel.png": {
+    "mtime": 1778252883.0987885,
+    "hash": "67bcc36ef3182ce84725707795761913"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/2026-05-08_17-09_menu-panel.png": {
+    "mtime": 1778252974.3809988,
+    "hash": "be533ac27a61cc96d43331598280fe64"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/3-01-page-loaded.png": {
+    "mtime": 1778054430.5783772,
+    "hash": "05151cf9dc4f8fec7e632611640f0b71"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/3-02-final.png": {
+    "mtime": 1778054430.6548288,
+    "hash": "05151cf9dc4f8fec7e632611640f0b71"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/error.png": {
+    "mtime": 1778054505.803319,
+    "hash": "6013d4db4d211472f5e28247108a0130"
+  },
+  "/mnt/d/Project/FightCraft/docs/playwright-test-results/visual-test.png": {
+    "mtime": 1778060264.898051,
+    "hash": "a09cd10bf0564134c5f666c64819021e"
+  },
+  "/mnt/d/Project/FightCraft/www/assets/icon.png": {
+    "mtime": 1769968975.7975607,
+    "hash": "e42478f913b4734f903320a039841ba1"
   }
 }

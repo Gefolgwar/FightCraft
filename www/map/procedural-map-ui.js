@@ -8,6 +8,7 @@ import {
 import { generateZonesForCity, zonesToGeoJSON } from "../core/zone-engine.js";
 import { clearCellCityCache } from "../core/procedural-engine-v2.js";
 import { ensureH3Loaded } from "../core/h3-spatial.js";
+import { getTemplates } from "../firebase/firebase-service.js";
 
 // Internal map state
 let map;
@@ -212,6 +213,30 @@ export async function generateWorldFromSeed(seed) {
   }
 
   const recipe = { ...currentRecipe, seed };
+
+  // Fetch citadel templates from the database to avoid 'citadel_default'
+  if (!recipe.layers?.citadels?.templates) {
+    try {
+      const allCastles = await getTemplates("castle");
+      const allCitadels = await getTemplates("citadel");
+      const combined = [...allCastles, ...allCitadels];
+      const validCitadels = combined.filter(
+        (t) =>
+          t.type === "citadel" ||
+          t.icon === "🏯" ||
+          (t.name && t.name.includes("Citadel")) ||
+          (t.id && t.id.includes("citadel")),
+      );
+      if (validCitadels.length > 0) {
+        recipe.layers = recipe.layers || {};
+        recipe.layers.citadels = {
+          templates: validCitadels.map(t => ({ templateId: t.id, weight: 10 }))
+        };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch citadel templates for seed generation", e);
+    }
+  }
 
   const citiesWithBoundaries = cities.filter(
     (c) => cityBoundaries[c.id] && cityBoundaries[c.id].boundary,
