@@ -2616,7 +2616,7 @@
                 // Update UI
                 document.getElementById("selected-snap-title").textContent =
                     snap.name ||
-                    `${snap.cityId.toUpperCase()} - ${new Date(snap.created).toLocaleTimeString()}`;
+                    `${(snap.cityId || "unknown").toUpperCase()} - ${snap.created ? new Date(snap.created).toLocaleTimeString() : 'No Date'}`;
                 renderDetailsPanel(snap);
 
                 const btnToggle = document.getElementById("btn-toggle-active");
