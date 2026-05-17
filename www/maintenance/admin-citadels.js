@@ -81,6 +81,11 @@ async function loadTemplates() {
 const bulk = new BulkActions(deleteTemplate, loadTemplates);
 
 window.createDefaultCitadelTemplates = async function () {
+  if (templates.some((t) => t.name === "Citadel" || t.icon === "🏯")) {
+    logConsole("ℹ️ Citadel templates already exist. Skipping default creation.");
+    return;
+  }
+
   const defaults = [
     {
       name: "Citadel",
@@ -454,6 +459,23 @@ window.onSnapshotSelected = async () => {
     await configManager.onTemplateSelected(snapshotId, {
       getSnapshotById: getSnapshotById,
     });
+
+    const snapshot = await getSnapshotById(snapshotId);
+
+    // If citadel config is empty, check if they are hiding in castles config
+    if (configManager.workingConfig.length === 0 && snapshot?.entityConfig?.castles) {
+      const legacyCastlesConfig = snapshot.entityConfig.castles;
+      // Filter out only the ones that match our citadel templates
+      const citadelEntries = legacyCastlesConfig.filter(entry => {
+        return templates.some(t => t.id === entry.templateId || t.originalTemplateId === entry.templateId);
+      });
+
+      if (citadelEntries.length > 0) {
+        configManager._savedConfig = JSON.parse(JSON.stringify(citadelEntries));
+        configManager._workingConfig = JSON.parse(JSON.stringify(citadelEntries));
+        logConsole(`🔄 Extracted ${citadelEntries.length} citadel entries from legacy castles config.`);
+      }
+    }
 
     // Migrate legacy templateIds (from entityConfig) to real template doc IDs
     for (const entry of configManager._workingConfig) {
