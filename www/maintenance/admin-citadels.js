@@ -13,6 +13,8 @@ import {
   initFirebase,
 } from "../firebase/firebase-service.js";
 import { EntityConfigManager } from "./admin-entity-config.js";
+import { latLngToH3, ensureH3Loaded } from "../core/h3-spatial.js";
+import { validateCitadelCollisions } from "./admin-validators.js";
 
 let templates = [];
 let currentEditId = null;
@@ -23,6 +25,7 @@ const configManager = new EntityConfigManager("citadels", {
   accentColor: "orange",
   tableId: "config-table-body",
 });
+window.configManager = configManager;
 
 // Initialization
 document.addEventListener("DOMContentLoaded", async () => {
@@ -48,10 +51,14 @@ async function loadTemplates() {
     '<div class="text-center text-gray-500 text-xs mt-4">Loading...</div>';
 
   try {
-    // Citadels are stored as type 'castle' — filter by citadel indicators
+    // Citadels were historically stored as type 'castle', new ones are 'citadel'
     const allCastles = await getTemplates("castle");
-    templates = allCastles.filter(
+    const allCitadels = await getTemplates("citadel");
+    const combined = [...allCastles, ...allCitadels];
+
+    templates = combined.filter(
       (t) =>
+        t.type === "citadel" ||
         t.icon === "🏯" ||
         (t.name && t.name.includes("Citadel")) ||
         (t.id && t.id.includes("citadel")),
@@ -74,13 +81,18 @@ async function loadTemplates() {
 const bulk = new BulkActions(deleteTemplate, loadTemplates);
 
 window.createDefaultCitadelTemplates = async function () {
+  if (templates.some((t) => t.name === "Citadel" || t.icon === "🏯")) {
+    logConsole("ℹ️ Citadel templates already exist. Skipping default creation.");
+    return;
+  }
+
   const defaults = [
     {
       name: "Citadel",
       icon: "🏯",
       osmTag:
         "historic~castle|monument|memorial; tourism=museum; amenity~townhall|library|university|bus_station|arts_centre|place_of_worship; railway~station|subway_entrance; leisure~park|square|viewpoint|stadium",
-      type: "castle",
+      type: "citadel",
       level: 15,
       hp: 2000,
     },
@@ -225,7 +237,7 @@ window.saveTemplateForm = async () => {
     osmTag: document.getElementById("tpl-osm").value,
     level: parseInt(document.getElementById("tpl-level").value) || 10,
     hp: 2000,
-    type: "castle",
+    type: "citadel",
   };
 
   if (currentEditId) template.id = currentEditId;
@@ -309,7 +321,7 @@ function renderConfigTable() {
         : "generated";
       const showCoords = entryType === "manual";
 
-      return `<tr class="${colorClass}">
+      return `<tr id="row-${entry.templateId}" class="${colorClass}">
           <td class="px-3 py-2">${icon} ${name}</td>
           <td class="px-3 py-2 text-center">
             <input type="number" class="w-16 bg-gray-900 border border-gray-700 rounded text-center text-xs p-1"
@@ -437,7 +449,6 @@ window.onSnapshotSelected = async () => {
     configManager._workingConfig = [];
     configManager._snapshotId = null;
     renderConfigTable();
-    updateSnapshotStats(null);
     return;
   }
 
@@ -447,6 +458,23 @@ window.onSnapshotSelected = async () => {
     await configManager.onTemplateSelected(snapshotId, {
       getSnapshotById: getSnapshotById,
     });
+
+    const snapshot = await getSnapshotById(snapshotId);
+
+    // If citadel config is empty, check if they are hiding in castles config
+    if (configManager.workingConfig.length === 0 && snapshot?.entityConfig?.castles) {
+      const legacyCastlesConfig = snapshot.entityConfig.castles;
+      // Filter out only the ones that match our citadel templates
+      const citadelEntries = legacyCastlesConfig.filter(entry => {
+        return templates.some(t => t.id === entry.templateId || t.originalTemplateId === entry.templateId);
+      });
+
+      if (citadelEntries.length > 0) {
+        configManager._savedConfig = JSON.parse(JSON.stringify(citadelEntries));
+        configManager._workingConfig = JSON.parse(JSON.stringify(citadelEntries));
+        logConsole(`🔄 Extracted ${citadelEntries.length} citadel entries from legacy castles config.`);
+      }
+    }
 
     // Migrate legacy templateIds (from entityConfig) to real template doc IDs
     for (const entry of configManager._workingConfig) {
@@ -479,9 +507,30 @@ window.onSnapshotSelected = async () => {
         objects = await loadSnapshotChunks(snapshotId);
       }
 
+      // Seed-based snapshot: no stored objects, generate procedurally
+      if (objects.length === 0 && snapshot?.seed) {
+        logConsole(
+          `🌱 Seed-based snapshot (seed: ${snapshot.seed}). Generating objects from procedural engine...`,
+        );
+        try {
+          const { generateWorldFromSeed } =
+            await import("../map/procedural-map-ui.js");
+          if (typeof generateWorldFromSeed === "function") {
+            objects = await generateWorldFromSeed(snapshot.seed);
+            logConsole(`🌱 Generated ${objects.length} objects from seed.`);
+          }
+        } catch (genErr) {
+          console.error("Procedural generation error:", genErr);
+          logConsole(
+            `ℹ️ Seed-based snapshot. Add citadel templates below and set counts.`,
+          );
+        }
+      }
+
       // Filter citadel objects
       const citadelObjects = objects.filter(
         (o) =>
+          o.type === "citadel" ||
           o.icon === "🏯" ||
           (o.name && o.name.includes("Citadel")) ||
           (o.templateId && o.templateId.includes("citadel")),
@@ -534,7 +583,6 @@ window.onSnapshotSelected = async () => {
       }
 
       // Update stats from all objects
-      updateSnapshotStats(objects);
     } else {
       // For snapshots with entityConfig, still load objects for stats
       const snapshot = await getSnapshotById(snapshotId);
@@ -542,7 +590,6 @@ window.onSnapshotSelected = async () => {
       if (objects.length === 0 && snapshot?.chunked) {
         objects = await loadSnapshotChunks(snapshotId);
       }
-      updateSnapshotStats(objects);
     }
 
     logConsole(
@@ -558,6 +605,31 @@ window.onSnapshotSelected = async () => {
 window.applyConfigChanges = async () => {
   if (!configManager.snapshotId) {
     alert("Please select a snapshot first.");
+    return;
+  }
+
+  // Pre-save validation: Check for manual citadel collisions
+  await ensureH3Loaded();
+  const collisions = validateCitadelCollisions(configManager.workingConfig, { latLngToH3 });
+
+  // Clear any previous error highlights
+  configManager.workingConfig.forEach(entry => {
+    const row = document.getElementById(`row-${entry.templateId}`);
+    if (row) {
+      row.classList.remove("border-red-500", "bg-red-900/40", "border-2");
+    }
+  });
+
+  if (collisions.length > 0) {
+    logConsole(`❌ Validation Failed: Multiple manual citadels placed in the same H3 zone. Resolution required.`);
+    alert("Save aborted! Multiple manual citadels share the same zone. See highlighted rows.");
+
+    collisions.forEach(templateId => {
+      const row = document.getElementById(`row-${templateId}`);
+      if (row) {
+        row.classList.add("border-red-500", "bg-red-900/40", "border-2");
+      }
+    });
     return;
   }
 
@@ -599,50 +671,3 @@ function logConsole(msg) {
 
 // ==================== SNAPSHOT STATS ====================
 
-function updateSnapshotStats(objects) {
-  const statsEl = document.getElementById("snapshot-stats-panel");
-  if (!statsEl) return;
-
-  if (!objects || objects.length === 0) {
-    statsEl.classList.add("hidden");
-    return;
-  }
-
-  // Count by type
-  let monsters = 0,
-    shops = 0,
-    vaults = 0,
-    castles = 0,
-    citadels = 0,
-    zones = 0;
-
-  for (const o of objects) {
-    const isCitadel =
-      o.icon === "🏯" ||
-      (o.name && o.name.includes("Citadel")) ||
-      (o.templateId && o.templateId.includes("citadel"));
-
-    if (isCitadel) citadels++;
-    else if (o.type === "monster") monsters++;
-    else if (o.type === "shop") shops++;
-    else if (o.type === "vault") vaults++;
-    else if (o.type === "castle") castles++;
-    else if (o.type === "zone") zones++;
-  }
-
-  // Update DOM
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val.toLocaleString();
-  };
-
-  set("stat-monsters", monsters);
-  set("stat-shops", shops);
-  set("stat-vaults", vaults);
-  set("stat-castles", castles);
-  set("stat-citadels", citadels);
-  set("stat-zones", zones);
-  set("stat-total", objects.length);
-
-  statsEl.classList.remove("hidden");
-}
