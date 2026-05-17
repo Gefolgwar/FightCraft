@@ -449,7 +449,6 @@ window.onSnapshotSelected = async () => {
     configManager._workingConfig = [];
     configManager._snapshotId = null;
     renderConfigTable();
-    updateSnapshotStats(null);
     return;
   }
 
@@ -521,6 +520,7 @@ window.onSnapshotSelected = async () => {
             logConsole(`🌱 Generated ${objects.length} objects from seed.`);
           }
         } catch (genErr) {
+          console.error("Procedural generation error:", genErr);
           logConsole(
             `ℹ️ Seed-based snapshot. Add citadel templates below and set counts.`,
           );
@@ -583,7 +583,6 @@ window.onSnapshotSelected = async () => {
       }
 
       // Update stats from all objects
-      updateSnapshotStats(objects);
     } else {
       // For snapshots with entityConfig, still load objects for stats
       const snapshot = await getSnapshotById(snapshotId);
@@ -591,7 +590,6 @@ window.onSnapshotSelected = async () => {
       if (objects.length === 0 && snapshot?.chunked) {
         objects = await loadSnapshotChunks(snapshotId);
       }
-      updateSnapshotStats(objects);
     }
 
     logConsole(
@@ -673,51 +671,3 @@ function logConsole(msg) {
 
 // ==================== SNAPSHOT STATS ====================
 
-function updateSnapshotStats(objects) {
-  const statsEl = document.getElementById("snapshot-stats-panel");
-  if (!statsEl) return;
-
-  if (!objects || objects.length === 0) {
-    statsEl.classList.add("hidden");
-    return;
-  }
-
-  // Count by type
-  let monsters = 0,
-    shops = 0,
-    vaults = 0,
-    castles = 0,
-    citadels = 0,
-    zones = 0;
-
-  for (const o of objects) {
-    const isCitadel =
-      o.type === "citadel" ||
-      o.icon === "🏯" ||
-      (o.name && o.name.includes("Citadel")) ||
-      (o.templateId && o.templateId.includes("citadel"));
-
-    if (isCitadel) citadels++;
-    else if (o.type === "monster") monsters++;
-    else if (o.type === "shop") shops++;
-    else if (o.type === "vault") vaults++;
-    else if (o.type === "castle") castles++;
-    else if (o.type === "zone") zones++;
-  }
-
-  // Update DOM
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val.toLocaleString();
-  };
-
-  set("stat-monsters", monsters);
-  set("stat-shops", shops);
-  set("stat-vaults", vaults);
-  set("stat-castles", castles);
-  set("stat-citadels", citadels);
-  set("stat-zones", zones);
-  set("stat-total", objects.length);
-
-  statsEl.classList.remove("hidden");
-}
