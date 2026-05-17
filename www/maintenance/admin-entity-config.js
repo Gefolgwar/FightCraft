@@ -1,6 +1,6 @@
 /**
  * EntityConfigManager — shared module for entity config management
- * across all 4 admin pages (monsters, shops, vaults, castles).
+ * across all 5 admin pages (monsters, shops, vaults, castles, citadels).
  *
  * Deep module: simple public interface, significant internal logic.
  *
@@ -9,7 +9,7 @@
 
 export class EntityConfigManager {
   /**
-   * @param {'monsters'|'shops'|'vaults'|'castles'} entityType
+   * @param {'monsters'|'shops'|'vaults'|'castles'|'citadels'} entityType
    * @param {object} [options]
    * @param {string} [options.templateType] - filter key for templates
    * @param {string} [options.accentColor] - UI accent color
@@ -127,9 +127,7 @@ export class EntityConfigManager {
    */
   addToTable(template) {
     const templateId = template.id || template.templateId;
-    const exists = this._workingConfig.find(
-      (e) => e.templateId === templateId
-    );
+    const exists = this._workingConfig.find((e) => e.templateId === templateId);
     if (exists) return;
 
     this._workingConfig.push({
@@ -148,13 +146,13 @@ export class EntityConfigManager {
    */
   removeFromTable(templateId) {
     const savedEntry = this._savedConfig.find(
-      (e) => e.templateId === templateId
+      (e) => e.templateId === templateId,
     );
 
     if (savedEntry) {
       // Existing entry — mark as removed by setting count to 0
       const workingEntry = this._workingConfig.find(
-        (e) => e.templateId === templateId
+        (e) => e.templateId === templateId,
       );
       if (workingEntry) {
         workingEntry.count = 0;
@@ -162,7 +160,7 @@ export class EntityConfigManager {
     } else {
       // New entry — remove entirely
       this._workingConfig = this._workingConfig.filter(
-        (e) => e.templateId !== templateId
+        (e) => e.templateId !== templateId,
       );
     }
   }

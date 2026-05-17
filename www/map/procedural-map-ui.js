@@ -627,3 +627,45 @@ function onMapMove() {
     renderViewport();
   }, 150);
 }
+
+// ── World Stats API ──────────────────────────────────────────
+
+/**
+ * Compute expected entity counts from the current recipe + city data.
+ * Returns counts per type and per-template distribution.
+ * Can be called after generateWorld() has loaded cities.
+ */
+export function getWorldStats() {
+  if (!cities || cities.length === 0) return null;
+
+  const totalPop = cities.reduce((sum, c) => sum + (c.population || 0), 0);
+
+  // Counts per entity type from density ratios
+  const counts = {};
+  for (const [type, ratio] of Object.entries(currentRecipe.densityRatios)) {
+    counts[type] = Math.floor(totalPop / ratio);
+  }
+
+  // Template distribution per layer
+  const templateDistribution = {};
+  for (const [layerName, layer] of Object.entries(currentRecipe.layers)) {
+    const totalWeight = layer.templates.reduce((s, t) => s + t.weight, 0);
+    // Map layer name to density type: "monsters" -> "monster"
+    const densityKey = layerName.replace(/s$/, "");
+    const entityCount = counts[densityKey] || 0;
+    templateDistribution[layerName] = layer.templates.map((t) => ({
+      templateId: t.templateId,
+      count: Math.round((entityCount * t.weight) / totalWeight),
+      type: "generated",
+    }));
+  }
+
+  return {
+    counts,
+    totalPopulation: totalPop,
+    citadelCount: worldCitadels.length,
+    templateDistribution,
+    seed: currentRecipe.seed,
+    densityRatios: { ...currentRecipe.densityRatios },
+  };
+}

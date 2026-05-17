@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EntityConfigManager } from "@www/maintenance/admin-entity-config.js";
+import { EntityConfigManager } from "../../../www/maintenance/admin-entity-config.js";
 
 // ── Cycle 1: Tracer Bullet — constructor + empty diff ──────────────
 describe("EntityConfigManager", () => {

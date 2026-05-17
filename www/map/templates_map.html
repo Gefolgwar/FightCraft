@@ -160,18 +160,20 @@
                 >
                     <div>
                         <h2 class="font-bold text-gray-300">
-                            Global World Preview
+                            Snapshot Management
                         </h2>
                         <div class="text-[10px] text-gray-500">
-                            Visualize procedural generation globally (Read-only)
+                            Create and manage world snapshots
                         </div>
                     </div>
 
                     <button
                         id="btn-preview-global"
-                        class="w-full py-1.5 bg-blue-600 text-white rounded font-bold text-xs hover:bg-blue-500 transition shadow"
+                        onclick="window.createNewSnapshot()"
+                        class="w-full py-1.5 bg-green-600 text-white rounded font-bold text-xs hover:bg-green-500 transition shadow"
                     >
-                        <i class="fas fa-globe mr-1"></i> Render Global Map
+                        <i class="fas fa-plus-circle mr-1"></i> Create New
+                        Snapshot
                     </button>
 
                     <div
@@ -185,7 +187,7 @@
                         </div>
                         <div class="w-full bg-gray-700 rounded-full h-1.5">
                             <div
-                                class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                                class="bg-green-500 h-1.5 rounded-full transition-all duration-300"
                                 id="preview-progress-bar"
                                 style="width: 0%"
                             ></div>
@@ -1326,9 +1328,10 @@
 
                 logConsole("🚀 System initialized. Ready to explore.");
 
-                // Bind Global World Preview button
+                // Bind Snapshot Management button
                 const btnGlobal = document.getElementById("btn-preview-global");
                 if (btnGlobal) {
+                    // Handler is set via onclick="window.createNewSnapshot()" in HTML
                 }
 
                 // Template-Sync: Use real-time listener instead of polling
@@ -1669,6 +1672,29 @@
                 const counts = { ...precomputed.counts };
                 const levels = { ...precomputed.levels };
                 const objects = snap.objects || [];
+
+                // For seed-based snapshots with no objects, use worldStats or procedural engine
+                if (objects.length === 0 && snap.seed && counts.monster === 0) {
+                    // Try stored worldStats first
+                    if (snap.worldStats) {
+                        counts.monster = snap.worldStats.monster || 0;
+                        counts.shop = snap.worldStats.shop || 0;
+                        counts.vault = snap.worldStats.vault || 0;
+                        counts.castle = snap.worldStats.castle || 0;
+                        counts.citadel = snap.worldStats.citadel || 0;
+                    } else if (typeof window._getWorldStats === "function") {
+                        // Compute from procedural engine if available
+                        const ws = window._getWorldStats();
+                        if (ws && ws.counts) {
+                            counts.monster = ws.counts.monster || 0;
+                            counts.shop = ws.counts.shop || 0;
+                            counts.vault = ws.counts.vault || 0;
+                            counts.castle = ws.counts.castle || 0;
+                            counts.citadel =
+                                ws.citadelCount || ws.counts.citadel || 0;
+                        }
+                    }
+                }
 
                 // Distribution Maps
                 const monsterStats = {},
@@ -3083,6 +3109,112 @@
                     loadSnapshots();
                 }
             };
+
+            // ==================== SNAPSHOT MANAGEMENT ====================
+            window.createNewSnapshot = async function () {
+                const snapName = prompt(
+                    "Enter a name for the new snapshot:",
+                    `snapshot_${new Date().toISOString().slice(0, 10)}`,
+                );
+                if (!snapName) return;
+
+                const btn = document.getElementById("btn-preview-global");
+                const origText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML =
+                    '<i class="fas fa-spinner fa-spin mr-1"></i> Creating...';
+
+                try {
+                    // Gather citadels and zones from current map state
+                    const objects = [];
+
+                    if (currentSnapshot && currentSnapshot.objects) {
+                        // Extract only citadels and zones from current snapshot
+                        currentSnapshot.objects.forEach((obj) => {
+                            const isCitadel =
+                                obj.icon === "🏯" ||
+                                (obj.name && obj.name.includes("Citadel")) ||
+                                (obj.templateId &&
+                                    obj.templateId.includes("citadel"));
+                            const isZone = obj.type === "zone";
+
+                            if (isCitadel || isZone) {
+                                objects.push(obj);
+                            }
+                        });
+                    }
+
+                    const citadelCount = objects.filter(
+                        (o) =>
+                            o.icon === "🏯" ||
+                            (o.name && o.name.includes("Citadel")) ||
+                            (o.templateId && o.templateId.includes("citadel")),
+                    ).length;
+
+                    const seedInput = document.getElementById("seed");
+                    const seed = seedInput
+                        ? parseInt(seedInput.value) || 42
+                        : 42;
+
+                    const snapshotData = {
+                        name: snapName,
+                        type: "world",
+                        seed: seed,
+                        objects: objects,
+                        entityConfig: {
+                            monsters: [],
+                            shops: [],
+                            vaults: [],
+                            castles: [],
+                        },
+                    };
+
+                    // Compute expected entity counts from procedural engine
+                    let worldStats = null;
+                    if (typeof window._getWorldStats === "function") {
+                        worldStats = window._getWorldStats();
+                    }
+                    if (worldStats && worldStats.templateDistribution) {
+                        snapshotData.entityConfig.monsters =
+                            worldStats.templateDistribution.monsters || [];
+                        snapshotData.entityConfig.shops =
+                            worldStats.templateDistribution.shops || [];
+                        snapshotData.entityConfig.vaults =
+                            worldStats.templateDistribution.vaults || [];
+                        snapshotData.entityConfig.castles =
+                            worldStats.templateDistribution.castles || [];
+                        snapshotData.worldStats = worldStats.counts;
+                        snapshotData.totalPopulation =
+                            worldStats.totalPopulation;
+                        logConsole(
+                            `📊 Computed entity config from recipe: ${worldStats.counts.monster || 0} monsters, ${worldStats.counts.shop || 0} shops, ${worldStats.counts.vault || 0} vaults, ${worldStats.counts.castle || 0} castles`,
+                        );
+                    }
+
+                    const success = await saveWorldSnapshot(snapshotData);
+
+                    if (success) {
+                        logConsole(
+                            `✅ Snapshot "${snapName}" created with ${citadelCount} citadels. entityConfig initialized (empty).`,
+                        );
+                        console.log(
+                            `✅ Snapshot "${snapName}" created with ${citadelCount} citadels.`,
+                        );
+
+                        // Refresh sidebar list
+                        const firestoreSnaps = await getWorldSnapshots();
+                        await mergeAndRenderSnapshots(firestoreSnaps);
+                    } else {
+                        logConsole("❌ Failed to save snapshot.");
+                    }
+                } catch (err) {
+                    logConsole(`❌ Error creating snapshot: ${err.message}`);
+                    console.error("Snapshot creation error:", err);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = origText;
+                }
+            };
         </script>
         <script type="module">
             import {
@@ -3090,9 +3222,11 @@
                 toggleVisibility,
                 setRecipe,
                 generateWorld,
-            } from "./procedural-map-ui.js";
+                getWorldStats,
+            } from "./procedural-map-ui.js?v=2";
             window._initProceduralMap = initProceduralMap;
             window._toggleProceduralVisibility = toggleVisibility;
+            window._getWorldStats = getWorldStats;
 
             window.generateProceduralWorld = async function () {
                 const btn = document.getElementById("btn-generate");

@@ -21,7 +21,9 @@ import {
   trackUsage,
   getCurrentUser,
   saveCityZones,
+  getTemplates,
 } from "./firebase-service.js";
+import { generateObjectsFromConfig } from "./entity-config-generator.js";
 
 // ==================== CONSTANTS ====================
 
@@ -520,77 +522,193 @@ export async function activateSnapshot(snapshotId, onProgress) {
     await deactivatePreviousSnapshot(snapshotId);
     progress("Previous snapshot deactivated", 0.1);
 
-    // Step 4: Process each city
-    const manifest = metadata.manifest;
-    const cityIds = Object.keys(manifest);
-    let citiesProcessed = 0;
-
-    for (const cityId of cityIds) {
-      const cityProgress = 0.1 + (0.8 * citiesProcessed) / cityIds.length;
-      progress(`Loading chunks for ${cityId}...`, cityProgress);
-
-      // Load all chunks for this city
-      const cityManifest = manifest[cityId];
-      const partPromises = cityManifest.parts.map((partId) =>
-        getDoc(doc(db, "world_snapshots", snapshotId, "chunks", partId)),
-      );
-      const partSnaps = await Promise.all(partPromises);
-      trackUsage(
-        "read",
-        `[activate] city chunks: ${cityId}`,
-        cityManifest.parts.length,
-        `world_snapshots/${snapshotId}/chunks`,
+    // Step 4: Check for entityConfig-based generation vs legacy chunks
+    const hasEntityConfig =
+      metadata.entityConfig &&
+      Object.keys(metadata.entityConfig).some(
+        (key) =>
+          Array.isArray(metadata.entityConfig[key]) &&
+          metadata.entityConfig[key].length > 0,
       );
 
-      // Merge chunks
-      let zones = null;
-      const allObjects = [];
+    if (hasEntityConfig) {
+      // ── EntityConfig-based activation (new workflow) ──────────────
+      progress(
+        "EntityConfig detected — generating objects from config...",
+        0.12,
+      );
 
-      for (const snap of partSnaps) {
-        if (!snap.exists()) continue;
-        const data = snap.data();
-
-        // Extract zones (only in part0)
-        if (data.zones != null && zones == null) {
-          zones = data.zones;
+      // Step 4a: Load zones from zone_chunks
+      let zoneFeatures = [];
+      if (metadata.zoneConfig && metadata.zoneConfig.chunkCount > 0) {
+        progress("Loading zone chunks...", 0.15);
+        const zonesGeoJson = await loadZoneChunks(
+          snapshotId,
+          metadata.zoneConfig.chunkCount,
+        );
+        if (zonesGeoJson && zonesGeoJson.features) {
+          zoneFeatures = zonesGeoJson.features;
         }
+        progress(`Loaded ${zoneFeatures.length} zone features`, 0.25);
+      }
 
-        // Collect all game objects
-        for (const type of [
-          "citadels",
-          "shops",
-          "vaults",
-          "castles",
-          "monsters",
-        ]) {
-          if (Array.isArray(data[type])) {
-            for (const obj of data[type]) {
-              allObjects.push({ ...obj, objectType: type, snapshotId });
+      // Also process zones from chunks if present (for city_zones)
+      const manifest = metadata.manifest;
+      if (manifest) {
+        const cityIds = Object.keys(manifest);
+        for (const cityId of cityIds) {
+          const cityManifest = manifest[cityId];
+          const firstPartId = cityManifest.parts[0];
+          const partSnap = await getDoc(
+            doc(db, "world_snapshots", snapshotId, "chunks", firstPartId),
+          );
+          trackUsage(
+            "read",
+            `[activate] city part0: ${cityId}`,
+            1,
+            `world_snapshots/${snapshotId}/chunks`,
+          );
+
+          if (partSnap.exists()) {
+            const data = partSnap.data();
+            if (data.zones != null) {
+              await saveCityZones(cityId, data.zones);
+              // If no zone_chunks, use chunk zones as features
+              if (zoneFeatures.length === 0 && data.zones.features) {
+                zoneFeatures.push(...data.zones.features);
+              }
             }
           }
         }
       }
 
-      // Write zones to city_zones/{cityId}
-      if (zones != null) {
-        progress(`Writing zones for ${cityId}...`, cityProgress + 0.02);
-        await saveCityZones(cityId, zones);
+      // Step 4b: Load templates for all entity types
+      progress("Loading templates...", 0.3);
+      const entityTypes = ["monster", "shop", "vault", "castle", "citadel"];
+      const templatesByType = {};
+      const typeToKey = {
+        monster: "monsters",
+        shop: "shops",
+        vault: "vaults",
+        castle: "castles",
+        citadel: "citadels",
+      };
+
+      for (const type of entityTypes) {
+        const key = typeToKey[type];
+        const configEntries = metadata.entityConfig[key];
+        if (configEntries && configEntries.length > 0) {
+          try {
+            templatesByType[key] = await getTemplates(type);
+            progress(
+              `Loaded ${templatesByType[key].length} ${type} templates`,
+              0.35,
+            );
+          } catch (e) {
+            console.warn(`Failed to load ${type} templates:`, e);
+            templatesByType[key] = [];
+          }
+        } else {
+          templatesByType[key] = [];
+        }
       }
 
-      // Write objects to spawned_objects in batches
-      if (allObjects.length > 0) {
-        progress(
-          `Writing ${allObjects.length} objects for ${cityId}...`,
-          cityProgress + 0.04,
-        );
-        await writeObjectsToSpawnedObjects(db, allObjects, snapshotId);
-      }
-
-      citiesProcessed++;
-      progress(
-        `${cityId} done (${allObjects.length} objects)`,
-        0.1 + (0.8 * citiesProcessed) / cityIds.length,
+      // Step 4c: Generate objects from entityConfig
+      progress("Generating objects from entityConfig...", 0.4);
+      const generatedObjects = generateObjectsFromConfig(
+        metadata.entityConfig,
+        zoneFeatures,
+        templatesByType,
+        snapshotId,
       );
+
+      progress(`Generated ${generatedObjects.length} objects from config`, 0.6);
+      console.log(
+        `EntityConfig generation: ${generatedObjects.length} objects from config`,
+      );
+
+      // Step 4d: Write generated objects to spawned_objects
+      if (generatedObjects.length > 0) {
+        progress(
+          `Writing ${generatedObjects.length} objects to spawned_objects...`,
+          0.65,
+        );
+        await writeObjectsToSpawnedObjects(db, generatedObjects, snapshotId);
+        progress(`All ${generatedObjects.length} objects written`, 0.85);
+      }
+    } else {
+      // ── Legacy chunks-based activation (backward compatibility) ──
+      const manifest = metadata.manifest;
+      const cityIds = Object.keys(manifest);
+      let citiesProcessed = 0;
+
+      for (const cityId of cityIds) {
+        const cityProgress = 0.1 + (0.8 * citiesProcessed) / cityIds.length;
+        progress(`Loading chunks for ${cityId}...`, cityProgress);
+
+        // Load all chunks for this city
+        const cityManifest = manifest[cityId];
+        const partPromises = cityManifest.parts.map((partId) =>
+          getDoc(doc(db, "world_snapshots", snapshotId, "chunks", partId)),
+        );
+        const partSnaps = await Promise.all(partPromises);
+        trackUsage(
+          "read",
+          `[activate] city chunks: ${cityId}`,
+          cityManifest.parts.length,
+          `world_snapshots/${snapshotId}/chunks`,
+        );
+
+        // Merge chunks
+        let zones = null;
+        const allObjects = [];
+
+        for (const snap of partSnaps) {
+          if (!snap.exists()) continue;
+          const data = snap.data();
+
+          // Extract zones (only in part0)
+          if (data.zones != null && zones == null) {
+            zones = data.zones;
+          }
+
+          // Collect all game objects
+          for (const type of [
+            "citadels",
+            "shops",
+            "vaults",
+            "castles",
+            "monsters",
+          ]) {
+            if (Array.isArray(data[type])) {
+              for (const obj of data[type]) {
+                allObjects.push({ ...obj, objectType: type, snapshotId });
+              }
+            }
+          }
+        }
+
+        // Write zones to city_zones/{cityId}
+        if (zones != null) {
+          progress(`Writing zones for ${cityId}...`, cityProgress + 0.02);
+          await saveCityZones(cityId, zones);
+        }
+
+        // Write objects to spawned_objects in batches
+        if (allObjects.length > 0) {
+          progress(
+            `Writing ${allObjects.length} objects for ${cityId}...`,
+            cityProgress + 0.04,
+          );
+          await writeObjectsToSpawnedObjects(db, allObjects, snapshotId);
+        }
+
+        citiesProcessed++;
+        progress(
+          `${cityId} done (${allObjects.length} objects)`,
+          0.1 + (0.8 * citiesProcessed) / cityIds.length,
+        );
+      }
     }
 
     // Step 5: Background cleanup of old snapshot objects

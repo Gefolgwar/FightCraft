@@ -1,440 +1,608 @@
-import { requireAdmin } from './admin-core.js';
-import { BulkActions } from './template-bulk-actions.js';
-import { getTemplates, saveTemplate, deleteTemplate, saveWorldSnapshot, getWorldSnapshots, getSnapshotById, isAdmin, getCurrentUser, initFirebase } from '../firebase/firebase-service.js';
-import { CITY_ANCHORS } from '../gameplay/data.js';
-import { generateCityTerritory } from '../map/territory-service.js';
-import { saveCityZones } from '../firebase/firebase-service.js';
-import { OverpassService } from '../map/overpass-service.js';
-import { generateCitadelsAndZones } from './admin-citadel-generator.js';
+import { requireAdmin } from "./admin-core.js";
+import { BulkActions } from "./template-bulk-actions.js";
+import {
+  getTemplates,
+  saveTemplate,
+  deleteTemplate,
+  saveWorldSnapshot,
+  getWorldSnapshots,
+  getSnapshotById,
+  loadSnapshotChunks,
+  isAdmin,
+  getCurrentUser,
+  initFirebase,
+} from "../firebase/firebase-service.js";
+import { EntityConfigManager } from "./admin-entity-config.js";
 
 let templates = [];
 let currentEditId = null;
-let activeRules = new Map(); // Stores Template ID -> Weight (0-100)
-let generatedCount = new Map(); // Stores Template ID -> Count of spawned entities
 
-// Init
-document.addEventListener('DOMContentLoaded', async () => {
-    await requireAdmin(async () => {
-        // Delay heavy lifting to prevent freeze
-        setTimeout(async () => {
-            console.log("🚀 Starting Template Load...");
-            await loadTemplates();
-            renderMappingRules();
-            renderTemplateList();
-        }, 1000);
+// EntityConfigManager instance for citadels
+const configManager = new EntityConfigManager("citadels", {
+  templateType: "citadel",
+  accentColor: "orange",
+  tableId: "config-table-body",
+});
 
-        // Add capacity change listener
-        const capacityInput = document.getElementById('gen-capacity');
-        if (capacityInput) {
-            const savedCap = localStorage.getItem('citadel_density') || 25;
-            capacityInput.value = savedCap;
+// Initialization
+document.addEventListener("DOMContentLoaded", async () => {
+  await requireAdmin(
+    async () => {
+      await loadTemplates();
 
-            capacityInput.addEventListener('input', () => {
-                const val = parseInt(capacityInput.value) || 25;
-                localStorage.setItem('citadel_density', val);
-                renderMappingRules();
-            });
-        }
-
-        // Delay snapshot loading
-        setTimeout(() => {
-            if (window.loadWorldSnapshots) window.loadWorldSnapshots();
-        }, 2000);
-    }, { colorClass: 'text-orange-400' });
+      // Delay snapshot loading slightly to ensure Admin role is firm
+      setTimeout(() => {
+        if (window.refreshSnapshotList) window.refreshSnapshotList();
+      }, 1200);
+    },
+    { colorClass: "text-orange-400" },
+  );
 });
 
 // ==================== TEMPLATE MANAGEMENT ====================
 
-// Global recursion guard
-let _isCreatingDefaults = false;
-
 async function loadTemplates() {
-    // 1. Double-check Admin Status (Crucial for preventing loops)
-    if (!isAdmin()) {
-        console.warn("⚠️ loadTemplates called but user is not Admin. Aborting.");
-        return;
+  const list = document.getElementById("template-list");
+  if (!list) return;
+  list.innerHTML =
+    '<div class="text-center text-gray-500 text-xs mt-4">Loading...</div>';
+
+  try {
+    // Citadels are stored as type 'castle' — filter by citadel indicators
+    const allCastles = await getTemplates("castle");
+    templates = allCastles.filter(
+      (t) =>
+        t.icon === "🏯" ||
+        (t.name && t.name.includes("Citadel")) ||
+        (t.id && t.id.includes("citadel")),
+    );
+
+    if (templates.length === 0) {
+      console.log(
+        "ℹ️ No 'Citadel' template found. Use the Magic Wand to create one.",
+      );
     }
+  } catch (error) {
+    console.error("Template load error:", error);
+    list.innerHTML =
+      '<div class="text-center text-red-500 text-xs mt-4">Error loading templates</div>';
+  }
 
-    const list = document.getElementById('template-list');
-    if (!list) return;
-    list.innerHTML = '<div class="text-center text-gray-500 text-xs mt-4">Loading...</div>';
-
-    try {
-        const allCastles = await getTemplates('castle'); // Citadels are stored as type 'castle'
-
-        // FILTER: Keep ONLY Citadels
-        templates = allCastles.filter(t =>
-            t.icon === '🏯' ||
-            t.name.includes('Citadel') ||
-            (t.id && t.id.includes('citadel'))
-        );
-
-        // 2. Load templates (But do NOT auto-create anymore)
-        const needsDefaults = templates.length === 0;
-
-        if (needsDefaults) {
-            console.log("ℹ️ No 'Citadel' template found. Use the Magic Wand to create one.");
-        }
-
-    } catch (error) {
-        console.error("Template load error:", error);
-        list.innerHTML = '<div class="text-center text-red-500 text-xs mt-4">Error loading templates</div>';
-    }
-
-    renderTemplateList();
-    renderMappingRules();
-}
-
-window.createDefaultCitadelTemplates = async function () {
-    const defaults = [
-        {
-            name: "Citadel",
-            icon: "🏯",
-            osmTag: "historic~castle|monument|memorial; tourism=museum; amenity~townhall|library|university|bus_station|arts_centre|place_of_worship; railway~station|subway_entrance; leisure~park|square|viewpoint|stadium",
-            type: "castle",
-            level: 15,
-            hp: 2000
-        }
-    ];
-
-    for (const t of defaults) {
-        await saveTemplate(t);
-    }
-    logConsole("🪄 Magic Wand: Created default citadel templates.");
-
-    // Auto-refresh the list so the user sees the new Citadel
-    await loadTemplates();
-
-    logConsole("✅ Default Citadel template created.");
-}
-
-// ==================== SNAPSHOT & MAP TEMPLATES ====================
-
-window.loadWorldSnapshots = async function () {
-    const selector = document.getElementById('gen-template');
-    if (!selector) return;
-
-    if (!isAdmin()) return;
-
-    const currentVal = selector.value;
-    const newOpt = document.createElement('option');
-    newOpt.value = 'new';
-    newOpt.text = '+ Create New Map Template';
-
-    selector.innerHTML = '';
-    selector.appendChild(newOpt);
-
-    try {
-        const snaps = await getWorldSnapshots();
-        snaps.forEach(snap => {
-            const option = document.createElement('option');
-            const display = snap.name ? snap.name : `${snap.id.substr(0, 10)}...`;
-            const typeIcon = snap.type === 'shop' ? '🏪' : (snap.type === 'monster' ? '👾' : (snap.type === 'castle' ? '🏰' : '🌍'));
-
-            option.value = snap.id;
-            option.textContent = `${typeIcon} ${display} (${snap.objects?.length || 0} obj)`;
-            selector.appendChild(option);
-        });
-
-        if (currentVal && currentVal !== 'new') {
-            for (let i = 0; i < selector.options.length; i++) {
-                if (selector.options[i].value === currentVal) {
-                    selector.selectedIndex = i;
-                    break;
-                }
-            }
-        }
-    } catch (e) {
-        logConsole(`❌ Error loading snapshots: ${e.message}`);
-    }
+  renderTemplateList();
 }
 
 const bulk = new BulkActions(deleteTemplate, loadTemplates);
 
-window.renderTemplateList = function () {
-    const list = document.getElementById('template-list');
-    if (!list) return;
+window.createDefaultCitadelTemplates = async function () {
+  const defaults = [
+    {
+      name: "Citadel",
+      icon: "🏯",
+      osmTag:
+        "historic~castle|monument|memorial; tourism=museum; amenity~townhall|library|university|bus_station|arts_centre|place_of_worship; railway~station|subway_entrance; leisure~park|square|viewpoint|stadium",
+      type: "castle",
+      level: 15,
+      hp: 2000,
+    },
+  ];
 
-    const search = document.getElementById('template-search')?.value.toLowerCase() || "";
-    list.innerHTML = '';
-
-    // Filter to only citadel-type templates
-    const visible = templates.filter(t => {
-        const isMatch = t.name.toLowerCase().includes(search) || t.osmTag?.toLowerCase().includes(search);
-        const isCitadel = t.name.includes("Citadel") || t.name.includes("Fortress") || t.icon === "🏯";
-        return isMatch && isCitadel;
-    });
-
-    bulk.injectSelectAllHeader(list, visible.map(t => t.id));
-
-    visible.forEach(t => {
-        const el = document.createElement('div');
-        const isActive = activeRules.has(t.id);
-        const activeClass = isActive ? 'border-orange-500 bg-orange-900/20' : 'border-gray-700 hover:border-orange-500';
-
-        el.className = `p-2 bg-gray-900 border ${activeClass} rounded cursor-pointer flex justify-between items-center group transition`;
-
-        el.innerHTML = `
-            <div class="flex items-center gap-2 min-w-0 flex-1">
-                <span class="text-xl flex-shrink-0">${t.icon || '🏯'}</span>
-                <div class="min-w-0 flex-1">
-                    <div class="font-bold text-sm text-gray-300 truncate">${t.name}</div>
-                    <div class="text-[10px] text-gray-400 truncate opacity-60">Tags: ${t.osmTag || 'N/A'}</div>
-                </div>
-            </div>
-            <div class="opacity-0 group-hover:opacity-100 flex gap-2 flex-shrink-0 ml-2">
-                <button class="text-xs text-green-400 hover:text-white p-1" onclick="event.stopPropagation(); window.copyTemplate('${t.id}')" title="Copy Template">
-                    <i class="fas fa-copy"></i>
-                </button>
-                <button class="text-xs text-blue-400 p-1" onclick="event.stopPropagation(); window.editTemplate('${t.id}')">
-                    <i class="fas fa-edit"></i>
-                </button>
-            </div>
-        `;
-        // Prepend bulk checkbox
-        el.querySelector('.flex.items-center.gap-2').prepend(bulk.createCheckbox(t.id));
-
-        el.addEventListener('click', (e) => {
-            if (!e.target.closest('button') && !e.target.closest('input[type=checkbox]')) {
-                toggleMappingRule(t.id);
-            }
-        });
-
-        list.appendChild(el);
-    });
-}
-
-function toggleMappingRule(id) {
-    if (activeRules.has(id)) {
-        activeRules.delete(id);
-    } else {
-        const t = templates.find(temp => temp.id === id);
-        if (t && t.osmTag) {
-            activeRules.set(id, 100);
-        } else {
-            alert("This template has no OSM Tag to match!");
-            return;
-        }
-    }
-    renderMappingRules();
-    renderTemplateList();
-}
-
-window.updateRuleWeight = (id, val) => {
-    let weight = parseInt(val);
-    if (isNaN(weight)) weight = 0;
-    if (activeRules.has(id)) {
-        activeRules.set(id, weight);
-    }
-    renderMappingRules();
+  for (const t of defaults) {
+    await saveTemplate(t);
+  }
+  logConsole("🪄 Magic Wand: Created default citadel templates.");
+  await loadTemplates();
+  logConsole("✅ Default Citadel template created.");
 };
 
-function renderMappingRules() {
-    const tbody = document.getElementById('rules-table');
-    const emptyMsg = document.getElementById('rules-empty');
-    if (tbody) {
-        tbody.innerHTML = '';
-        if (activeRules.size === 0) {
-            if (emptyMsg) emptyMsg.classList.remove('hidden');
-        } else {
-            if (emptyMsg) emptyMsg.classList.add('hidden');
-            const totalCap = parseInt(document.getElementById('gen-capacity')?.value) || 25;
-            let totalWeight = 0;
-            activeRules.forEach((weight) => totalWeight += weight);
+function renderTemplateList() {
+  const list = document.getElementById("template-list");
+  if (!list) return;
 
-            activeRules.forEach((weight, id) => {
-                const t = templates.find(temp => temp.id === id);
-                if (!t) return;
-                const estimatedCount = totalWeight > 0 ? Math.round(totalCap * (weight / totalWeight)) : 0;
+  const search =
+    document.getElementById("template-search")?.value.toLowerCase() || "";
 
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-gray-800 hover:bg-gray-800/50';
-                tr.innerHTML = `
-                    <td class="px-4 py-2 flex items-center gap-2">
-                        <span class="text-lg">${t.icon}</span> ${t.name}
-                    </td>
-                    <td class="px-4 py-2 text-center">
-                        <input type="number" min="0" max="100" value="${weight}" 
-                            onchange="window.updateRuleWeight('${t.id}', this.value)"
-                            class="w-16 bg-gray-900 border border-gray-700 rounded text-center text-xs p-1"> %
-                    </td>
-                    <td class="px-4 py-2 text-center text-gray-400 font-mono">${estimatedCount}</td>
-                    <td class="px-4 py-2 text-center max-w-[250px]">
-                         <div class="bg-gray-800 text-orange-400 px-2 py-1 rounded text-[9px] font-mono border border-gray-600 break-words leading-tight shadow-inner">
-                            ${t.osmTag}
-                         </div>
-                    </td>
-                    <td class="px-4 py-2 text-right">
-                        <button onclick="window.removeMappingRule('${t.id}')" class="text-red-500 hover:text-white"><i class="fas fa-times"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+  list.innerHTML = "";
 
-            if (document.getElementById('total-count')) document.getElementById('total-count').textContent = totalCap;
-            if (document.getElementById('total-weight')) document.getElementById('total-weight').textContent = `${totalWeight}%`;
-        }
-    }
+  const visible = templates.filter((t) =>
+    t.name.toLowerCase().includes(search),
+  );
+
+  bulk.injectSelectAllHeader(
+    list,
+    visible.map((t) => t.id),
+  );
+
+  visible.forEach((t) => {
+    const el = document.createElement("div");
+    // Check if template is in config table
+    const inConfig = configManager.workingConfig.some(
+      (e) => e.templateId === t.id,
+    );
+    const activeClass = inConfig
+      ? "border-orange-500 bg-orange-900/20"
+      : "border-gray-700 hover:border-orange-500";
+
+    el.className = `p-2 bg-gray-900 border ${activeClass} rounded cursor-pointer flex justify-between items-center group transition`;
+    el.innerHTML = `
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <span class="text-xl flex-shrink-0">${t.icon || "🏯"}</span>
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-sm text-gray-300 truncate">${t.name}</div>
+          <div class="text-[10px] text-gray-400 truncate opacity-60">Lv.${t.level || 1} • Tags: ${t.osmTag || "N/A"}</div>
+        </div>
+      </div>
+      <div class="opacity-0 group-hover:opacity-100 flex gap-2 flex-shrink-0 ml-2">
+        <button class="text-xs text-green-400 hover:text-white p-1" onclick="event.stopPropagation(); window.copyTemplate('${t.id}')" title="Copy Template">
+          <i class="fas fa-copy"></i>
+        </button>
+        <button class="text-xs text-blue-400 p-1" onclick="event.stopPropagation(); window.editTemplate('${t.id}')">
+          <i class="fas fa-edit"></i>
+        </button>
+      </div>
+    `;
+    // Prepend bulk checkbox
+    el.querySelector(".flex.items-center.gap-2").prepend(
+      bulk.createCheckbox(t.id),
+    );
+    // Click adds template to config table
+    el.addEventListener("click", (e) => {
+      if (
+        !e.target.closest("button") &&
+        !e.target.closest("input[type=checkbox]")
+      ) {
+        configManager.addToTable(t);
+        renderConfigTable();
+        renderTemplateList();
+        logConsole(`Added "${t.name}" to config table.`);
+      }
+    });
+    list.appendChild(el);
+  });
 }
-
-window.removeMappingRule = (id) => {
-    activeRules.delete(id);
-    renderMappingRules();
-    renderTemplateList();
-};
 
 window.openTemplateModal = () => {
-    currentEditId = null;
-    document.getElementById('tpl-id').value = '';
-    ['name', 'icon', 'osm', 'level'].forEach(id => document.getElementById(`tpl-${id}`).value = '');
-    document.getElementById('btn-delete').classList.add('hidden');
-    document.getElementById('template-modal').classList.remove('hidden');
+  currentEditId = null;
+  document.getElementById("tpl-id").value = "";
+  document.getElementById("btn-delete").classList.add("hidden");
+
+  ["name", "icon", "osm", "level"].forEach(
+    (id) => (document.getElementById(`tpl-${id}`).value = ""),
+  );
+  document.getElementById("tpl-level").value = 10;
+
+  document.getElementById("template-modal").classList.remove("hidden");
 };
 
 window.editTemplate = (id) => {
-    const t = templates.find(t => t.id === id);
-    if (!t) return;
-    currentEditId = id;
-    document.getElementById('tpl-id').value = id;
-    document.getElementById('tpl-name').value = t.name;
-    document.getElementById('tpl-icon').value = t.icon;
-    document.getElementById('tpl-osm').value = t.osmTag || '';
-    document.getElementById('tpl-level').value = t.level || 1;
+  const t = templates.find((t) => t.id === id);
+  if (!t) return;
 
-    document.getElementById('btn-delete').classList.remove('hidden');
-    document.getElementById('template-modal').classList.remove('hidden');
+  currentEditId = id;
+  document.getElementById("tpl-id").value = id;
+  document.getElementById("btn-delete").classList.remove("hidden");
+
+  document.getElementById("tpl-name").value = t.name;
+  document.getElementById("tpl-icon").value = t.icon;
+  document.getElementById("tpl-osm").value = t.osmTag || "";
+  document.getElementById("tpl-level").value = t.level || 10;
+
+  document.getElementById("template-modal").classList.remove("hidden");
 };
 
 window.copyTemplate = async (id) => {
-    const t = templates.find(t => t.id === id);
-    if (!t) return;
+  const t = templates.find((t) => t.id === id);
+  if (!t) return;
 
-    const copyName = prompt(`Copy Template "${t.name}"\n\nEnter new name:`, `${t.name} (Copy)`);
-    if (!copyName) return;
+  const copyName = prompt(
+    `Copy Template "${t.name}"\n\nEnter new name:`,
+    `${t.name} (Copy)`,
+  );
+  if (!copyName) return;
 
-    const newTemplate = {
-        ...t,
-        id: undefined,
-        name: copyName
-    };
+  const newTemplate = {
+    ...t,
+    id: undefined,
+    name: copyName,
+  };
 
-    const success = await saveTemplate(newTemplate);
-    if (success) {
-        await loadTemplates();
-        logConsole(`✅ Template "${copyName}" created from "${t.name}"`);
-    }
+  delete newTemplate.id;
+
+  const success = await saveTemplate(newTemplate);
+  if (success) {
+    await loadTemplates();
+    logConsole(`✅ Template "${copyName}" created from "${t.name}"`);
+  }
 };
 
-window.closeTemplateModal = () => document.getElementById('template-modal').classList.add('hidden');
+window.closeTemplateModal = () => {
+  document.getElementById("template-modal").classList.add("hidden");
+};
 
 window.saveTemplateForm = async () => {
-    const template = {
-        name: document.getElementById('tpl-name').value,
-        icon: document.getElementById('tpl-icon').value,
-        osmTag: document.getElementById('tpl-osm').value,
-        level: parseInt(document.getElementById('tpl-level').value) || 1,
-        hp: (parseInt(document.getElementById('tpl-level').value) || 1) * 200,
-        type: 'castle'
-    };
-    if (currentEditId) template.id = currentEditId;
-    const success = await saveTemplate(template);
-    if (success) {
-        closeTemplateModal();
-        loadTemplates();
-    }
+  const template = {
+    name: document.getElementById("tpl-name").value,
+    icon: document.getElementById("tpl-icon").value || "🏯",
+    osmTag: document.getElementById("tpl-osm").value,
+    level: parseInt(document.getElementById("tpl-level").value) || 10,
+    hp: 2000,
+    type: "castle",
+  };
+
+  if (currentEditId) template.id = currentEditId;
+
+  const success = await saveTemplate(template);
+  if (success) {
+    closeTemplateModal();
+    loadTemplates();
+    logConsole(`Template "${template.name}" saved.`);
+  }
 };
 
 window.deleteTemplate = async () => {
-    if (!currentEditId) return;
-    if (confirm('Delete this template?')) {
-        await deleteTemplate(currentEditId);
-        closeTemplateModal();
-        loadTemplates();
-        logConsole('Template deleted.');
-    }
+  if (!currentEditId) return;
+  if (confirm("Are you sure you want to delete this template?")) {
+    await deleteTemplate(currentEditId);
+    closeTemplateModal();
+    loadTemplates();
+    logConsole(`Template deleted.`);
+  }
 };
 
-// ==================== GENERATION LOGIC ====================
+document
+  .getElementById("template-search")
+  .addEventListener("input", renderTemplateList);
 
-window.startGeneration = async (overwrite = false) => {
-    const cityKey = document.getElementById('gen-city').value;
-    const capacity = parseInt(document.getElementById('gen-capacity')?.value) || 25;
-    const city = CITY_ANCHORS.find(c => c.id === cityKey);
+// ==================== CONFIG TABLE RENDERING ====================
 
-    if (!city) return logConsole('❌ Invalid city selected.');
+function renderConfigTable() {
+  const tbody = document.getElementById("config-table-body");
+  if (!tbody) return;
 
-    const targetTemplateId = document.getElementById('gen-template').value;
-    let snapName = "";
-    let finalId = null;
-    let existingObjects = [];
-    let preservedCitadels = [];
+  const diff = configManager.computeDiff(
+    configManager.savedConfig,
+    configManager.workingConfig,
+  );
 
-    logConsole(overwrite ? "🗑️ Mode: Create / Delete + Create (Fresh Start)" : "➕ Mode: Add to Existing");
+  if (diff.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="p-4 text-center text-gray-500 italic">No entities configured. Click templates in sidebar to add.</td></tr>';
+    updateTotalCount(0);
+    return;
+  }
 
-    if (targetTemplateId === 'new') {
-        snapName = prompt("Enter a name for this new Map Template:", `${cityKey}_citadels_${new Date().toLocaleDateString()}`);
-        if (!snapName) return;
+  const colorMap = {
+    unchanged: "bg-gray-800",
+    added: "bg-blue-900/20 border-l-2 border-blue-500",
+    removed: "bg-red-900/20 border-l-2 border-red-500",
+    increased: "bg-green-900/20 border-l-2 border-green-500",
+    decreased: "bg-red-900/20 border-l-2 border-red-500",
+  };
+
+  let totalCount = 0;
+
+  tbody.innerHTML = diff
+    .map((entry) => {
+      const template = templates.find((t) => t.id === entry.templateId);
+      const name = template
+        ? template.name || entry.templateId
+        : entry.templateId;
+      const icon = template ? template.icon || "❓" : "❓";
+      const colorClass = colorMap[entry.status] || "bg-gray-800";
+      const deltaDisplay =
+        entry.delta > 0
+          ? `<span class="text-green-400">+${entry.delta}</span>`
+          : entry.delta < 0
+            ? `<span class="text-red-400">${entry.delta}</span>`
+            : "";
+
+      totalCount += entry.count;
+
+      const workingEntry = configManager.workingConfig.find(
+        (e) => e.templateId === entry.templateId,
+      );
+      const entryType = workingEntry
+        ? workingEntry.type || "generated"
+        : "generated";
+      const showCoords = entryType === "manual";
+
+      return `<tr class="${colorClass}">
+          <td class="px-3 py-2">${icon} ${name}</td>
+          <td class="px-3 py-2 text-center">
+            <input type="number" class="w-16 bg-gray-900 border border-gray-700 rounded text-center text-xs p-1"
+              value="${entry.count}" min="0"
+              onchange="window.updateConfigCount('${entry.templateId}', parseInt(this.value))" />
+          </td>
+          <td class="px-3 py-2 text-center">
+            <select class="bg-gray-900 border border-gray-700 rounded text-xs p-1"
+              onchange="window.updateConfigType('${entry.templateId}', this.value)">
+              <option value="generated" ${entryType === "generated" ? "selected" : ""}>generated</option>
+              <option value="manual" ${entryType === "manual" ? "selected" : ""}>manual</option>
+            </select>
+          </td>
+          <td class="px-3 py-2 text-center text-xs">
+            ${showCoords ? `<input type="number" step="0.000001" class="w-20 bg-gray-900 border border-gray-700 rounded text-center text-[10px] p-0.5 mr-1" placeholder="lat" value="${workingEntry.lat || ""}" onchange="window.updateConfigCoord('${entry.templateId}', 'lat', parseFloat(this.value))" /><input type="number" step="0.000001" class="w-20 bg-gray-900 border border-gray-700 rounded text-center text-[10px] p-0.5" placeholder="lng" value="${workingEntry.lng || ""}" onchange="window.updateConfigCoord('${entry.templateId}', 'lng', parseFloat(this.value))" />` : '<span class="text-gray-600">—</span>'}
+          </td>
+          <td class="px-3 py-2 text-center">${deltaDisplay}</td>
+          <td class="px-3 py-2 text-center text-xs text-gray-400">${entry.status}</td>
+          <td class="px-3 py-2 text-center">
+            <button onclick="window.removeConfigEntry('${entry.templateId}')" class="text-red-500 hover:text-white text-xs">
+              <i class="fas fa-times"></i>
+            </button>
+          </td>
+        </tr>`;
+    })
+    .join("\n");
+
+  updateTotalCount(totalCount);
+}
+
+function updateTotalCount(count) {
+  const el = document.getElementById("config-total-count");
+  if (el) el.textContent = String(count);
+}
+
+// ==================== CONFIG ACTIONS ====================
+
+window.updateConfigCount = (templateId, newCount) => {
+  const entry = configManager.workingConfig.find(
+    (e) => e.templateId === templateId,
+  );
+  if (entry) {
+    entry.count = Math.max(0, newCount || 0);
+    renderConfigTable();
+  }
+};
+
+window.updateConfigType = (templateId, newType) => {
+  const entry = configManager.workingConfig.find(
+    (e) => e.templateId === templateId,
+  );
+  if (entry) {
+    entry.type = newType;
+    renderConfigTable();
+  }
+};
+
+window.updateConfigCoord = (templateId, coord, value) => {
+  const entry = configManager.workingConfig.find(
+    (e) => e.templateId === templateId,
+  );
+  if (entry) {
+    entry[coord] = value;
+  }
+};
+
+window.removeConfigEntry = (templateId) => {
+  configManager.removeFromTable(templateId);
+  renderConfigTable();
+  renderTemplateList();
+  logConsole(`Removed template "${templateId}" from config.`);
+};
+
+// ==================== SNAPSHOT INTEGRATION ====================
+
+window.refreshSnapshotList = async () => {
+  const selector = document.getElementById("config-snapshot-select");
+  if (!selector) return;
+
+  if (!isAdmin()) {
+    logConsole("⚠️ Waiting for admin role...");
+    return;
+  }
+
+  const currentVal = selector.value;
+  selector.innerHTML = '<option value="">Select a snapshot...</option>';
+
+  logConsole("🔄 Loading snapshots...");
+
+  try {
+    const snaps = await getWorldSnapshots();
+    logConsole(`📦 Found ${snaps.length} snapshots.`);
+
+    snaps.forEach((snap) => {
+      const option = document.createElement("option");
+      const display = snap.name ? snap.name : `${snap.id.substr(0, 10)}...`;
+      const typeIcon =
+        snap.type === "world" ? "🌍" : snap.type === "monster" ? "👾" : "📦";
+
+      option.value = snap.id;
+      option.textContent = `${typeIcon} ${display}`;
+      selector.appendChild(option);
+    });
+
+    // Restore selection if possible
+    if (currentVal) {
+      for (let i = 0; i < selector.options.length; i++) {
+        if (selector.options[i].value === currentVal) {
+          selector.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    logConsole(`❌ Error loading snapshots: ${e.message}`);
+  }
+};
+
+window.onSnapshotSelected = async () => {
+  const selector = document.getElementById("config-snapshot-select");
+  const snapshotId = selector ? selector.value : "";
+
+  if (!snapshotId) {
+    configManager._savedConfig = [];
+    configManager._workingConfig = [];
+    configManager._snapshotId = null;
+    renderConfigTable();
+    updateSnapshotStats(null);
+    return;
+  }
+
+  logConsole(`📂 Loading config for snapshot "${snapshotId}"...`);
+
+  try {
+    await configManager.onTemplateSelected(snapshotId, {
+      getSnapshotById: getSnapshotById,
+    });
+
+    // Backward compatibility: if entityConfig.citadels is empty,
+    // build config from snapshot's objects[] array (legacy format)
+    if (configManager.workingConfig.length === 0) {
+      const snapshot = await getSnapshotById(snapshotId);
+
+      let objects = snapshot?.objects || [];
+
+      // If snapshot is chunked, load full objects from chunks
+      if (objects.length === 0 && snapshot?.chunked) {
+        logConsole(`📦 Loading chunked objects...`);
+        objects = await loadSnapshotChunks(snapshotId);
+      }
+
+      // Filter citadel objects
+      const citadelObjects = objects.filter(
+        (o) =>
+          o.icon === "🏯" ||
+          (o.name && o.name.includes("Citadel")) ||
+          (o.templateId && o.templateId.includes("citadel")),
+      );
+
+      if (citadelObjects.length > 0) {
+        // Group by templateId and count
+        const templateCounts = new Map();
+        for (const obj of citadelObjects) {
+          const tid = obj.templateId || "unknown";
+          templateCounts.set(tid, (templateCounts.get(tid) || 0) + 1);
+        }
+
+        // Build config from counted objects
+        const legacyConfig = [];
+        for (const [templateId, count] of templateCounts) {
+          legacyConfig.push({ templateId, count, type: "generated" });
+        }
+
+        legacyConfig.sort((a, b) => b.count - a.count);
+
+        configManager._savedConfig = JSON.parse(JSON.stringify(legacyConfig));
+        configManager._workingConfig = JSON.parse(JSON.stringify(legacyConfig));
+
+        logConsole(
+          `🔄 Built config from ${citadelObjects.length} legacy citadel objects (${templateCounts.size} templates).`,
+        );
+      } else if (objects.length === 0) {
+        logConsole(
+          `ℹ️ Empty snapshot. Click templates in sidebar to add citadel entries, then set counts.`,
+        );
+      }
+
+      // Update stats from all objects
+      updateSnapshotStats(objects);
     } else {
-        const selector = document.getElementById('gen-template');
-        snapName = selector.options[selector.selectedIndex].text.split(' (')[0].replace(/^..?\s*/, "").trim();
-        finalId = targetTemplateId;
-        const existingSnap = await getSnapshotById(finalId);
-
-        if (existingSnap && existingSnap.objects) {
-            existingObjects = existingSnap.objects;
-            if (overwrite) {
-                existingObjects = existingObjects.filter(o => {
-                    return !(o.icon === '🏯' || (o.name && o.name.includes('Citadel')) || (o.templateId && o.templateId.includes('citadel')));
-                });
-                logConsole(`🧹 Cleared old citadels. Retaining ${existingObjects.length} other objects.`);
-            } else {
-                preservedCitadels = existingObjects.filter(o =>
-                    o.icon === '🏯' || (o.name && o.name.includes('Citadel')) || (o.templateId && o.templateId.includes('citadel'))
-                );
-                logConsole(`📦 Preserving ${preservedCitadels.length} existing citadels.`);
-            }
-        }
+      // For snapshots with entityConfig, still load objects for stats
+      const snapshot = await getSnapshotById(snapshotId);
+      let objects = snapshot?.objects || [];
+      if (objects.length === 0 && snapshot?.chunked) {
+        objects = await loadSnapshotChunks(snapshotId);
+      }
+      updateSnapshotStats(objects);
     }
 
-    try {
-        logConsole(`🔎 Fetching and generating citadels via shared service...`);
-        const { finalCitadels, zonesGeoJson, cityBoundary } = await generateCitadelsAndZones(cityKey, capacity, templates, activeRules);
-
-        let allCitadelsForZones = [...preservedCitadels, ...finalCitadels];
-
-        // Final filter against preserved if needed, or re-run territory gen to merge preserved citadels
-        if (preservedCitadels.length > 0) {
-            // Re-run strictly
-            const finalZonesGeoJson = await generateCityTerritory(cityKey, allCitadelsForZones, null, cityBoundary);
-
-            const finalSavedObjects = [...existingObjects, ...finalCitadels];
-            await saveWorldSnapshot({
-                id: finalId, name: snapName, cityId: cityKey, type: 'mixed',
-                objects: finalSavedObjects, zones: JSON.stringify(finalZonesGeoJson)
-            });
-            await saveCityZones(cityKey, finalZonesGeoJson);
-        } else {
-            const finalSavedObjects = [...existingObjects, ...finalCitadels];
-            await saveWorldSnapshot({
-                id: finalId, name: snapName, cityId: cityKey, type: 'mixed',
-                objects: finalSavedObjects, zones: JSON.stringify(zonesGeoJson)
-            });
-            await saveCityZones(cityKey, zonesGeoJson);
-        }
-
-        logConsole(`✅ Foundation & Territories Updated!`);
-        await window.loadWorldSnapshots();
-        alert(`Generation successful!\n- ${finalCitadels.length} Citadels created`);
-
-    } catch (e) {
-        logConsole(`❌ Generation Error: ${e.message}`);
-    }
+    logConsole(
+      `✅ Loaded ${configManager.workingConfig.length} citadel config entries.`,
+    );
+    renderConfigTable();
+    renderTemplateList();
+  } catch (err) {
+    logConsole(`❌ Error loading config: ${err.message}`);
+  }
 };
+
+window.applyConfigChanges = async () => {
+  if (!configManager.snapshotId) {
+    alert("Please select a snapshot first.");
+    return;
+  }
+
+  const btn = document.getElementById("btn-apply-changes");
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Applying...';
+
+  try {
+    const result = await configManager.applyChanges({
+      saveWorldSnapshot: saveWorldSnapshot,
+      getSnapshotById: getSnapshotById,
+    });
+
+    if (result) {
+      logConsole("✅ Citadel config saved to snapshot!");
+      renderConfigTable();
+      renderTemplateList();
+    } else {
+      logConsole("❌ Failed to save config.");
+    }
+  } catch (err) {
+    logConsole(`❌ Error applying changes: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+  }
+};
+
+// ==================== UTILITY ====================
 
 function logConsole(msg) {
-    const con = document.getElementById('console-log');
-    if (!con) return;
-    const div = document.createElement('div');
-    div.innerHTML = `<span class="text-gray-500">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
-    con.prepend(div);
+  const con = document.getElementById("console-log");
+  if (!con) return;
+  const div = document.createElement("div");
+  div.innerHTML = `<span class="text-gray-500">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+  con.prepend(div);
+}
+
+// ==================== SNAPSHOT STATS ====================
+
+function updateSnapshotStats(objects) {
+  const statsEl = document.getElementById("snapshot-stats-panel");
+  if (!statsEl) return;
+
+  if (!objects || objects.length === 0) {
+    statsEl.classList.add("hidden");
+    return;
+  }
+
+  // Count by type
+  let monsters = 0,
+    shops = 0,
+    vaults = 0,
+    castles = 0,
+    citadels = 0,
+    zones = 0;
+
+  for (const o of objects) {
+    const isCitadel =
+      o.icon === "🏯" ||
+      (o.name && o.name.includes("Citadel")) ||
+      (o.templateId && o.templateId.includes("citadel"));
+
+    if (isCitadel) citadels++;
+    else if (o.type === "monster") monsters++;
+    else if (o.type === "shop") shops++;
+    else if (o.type === "vault") vaults++;
+    else if (o.type === "castle") castles++;
+    else if (o.type === "zone") zones++;
+  }
+
+  // Update DOM
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val.toLocaleString();
+  };
+
+  set("stat-monsters", monsters);
+  set("stat-shops", shops);
+  set("stat-vaults", vaults);
+  set("stat-castles", castles);
+  set("stat-citadels", citadels);
+  set("stat-zones", zones);
+  set("stat-total", objects.length);
+
+  statsEl.classList.remove("hidden");
 }
