@@ -380,8 +380,8 @@
     "hash": "9cf0d27b1f6dfb3e48e7dedaa3d92ad4"
   },
   "/mnt/d/Project/FightCraft/scripts/tests/citadel-collision-test.js": {
-    "mtime": 1779012783.8891325,
-    "hash": "e39e47173bcb32bfe8e7b38a31af0534"
+    "mtime": 1779040042.060844,
+    "hash": "22252c59f5148f4a76ed731d4bdacc35"
   },
   "/mnt/d/Project/FightCraft/scripts/tests/headful-test.mjs": {
     "mtime": 1778060246.7678006,
@@ -428,8 +428,8 @@
     "hash": "0bec7c55965bb4914aa0bfee846db5b7"
   },
   "/mnt/d/Project/FightCraft/scripts/tests/vitest/admin-validators.test.js": {
-    "mtime": 1779011831.7612658,
-    "hash": "ebe90b8110cab71cccc52c7a7daa3307"
+    "mtime": 1779040042.060844,
+    "hash": "db2ad32652f004b31201d0088709e235"
   },
   "/mnt/d/Project/FightCraft/scripts/tests/vitest/browser-mocks.js": {
     "mtime": 1776682809.0445845,
@@ -676,8 +676,8 @@
     "hash": "f6c05e19ecb60db7b2d857290c46e0a9"
   },
   "/mnt/d/Project/FightCraft/www/maintenance/admin-citadels.js": {
-    "mtime": 1779012088.079103,
-    "hash": "64fa0ff08a19029c0e57369201ad2616"
+    "mtime": 1779040042.060844,
+    "hash": "609891ce4e9566581c3ef66c0193e7eb"
   },
   "/mnt/d/Project/FightCraft/www/maintenance/admin-core.js": {
     "mtime": 1778056403.9519286,
@@ -704,8 +704,8 @@
     "hash": "20d927ab288d2baf7a6cd7fb7a072343"
   },
   "/mnt/d/Project/FightCraft/www/maintenance/admin-validators.js": {
-    "mtime": 1779011831.490731,
-    "hash": "f3a877fb86098c09261d31492c5a5ff9"
+    "mtime": 1779040042.060844,
+    "hash": "bdb0604fc6476b3db0f08ed10d68808c"
   },
   "/mnt/d/Project/FightCraft/www/maintenance/admin-vaults.js": {
     "mtime": 1779006142.0873194,
@@ -800,8 +800,8 @@
     "hash": "aaf7e2d90c5b9bd0358c52c7359f30c7"
   },
   "/mnt/d/Project/FightCraft/www/map/procedural-map-ui.js": {
-    "mtime": 1778981527.1527421,
-    "hash": "a98b4f75d7af70134ef6ae8dd02310af"
+    "mtime": 1779040042.0633588,
+    "hash": "6b149454a873e44fd6e180863ff35a4e"
   },
   "/mnt/d/Project/FightCraft/www/map/territory-canvas.js": {
     "mtime": 1778972383.0888748,
@@ -1036,8 +1036,8 @@
     "hash": "8222222777a86eb4f6385f28f6bcda55"
   },
   "/mnt/d/Project/FightCraft/www/gameplay/gameplay_citadels.html": {
-    "mtime": 1778983560.9894345,
-    "hash": "c004e80a85d7278d40f90e4fc4dee552"
+    "mtime": 1779040042.060844,
+    "hash": "4a80f0707e19e3bd6621f9bd60e06d14"
   },
   "/mnt/d/Project/FightCraft/www/gameplay/gameplay_leveling.html": {
     "mtime": 1777011929.7131596,
@@ -1080,16 +1080,12 @@
     "hash": "1eccc1c9e80dbe8f8214e6a494090acf"
   },
   "/mnt/d/Project/FightCraft/www/map/templates_map.html": {
-    "mtime": 1778981805.27968,
-    "hash": "029ae22e2b96b0ec9a68d666e24dd9ef"
+    "mtime": 1779040042.0633588,
+    "hash": "77fcc9cc20b84bb3d83f6e08f4c96e19"
   },
   "/mnt/d/Project/FightCraft/www/tests/territory-math.test.html": {
     "mtime": 1777222486.9908388,
     "hash": "55d34d4b7c456762f17095e979177097"
-  },
-  "/mnt/d/Project/FightCraft/citadels-fix-result.png": {
-    "mtime": 1779007930.9654226,
-    "hash": "938371d64f9979727f06da90d1e7e2b8"
   },
   "/mnt/d/Project/FightCraft/android/app/src/main/assets/public/assets/icon.png": {
     "mtime": 1769968975.7975607,
