@@ -428,6 +428,24 @@ window.onSnapshotSelected = async () => {
       getSnapshotById: getSnapshotById,
     });
 
+    // Migrate legacy templateIds (from entityConfig) to real template doc IDs
+    for (const entry of configManager._workingConfig) {
+      const match = templates.find(
+        (t) => t.originalTemplateId === entry.templateId,
+      );
+      if (match && match.id !== entry.templateId) {
+        entry.templateId = match.id;
+      }
+    }
+    for (const entry of configManager._savedConfig) {
+      const match = templates.find(
+        (t) => t.originalTemplateId === entry.templateId,
+      );
+      if (match && match.id !== entry.templateId) {
+        entry.templateId = match.id;
+      }
+    }
+
     // Backward compatibility: if entityConfig.vaults is empty,
     // build config from snapshot's objects[] array (legacy format)
     if (configManager.workingConfig.length === 0) {
