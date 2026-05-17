@@ -116,7 +116,7 @@ function renderTemplateList() {
     const el = document.createElement("div");
     // Check if template is in config table
     const inConfig = configManager.workingConfig.some(
-      (e) => e.templateId === t.id,
+      (e) => e.templateId === t.id || e.templateId === t.originalTemplateId,
     );
     const activeClass = inConfig
       ? "border-orange-500 bg-orange-900/20"
@@ -282,7 +282,11 @@ function renderConfigTable() {
 
   tbody.innerHTML = diff
     .map((entry) => {
-      const template = templates.find((t) => t.id === entry.templateId);
+      const template = templates.find(
+        (t) =>
+          t.id === entry.templateId ||
+          t.originalTemplateId === entry.templateId,
+      );
       const name = template
         ? template.name || entry.templateId
         : entry.templateId;
@@ -483,6 +487,24 @@ window.onSnapshotSelected = async () => {
 
         configManager._savedConfig = JSON.parse(JSON.stringify(legacyConfig));
         configManager._workingConfig = JSON.parse(JSON.stringify(legacyConfig));
+
+        // Migrate legacy templateIds to real template doc IDs
+        for (const entry of configManager._workingConfig) {
+          const match = templates.find(
+            (t) => t.originalTemplateId === entry.templateId,
+          );
+          if (match && match.id !== entry.templateId) {
+            entry.templateId = match.id;
+          }
+        }
+        for (const entry of configManager._savedConfig) {
+          const match = templates.find(
+            (t) => t.originalTemplateId === entry.templateId,
+          );
+          if (match && match.id !== entry.templateId) {
+            entry.templateId = match.id;
+          }
+        }
 
         logConsole(
           `🔄 Built config from ${citadelObjects.length} legacy citadel objects (${templateCounts.size} templates).`,

@@ -276,7 +276,11 @@ export class EntityConfigManager {
 
     return diff
       .map((entry) => {
-        const template = templateMap.get(entry.templateId);
+        const template =
+          templateMap.get(entry.templateId) ||
+          [...templateMap.values()].find(
+            (t) => t.originalTemplateId === entry.templateId,
+          );
         const name = template
           ? template.name || entry.templateId
           : entry.templateId;
